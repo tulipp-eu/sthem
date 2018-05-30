@@ -1,0 +1,82 @@
+/******************************************************************************
+ *
+ *  This file is part of the TULIPP Analysis Utility
+ *
+ *  Copyright 2018 Asbjørn Djupdal, NTNU, TULIPP EU Project
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *****************************************************************************/
+
+#ifndef PROFILE_H
+#define PROFILE_H
+
+#include <QString>
+#include <QFile>
+#include <sstream>
+
+#include "profline.h"
+#include "cfg/module.h"
+#include "cfg/basicblock.h"
+#include "measurement.h"
+
+class Profile {
+
+private:
+  double runtime;
+  double energy[LYNSYN_SENSORS];
+
+  void addMeasurement(Measurement measurement);
+
+public:
+  std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[LYNSYN_MAX_CORES];
+  QVector<Measurement> measurements;
+
+  Profile();
+  virtual ~Profile();
+
+  void setProfData(QVector<Measurement> *measurements);
+
+  void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, QVector<BasicBlock*> callStack = QVector<BasicBlock*>(), QVector<Measurement> *measurements = NULL);
+
+  double getRuntime() {
+    return runtime;
+  }
+  double getEnergy(unsigned sensor) {
+    return energy[sensor];
+  }
+
+  void clear();
+
+	friend std::ostream& operator<<(std::ostream &os, const Profile &p) {
+    // only streams out the necessary parts for DSE
+		os << p.runtime << '\n';
+    for(unsigned i = 0; i < (LYNSYN_SENSORS-1); i++) {
+      os << p.energy[i] << '\n';
+    }
+    os << p.energy[LYNSYN_SENSORS-1];
+		return os;
+	}
+
+	friend std::istream& operator>>(std::istream &is, Profile &p) {
+		is >> p.runtime;
+    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+      is >> p.energy[i];
+    }
+		return is;
+	}
+
+};
+
+#endif

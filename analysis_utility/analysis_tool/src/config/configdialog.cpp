@@ -1,0 +1,299 @@
+/******************************************************************************
+ *
+ *  This file is part of the TULIPP Analysis Utility
+ *
+ *  Copyright 2018 Asbjørn Djupdal, NTNU, TULIPP EU Project
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *****************************************************************************/
+
+#include "configdialog.h"
+#include "config.h"
+#include "analysis_tool.h"
+
+MainPage::MainPage(QWidget *parent) : QWidget(parent) {
+  QGroupBox *sdsocGroup = new QGroupBox("SDSoC configuration");
+
+  QLabel *sdsocLabel = new QLabel("SDSoC directory:");
+  sdsocEdit = new QLineEdit(Config::xilinxDir);
+  QHBoxLayout *sdsocLayout = new QHBoxLayout;
+  sdsocLayout->addWidget(sdsocLabel);
+  sdsocLayout->addWidget(sdsocEdit);
+
+  QLabel *workspaceLabel = new QLabel("Workspace:");
+  workspaceEdit = new QLineEdit(Config::workspace);
+  QHBoxLayout *workspaceLayout = new QHBoxLayout;
+  workspaceLayout->addWidget(workspaceLabel);
+  workspaceLayout->addWidget(workspaceEdit);
+
+  QLabel *versionLabel = new QLabel("SDSoC version:");
+  versionCombo = new QComboBox;
+  versionCombo->addItem("2016.2");
+  versionCombo->addItem("2017.2");
+  if(Config::sdsocVersion == 20162) {
+    versionCombo->setCurrentIndex(0);
+  } else {
+    versionCombo->setCurrentIndex(1);
+  }
+  QHBoxLayout *versionLayout = new QHBoxLayout;
+  versionLayout->addWidget(versionLabel);
+  versionLayout->addWidget(versionCombo);
+  versionLayout->addStretch(1);
+
+  QVBoxLayout *xilinxLayout = new QVBoxLayout;
+
+  xilinxLayout->addLayout(sdsocLayout);
+  xilinxLayout->addLayout(workspaceLayout);
+  xilinxLayout->addLayout(versionLayout);
+
+  sdsocGroup->setLayout(xilinxLayout);
+
+  //---------------------------------------------------------------------------
+
+  QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(sdsocGroup);
+  mainLayout->addStretch(1);
+  setLayout(mainLayout);
+}
+
+BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
+
+  QGroupBox *toolGroup = new QGroupBox("Tools");
+
+  QLabel *clangLabel = new QLabel("clang:");
+  clangEdit = new QLineEdit(Config::clang);
+  QHBoxLayout *clangLayout = new QHBoxLayout;
+  clangLayout->addWidget(clangLabel);
+  clangLayout->addWidget(clangEdit);
+
+  QLabel *clangppLabel = new QLabel("clang++:");
+  clangppEdit = new QLineEdit(Config::clangpp);
+  QHBoxLayout *clangppLayout = new QHBoxLayout;
+  clangppLayout->addWidget(clangppLabel);
+  clangppLayout->addWidget(clangppEdit);
+
+  QLabel *llcLabel = new QLabel("llc:");
+  llcEdit = new QLineEdit(Config::llc);
+  QHBoxLayout *llcLayout = new QHBoxLayout;
+  llcLayout->addWidget(llcLabel);
+  llcLayout->addWidget(llcEdit);
+
+  QLabel *llvm_ir_parserLabel = new QLabel("llvm_ir_parser:");
+  llvm_ir_parserEdit = new QLineEdit(Config::llvm_ir_parser);
+  QHBoxLayout *llvm_ir_parserLayout = new QHBoxLayout;
+  llvm_ir_parserLayout->addWidget(llvm_ir_parserLabel);
+  llvm_ir_parserLayout->addWidget(llvm_ir_parserEdit);
+
+  QLabel *tulipp_source_toolLabel = new QLabel("tulipp_source_tool:");
+  tulipp_source_toolEdit = new QLineEdit(Config::tulipp_source_tool);
+  QHBoxLayout *tulipp_source_toolLayout = new QHBoxLayout;
+  tulipp_source_toolLayout->addWidget(tulipp_source_toolLabel);
+  tulipp_source_toolLayout->addWidget(tulipp_source_toolEdit);
+
+  QLabel *asLabel = new QLabel("Assembler:");
+  asEdit = new QLineEdit(Config::as);
+  QHBoxLayout *asLayout = new QHBoxLayout;
+  asLayout->addWidget(asLabel);
+  asLayout->addWidget(asEdit);
+
+  QLabel *linkerLabel = new QLabel("Linker:");
+  linkerEdit = new QLineEdit(Config::linker);
+  QHBoxLayout *linkerLayout = new QHBoxLayout;
+  linkerLayout->addWidget(linkerLabel);
+  linkerLayout->addWidget(linkerEdit);
+
+  QLabel *linkerppLabel = new QLabel("Linker (CPP):");
+  linkerppEdit = new QLineEdit(Config::linkerpp);
+  QHBoxLayout *linkerppLayout = new QHBoxLayout;
+  linkerppLayout->addWidget(linkerppLabel);
+  linkerppLayout->addWidget(linkerppEdit);
+
+  QVBoxLayout *toolLayout = new QVBoxLayout;
+  toolLayout->addLayout(clangLayout);
+  toolLayout->addLayout(clangppLayout);
+  toolLayout->addLayout(llcLayout);
+  toolLayout->addLayout(llvm_ir_parserLayout);
+  toolLayout->addLayout(tulipp_source_toolLayout);
+  toolLayout->addLayout(asLayout);
+  toolLayout->addLayout(linkerLayout);
+  toolLayout->addLayout(linkerppLayout);
+
+  toolGroup->setLayout(toolLayout);
+
+  //---------------------------------------------------------------------------
+
+  QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(toolGroup);
+  mainLayout->addStretch(1);
+  setLayout(mainLayout);
+}
+
+CfgPage::CfgPage(QWidget *parent) : QWidget(parent) {
+  QGroupBox *cfgGroup = new QGroupBox("Visualization");
+
+  allInstructionsCheckBox = new QCheckBox("Show all instructions");
+  allInstructionsCheckBox->setCheckState(Config::includeAllInstructions ? Qt::Checked : Qt::Unchecked);
+
+  profDataCheckBox = new QCheckBox("Show profile data");
+  profDataCheckBox->setCheckState(Config::includeProfData ? Qt::Checked : Qt::Unchecked);
+
+  idCheckBox = new QCheckBox("Show ID");
+  idCheckBox->setCheckState(Config::includeId ? Qt::Checked : Qt::Unchecked);
+
+  QVBoxLayout *cfgLayout = new QVBoxLayout;
+  cfgLayout->addWidget(allInstructionsCheckBox);
+  cfgLayout->addWidget(profDataCheckBox);
+  cfgLayout->addWidget(idCheckBox);
+  cfgGroup->setLayout(cfgLayout);
+
+  //---------------------------------------------------------------------------
+
+  QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(cfgGroup);
+  mainLayout->addStretch(1);
+  setLayout(mainLayout);
+}
+
+ProfPage::ProfPage(QWidget *parent) : QWidget(parent) {
+  QGroupBox *tcfGroup = new QGroupBox("Xilinx debugger settings");
+
+  QLabel *hwserverLabel = new QLabel("HW server:");
+  hwserverEdit = new QLineEdit(Config::hwserver);
+  QHBoxLayout *hwserverLayout = new QHBoxLayout;
+  hwserverLayout->addWidget(hwserverLabel);
+  hwserverLayout->addWidget(hwserverEdit);
+  hwserverLayout->addStretch(1);
+
+  QLabel *hwportLabel = new QLabel("HW port:");
+  hwportEdit = new QLineEdit(QString::number(Config::hwport));
+  hwportEdit->setValidator(new QIntValidator(0, 9999, this));
+  QHBoxLayout *hwportLayout = new QHBoxLayout;
+  hwportLayout->addWidget(hwportLabel);
+  hwportLayout->addWidget(hwportEdit);
+  hwportLayout->addStretch(1);
+
+  QVBoxLayout *tcfLayout = new QVBoxLayout;
+  tcfLayout->addLayout(hwserverLayout);
+  tcfLayout->addLayout(hwportLayout);
+  tcfLayout->addStretch(1);
+  tcfGroup->setLayout(tcfLayout);
+
+  //---------------------------------------------------------------------------
+
+  QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(tcfGroup);
+  mainLayout->addStretch(1);
+  setLayout(mainLayout);
+}
+
+ConfigDialog::ConfigDialog() {
+  contentsWidget = new QListWidget;
+  contentsWidget->setViewMode(QListView::IconMode);
+  contentsWidget->setIconSize(QSize(96, 84));
+  contentsWidget->setMovement(QListView::Static);
+  contentsWidget->setMaximumWidth(128);
+  contentsWidget->setSpacing(12);
+  contentsWidget->setMinimumWidth(128);
+
+  pagesWidget = new QStackedWidget;
+
+  mainPage = new MainPage;
+  pagesWidget->addWidget(mainPage);
+
+  buildPage = new BuildPage;
+  pagesWidget->addWidget(buildPage);
+
+  cfgPage = new CfgPage;
+  pagesWidget->addWidget(cfgPage);
+
+  profPage = new ProfPage;
+  pagesWidget->addWidget(profPage);
+
+  QPushButton *closeButton = new QPushButton("Close");
+
+  QListWidgetItem *mainButton = new QListWidgetItem(contentsWidget);
+  mainButton->setText("Main");
+  mainButton->setTextAlignment(Qt::AlignHCenter);
+  mainButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+  QListWidgetItem *buildButton = new QListWidgetItem(contentsWidget);
+  buildButton->setText("Build");
+  buildButton->setTextAlignment(Qt::AlignHCenter);
+  buildButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+  QListWidgetItem *cfgButton = new QListWidgetItem(contentsWidget);
+  cfgButton->setText("CFG");
+  cfgButton->setTextAlignment(Qt::AlignHCenter);
+  cfgButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+  QListWidgetItem *profButton = new QListWidgetItem(contentsWidget);
+  profButton->setText("Profiler");
+  profButton->setTextAlignment(Qt::AlignHCenter);
+  profButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+  connect(contentsWidget, &QListWidget::currentItemChanged, this, &ConfigDialog::changePage);
+
+  contentsWidget->setCurrentRow(0);
+
+  connect(closeButton, &QAbstractButton::clicked, this, &QWidget::close);
+
+  QScrollArea *scrollArea = new QScrollArea;
+  scrollArea->setWidget(pagesWidget);
+
+  QHBoxLayout *horizontalLayout = new QHBoxLayout;
+  horizontalLayout->addWidget(contentsWidget);
+  horizontalLayout->addWidget(scrollArea, 1);
+
+  QHBoxLayout *buttonsLayout = new QHBoxLayout;
+  buttonsLayout->addStretch(1);
+  buttonsLayout->addWidget(closeButton);
+
+  QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addLayout(horizontalLayout);
+  mainLayout->addStretch(1);
+  mainLayout->addSpacing(12);
+  mainLayout->addLayout(buttonsLayout);
+  setLayout(mainLayout);
+
+  setWindowTitle("Global Settings");
+}
+
+void ConfigDialog::changePage(QListWidgetItem *current, QListWidgetItem *previous) {
+  if (!current) {
+    current = previous;
+  }
+
+  pagesWidget->setCurrentIndex(contentsWidget->row(current));
+}
+
+void ConfigDialog::closeEvent(QCloseEvent *e) {
+  Config::xilinxDir = mainPage->sdsocEdit->text();
+  Config::workspace = mainPage->workspaceEdit->text();
+  if(mainPage->versionCombo->currentIndex() == 0) Config::sdsocVersion = 20162;
+  else if(mainPage->versionCombo->currentIndex() == 1) Config::sdsocVersion = 20172;
+  Config::includeAllInstructions = cfgPage->allInstructionsCheckBox->checkState() == Qt::Checked;
+  Config::includeProfData = cfgPage->profDataCheckBox->checkState() == Qt::Checked;
+  Config::includeId = cfgPage->idCheckBox->checkState() == Qt::Checked;
+  Config::clang = buildPage->clangEdit->text();
+  Config::clangpp = buildPage->clangppEdit->text();
+  Config::llc = buildPage->llcEdit->text();
+  Config::llvm_ir_parser = buildPage->llvm_ir_parserEdit->text();
+  Config::tulipp_source_tool = buildPage->tulipp_source_toolEdit->text();
+  Config::as = buildPage->asEdit->text();
+  Config::linker = buildPage->linkerEdit->text();
+  Config::linkerpp = buildPage->linkerppEdit->text();
+  Config::hwserver = profPage->hwserverEdit->text();
+  Config::hwport = profPage->hwportEdit->text().toUInt();
+}
