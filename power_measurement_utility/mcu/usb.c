@@ -38,8 +38,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-unsigned startCore;
-unsigned stopCore;
+uint8_t startCore;
+uint8_t stopCore;
 
 static uint8_t inBuffer[MAX_PACKET_SIZE + 3];
 
@@ -89,6 +89,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         initReply.calibration[4] = getDouble("cal4");
         initReply.calibration[5] = getDouble("cal5");
         initReply.calibration[6] = getDouble("cal6");
+        initReply.adcCal = getUint32("adcCal");
 
         while(USBD_EpIsBusy(CDC_EP_DATA_IN));
         int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket), UsbDataSent);
@@ -129,6 +130,9 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
         printf("Set %s BP %llx on core %d\n", (bpReq->bpType == BP_TYPE_START) ? "start" : "stop", bpReq->addr, bpReq->core);
         coreSetBp(bpReq->core, (bpReq->bpType == BP_TYPE_START) ? START_BP : STOP_BP, bpReq->addr);
+        if(bpReq->bpType == BP_TYPE_STOP) {
+          stopCore = bpReq->core;
+        }
         break;
       }
 
@@ -175,6 +179,34 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
           case 5: setDouble("cal5", (cal->calVal >> 1) / (double)currentAvg); break;
           case 6: setDouble("cal6", (cal->calVal >> 1) / (double)currentAvg); break;
         }
+
+        break;
+      }
+
+      case USB_CMD_CAL_SET: {
+        struct CalSetRequestPacket *cal = (struct CalSetRequestPacket *)req;
+
+        printf("Setting ADC channel %d (val %f)\n", (int)cal->channel, cal->cal);
+
+        switch(cal->channel) {
+          case 0: setDouble("cal0", cal->cal); break;
+          case 1: setDouble("cal1", cal->cal); break;
+          case 2: setDouble("cal2", cal->cal); break;
+          case 3: setDouble("cal3", cal->cal); break;
+          case 4: setDouble("cal4", cal->cal); break;
+          case 5: setDouble("cal5", cal->cal); break;
+          case 6: setDouble("cal6", cal->cal); break;
+        }
+
+        break;
+      }
+
+      case USB_CMD_ADC_SET: {
+        struct AdcSetRequestPacket *cal = (struct AdcSetRequestPacket *)req;
+
+        printf("Setting ADC CAL (val %x)\n", (unsigned)cal->cal);
+
+        setUint32("adcCal", cal->cal); break;
 
         break;
       }

@@ -27,13 +27,13 @@
 
 // SPI commands
 
-`define SPI_CMD_STATUS          0 // CMD/status
+`define SPI_CMD_STATUS          0 // CMD/status - 0/status
 `define SPI_CMD_MAGIC           1 // CMD/status - 0/data
 `define SPI_CMD_JTAG_SEL        2 // CMD/status - sel/0
 `define SPI_CMD_WR_SEQ          3 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
 `define SPI_CMD_RDWR_SEQ        4 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
-`define SPI_CMD_GET_DATA        5 // CMD/status - (0/data)*
-`define SPI_CMD_STORE_SEQ       6 // CMD/status - size/0 (readdata/0 tdidata/0 tmsdata/0)* 0/0
+`define SPI_CMD_GET_DATA        5 // CMD/status - (0/data)* (ff/data)
+`define SPI_CMD_STORE_SEQ       6 // CMD/status - size_l/0 size_h/0 (readdata/0 tdidata/0 tmsdata/0)* 0/0
 `define SPI_CMD_EXECUTE_SEQ     7 // CMD/status - 0/0
 `define SPI_CMD_JTAG_TEST       8 // CMD/status - 0/data
 `define SPI_CMD_OSC_TEST        9 // CMD/status - 0/data

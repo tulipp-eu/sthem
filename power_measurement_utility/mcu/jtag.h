@@ -36,6 +36,7 @@ struct JtagDevice {
 
 struct Core {
   uint32_t baddr;
+  bool enabled;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -78,6 +79,7 @@ extern int numDevices;
 extern struct JtagDevice devices[];
 extern uint32_t dpIdcode;
 extern unsigned numCores;
+extern unsigned numEnabledCores;
 extern struct Core cores[];
 extern bool zynqUltrascale;
 

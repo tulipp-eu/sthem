@@ -249,24 +249,26 @@ bool cleanNonVolatile(void) {
 ///////////////////////////////////////////////////////////////////////////////
 
 bool testUsb(void) {
-  struct TestRequestPacket req;
-  req.request.cmd = USB_CMD_TEST;
-  req.testNum = TEST_USB;
-  sendBytes((uint8_t*)&req, sizeof(struct TestRequestPacket));
+  for(int i = 0; i < 100; i++) {
+    struct TestRequestPacket req;
+    req.request.cmd = USB_CMD_TEST;
+    req.testNum = TEST_USB;
+    sendBytes((uint8_t*)&req, sizeof(struct TestRequestPacket));
 
-  struct UsbTestReplyPacket reply;
-  getBytes((uint8_t*)&reply, sizeof(struct UsbTestReplyPacket));
+    struct UsbTestReplyPacket reply;
+    getBytes((uint8_t*)&reply, sizeof(struct UsbTestReplyPacket));
 
-  for(int i = 0; i < 256; i++) {
-    if(reply.buf[i] != i) {
-      printf("Can't communicate over USB.  Possible problems:\n");
-      printf("- Problems with libusb\n");
-      printf("- Lynsyn USB port is not connected to the PC\n");
-      printf("- Faulty soldering or components:\n");
-      printf("  - U4 MCU\n");
-      printf("  - J1 USB\n");
-      printf("  - Y1 48MHz crystal\n");
-      return false;
+    for(int i = 0; i < 256; i++) {
+      if(reply.buf[i] != i) {
+        printf("Can't communicate over USB.  Possible problems:\n");
+        printf("- Problems with libusb\n");
+        printf("- Lynsyn USB port is not connected to the PC\n");
+        printf("- Faulty soldering or components:\n");
+        printf("  - U4 MCU\n");
+        printf("  - J1 USB\n");
+        printf("  - Y1 48MHz crystal\n");
+        return false;
+      }
     }
   }
 
@@ -388,6 +390,21 @@ void adcCalibrate(uint8_t channel, double current, double maxCurrent, bool hw) {
   sendBytes((uint8_t*)&req, sizeof(struct CalibrateRequestPacket));
 }
 
+void calSet(uint8_t channel, double val) {
+  struct CalSetRequestPacket req;
+  req.request.cmd = USB_CMD_CAL_SET;
+  req.channel = channel;
+  req.cal = val;
+  sendBytes((uint8_t*)&req, sizeof(struct CalSetRequestPacket));
+}
+
+void adcSet(uint32_t val) {
+  struct AdcSetRequestPacket req;
+  req.request.cmd = USB_CMD_ADC_SET;
+  req.cal = val;
+  sendBytes((uint8_t*)&req, sizeof(struct AdcSetRequestPacket));
+}
+
 bool testAdc(unsigned channel, double val, double rl) {
   // get cal value
   struct RequestPacket initRequest;
@@ -428,10 +445,11 @@ bool testAdc(unsigned channel, double val, double rl) {
 }
 
 void calibrateSensor(int sensor) {
+#ifndef VERSION_20
   char shuntSize[80];
   char calCurrent[80];
 
-  printf("*** Enter the size of the shunt resistor for sensor %d (default is %f):\n", sensor, rlDefault[sensor]);
+  printf("*** Enter the size of the shunt resistor for sensor %d (default is %f):\n", sensor+1, rlDefault[sensor]);
   if(!fgets(shuntSize, 80, stdin)) {
     printf("I/O error\n");
     exit(-1);
@@ -454,10 +472,11 @@ void calibrateSensor(int sensor) {
 
   double calCurrentVal = strtod(calCurrent, NULL);
 
-  printf("Calibrating sensor %d with calibration current %f\n", sensor, calCurrentVal);
+  printf("Calibrating sensor %d with calibration current %f\n", sensor+1, calCurrentVal);
 
   adcCalibrate(sensor, calCurrentVal, maxCurrentVal, sensor == 0);
   if(!testAdc(sensor, calCurrentVal, shuntSizeVal)) exit(-1);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -471,14 +490,16 @@ int main(int argc, char *argv[]) {
 
   char choice[80] = "";
 
-  while(choice[0] != '1' && choice[0] != '2') {
-    printf("Which procedure do you want to perform?\n");
-    printf("Enter '1' for complete programming, test and calibration.\n");
-    printf("Enter '2' for only current sensor calibration\n");
-    if(!fgets(choice, 80, stdin)) {
-      printf("I/O error\n");
-      exit(-1);
-    }
+  printf("Which procedure do you want to perform?\n");
+  printf("Enter '1' for complete programming, test and calibration.\n");
+  printf("Enter '2' for only current sensor calibration\n");
+  printf("Enter '3' for only automatic testing\n");
+  printf("Enter '4' for downloading cal data\n");
+  printf("Enter '5' for uploading cal data\n");
+  printf("Enter '6' for only MCU and FPGA flashing\n");
+  if(!fgets(choice, 80, stdin)) {
+    printf("I/O error\n");
+    exit(-1);
   }
 
   printf("*** Connect Lynsyn to the PC USB port.\n");
@@ -558,22 +579,168 @@ int main(int argc, char *argv[]) {
 
     ledsOff();
 
-  } else {
-    if(!initLynsyn()) exit(-1);
-  }
+    printf("*** Verify that LEDs D1 and D2 are unlit\n");
+    getchar();
 
 #ifdef VERSION_20
   printf("Not doing sensor calibration for this HW version.\n");
 
 #else
 
-  for(int i = 0; i < 7; i++) {
-    calibrateSensor(i);
-  }
+    for(int i = 0; i < 7; i++) {
+      calibrateSensor(i);
+    }
 
 #endif
 
-  printf("\nAll tests OK and all calibrations done\n");
+    printf("\nAll tests OK and all calibrations done\n");
+
+  } else if(choice[0] == '2') {
+    if(!initLynsyn()) exit(-1);
+
+#ifdef VERSION_20
+    printf("Not doing sensor calibration for this HW version.\n");
+
+#else
+
+    char sensor[80] = "";
+
+    while(sensor[0] != 'x') {
+      printf("Which sensor do you want to calibrate ('x' for exit)?\n");
+      if(!fgets(sensor, 80, stdin)) {
+        printf("I/O error\n");
+        exit(-1);
+      }
+      if((sensor[0] != 'x') && (sensor[0] != 'X'))  calibrateSensor(strtol(sensor, NULL, 10)-1);
+    }
+
+#endif
+  } else if(choice[0] == '3') {
+
+#ifdef VERSION_20
+    printf("*** Connect a cable between J2 and J3.\n");
+    getchar();
+#else
+    printf("*** Connect a cable between J3 and J4.\n");
+    getchar();
+#endif
+
+    if(!initLynsyn()) exit(-1);
+    if(!testUsb()) exit(-1);
+    if(!testSpi()) exit(-1);
+    if(!testJtag()) exit(-1);
+    if(!testOsc()) exit(-1);
+
+    printf("\nAll tests OK\n");
+
+  } else if(choice[0] == '4') {
+
+    if(!initLynsyn()) exit(-1);
+
+    printf("Enter filename to write to: ");
+    char filename[80];
+    int r = fscanf(stdin, "%s", filename);
+    if(r != 1) {
+      printf("I/O error\n");
+      exit(-1);
+    }
+
+    FILE *fp = fopen(filename, "wb");
+
+    if(!fp) {
+      printf("Can't open file '%s'\n", filename);
+      exit(-1);
+    }
+
+    struct RequestPacket initRequest;
+    initRequest.cmd = USB_CMD_INIT;
+    sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+
+    struct InitReplyPacket initReply;
+    getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
+
+    fwrite(initReply.calibration, 1, sizeof(initReply.calibration), fp);
+
+    for(int i = 0; i < 7; i++) {
+      printf("Calibration sensor %d: %f\n", i+1, initReply.calibration[i]);
+    }
+
+    fwrite(&initReply.adcCal, 1, sizeof(initReply.adcCal), fp);
+    printf("ADC CAL: %x\n", (unsigned)initReply.adcCal);
+
+    fclose(fp);
+
+  } else if(choice[0] == '5') {
+
+    if(!initLynsyn()) exit(-1);
+
+    printf("Enter filename to read from: ");
+    char filename[80];
+    int r = fscanf(stdin, "%s", filename);
+    if(r != 1) {
+      printf("I/O error\n");
+      exit(-1);
+    }
+
+    FILE *fp = fopen(filename, "rb");
+
+    if(!fp) {
+      printf("Can't open file '%s'\n", filename);
+      exit(-1);
+    }
+
+    double calibration[7];
+    uint32_t adcCal;
+
+    r = fread(calibration, 1, sizeof(calibration), fp);
+
+    if(r != sizeof(calibration)) {
+      printf("Can't read file: %d\n", r);
+      exit(-1);
+    }
+
+    for(int i = 0; i < 7; i++) {
+      printf("Calibration sensor %d: %f\n", i+1, calibration[i]);
+      calSet(i, calibration[i]);
+    }
+
+    r = fread(&adcCal, 1, sizeof(adcCal), fp);
+
+    if(r != sizeof(adcCal)) {
+      printf("Can't read file: %d\n", r);
+      exit(-1);
+    }
+
+    printf("ADC CAL: %x\n", adcCal);
+    adcSet(adcCal);
+
+    fclose(fp);
+
+  } else if(choice[0] == '6') {
+
+    printf("*** Connect the Xilinx USB cable to Lynsyn J5.\n");
+    getchar();
+
+    if(!programFpga()) exit(-1);
+
+    printf("*** Remove Xilinx USB cable from lynsyn.\n");
+    getchar();
+
+    printf("*** Reboot Lynsyn by removing and replugging the USB cable.\n");
+    getchar();
+
+    printf("*** Connect EFM32 programmer to Lynsyn.\n");
+    getchar();
+
+    if(!programMcu()) exit(-1);
+    if(!initLynsyn()) exit(-1);
+    if(!testUsb()) exit(-1);
+    if(!testSpi()) exit(-1);
+    if(!testOsc()) exit(-1);
+
+  } else {
+    return 0;
+  }
 
   releaseLynsyn();
 }

@@ -413,7 +413,9 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
   memset(tms, 0, size);
 
   if(!postscan) {
+#ifdef DUMP_PINS
     printf("no postscan\n");
+#endif
     int byte = (size-1) / 8;
     int bit = (size-1) % 8;
     tms[byte] = 1 << bit;
@@ -589,15 +591,33 @@ void gotoResetThenIdle(void) {
   writeSeq(6, &tdi, &tms);
 }
 
+#if 0
+void coreReadPcsrInit(void) {}
+
+bool coreReadPcsrFast(uint64_t *pcs) {
+  for(unsigned i = 0; i < numCores; i++) {
+    pcs[i] = coreReadPcsr(&cores[i]);
+  }
+
+  if(zynqUltrascale) {
+    return coreHalted();
+  } else {
+    return pcs[0] == 0xffffffff;
+  }
+}
+#else
+
 void coreReadPcsrInit(void) {
   startRec();
 
   if(zynqUltrascale) {
     for(int i = 0; i < numCores; i++) {
-      coreReadRegFast(cores[i], A53_PCSR_H);
-      coreReadRegFast(cores[i], A53_PCSR_L);
+      if(cores[i].enabled) {
+        coreReadRegFast(cores[i], A53_PCSR_H);
+        coreReadRegFast(cores[i], A53_PCSR_L);
+      }
     }
-    coreReadRegFast(cores[0], A53_PRSR);
+    coreReadRegFast(cores[stopCore], A53_PRSR);
   } else {
     for(int i = 0; i < numCores; i++) {
       coreReadRegFast(cores[i], A9_PCSR);
@@ -614,46 +634,52 @@ bool coreReadPcsrFast(uint64_t *pcs) {
   executeSeq();
 
   if(zynqUltrascale) {
-    readSeq(numCores*88 + 44, buf);
+    readSeq(numEnabledCores*88 + 44, buf);
     
+    unsigned core = 0;
+
     for(unsigned i = 0; i < numCores; i++) {
-      uint8_t ack0 = extractAck(i*88 + 0, buf);
-      uint8_t ack1 = extractAck(i*88 + 3, buf);
-      uint8_t ack2 = extractAck(i*88 + 6, buf);
-      uint8_t ack3 = extractAck(i*88 + 9, buf);
+      if(cores[i].enabled) {
+        uint8_t ack0 = extractAck(core*88 + 0, buf);
+        uint8_t ack1 = extractAck(core*88 + 3, buf);
+        uint8_t ack2 = extractAck(core*88 + 6, buf);
+        uint8_t ack3 = extractAck(core*88 + 9, buf);
 
-      uint8_t ack4 = extractAck(i*88 + 44, buf);
-      uint8_t ack5 = extractAck(i*88 + 47, buf);
-      uint8_t ack6 = extractAck(i*88 + 50, buf);
-      uint8_t ack7 = extractAck(i*88 + 53, buf);
+        uint8_t ack4 = extractAck(core*88 + 44, buf);
+        uint8_t ack5 = extractAck(core*88 + 47, buf);
+        uint8_t ack6 = extractAck(core*88 + 50, buf);
+        uint8_t ack7 = extractAck(core*88 + 53, buf);
 
-      if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK) ||
-         (ack4 != JTAG_ACK_OK) || (ack5 != JTAG_ACK_OK) || (ack6 != JTAG_ACK_OK) || (ack7 != JTAG_ACK_OK)) {
-        panic("Invalid ACK %x %x %x %x %x %x %x %x\n", ack0, ack1, ack2, ack3, ack4, ack5, ack6, ack7);
-      }
+        if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK) ||
+           (ack4 != JTAG_ACK_OK) || (ack5 != JTAG_ACK_OK) || (ack6 != JTAG_ACK_OK) || (ack7 != JTAG_ACK_OK)) {
+          panic("Invalid ACK %x %x %x %x %x %x %x %x\n", ack0, ack1, ack2, ack3, ack4, ack5, ack6, ack7);
+        }
 
-      uint32_t dbgpcsrHigh = extractWord(i*88 + 12, buf);
-      uint32_t dbgpcsrLow = extractWord(i*88 + 56, buf);
+        uint32_t dbgpcsrHigh = extractWord(core*88 + 12, buf);
+        uint32_t dbgpcsrLow = extractWord(core*88 + 56, buf);
 
-      uint64_t dbgpcsr = ((uint64_t)dbgpcsrHigh << 32) | dbgpcsrLow;
+        uint64_t dbgpcsr = ((uint64_t)dbgpcsrHigh << 32) | dbgpcsrLow;
 
-      if(dbgpcsr == 0xffffffff) {
-        pcs[i] = 0;
+        if(dbgpcsr == 0xffffffff) {
+          pcs[i] = 0;
+        } else {
+          pcs[i] = calcOffset(dbgpcsr);
+        }
       } else {
-        pcs[i] = calcOffset(dbgpcsr);
+        pcs[i] = 0;
       }
     }
 
-    uint8_t ack0 = extractAck(numCores*88 + 0, buf);
-    uint8_t ack1 = extractAck(numCores*88 + 3, buf);
-    uint8_t ack2 = extractAck(numCores*88 + 6, buf);
-    uint8_t ack3 = extractAck(numCores*88 + 9, buf);
+    uint8_t ack0 = extractAck(numEnabledCores*88 + 0, buf);
+    uint8_t ack1 = extractAck(numEnabledCores*88 + 3, buf);
+    uint8_t ack2 = extractAck(numEnabledCores*88 + 6, buf);
+    uint8_t ack3 = extractAck(numEnabledCores*88 + 9, buf);
 
     if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
       panic("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
     }
 
-    uint32_t prsr = extractWord(numCores*88 + 12, buf);
+    uint32_t prsr = extractWord(numEnabledCores*88 + 12, buf);
     halted = prsr & (1 << 4);
 
   } else {
@@ -684,5 +710,6 @@ bool coreReadPcsrFast(uint64_t *pcs) {
 
   return halted;
 }
+#endif
 
 #endif

@@ -24,9 +24,9 @@
 
 #include "usbprotocol.h"
 
-#ifdef USE_FPGA_JTAG_CONTROLLER
-
 #define FPGA_CONFIGURE_TIMEOUT 96000000 // in cycles
+
+#ifdef USE_FPGA_JTAG_CONTROLLER
 
 #define MAX_SEQ_SIZE 256
 #define MAX_STORED_SEQ_SIZE 65536

@@ -104,7 +104,7 @@ void panic(const char *fmt, ...);
 // global variables
 
 extern volatile bool sampleMode;
-extern unsigned startCore;
-extern unsigned stopCore;
+extern uint8_t startCore;
+extern uint8_t stopCore;
 
 #endif

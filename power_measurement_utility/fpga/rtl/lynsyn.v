@@ -136,27 +136,39 @@ module lynsyn
    assign jtag_test_in[3] = JTAG_IN_TCK;
    assign jtag_test_in[4] = JTAG_OUT_TDO;
    
-   PLLE2_BASE #(
-                .CLKFBOUT_MULT(40),
-                .CLKIN1_PERIOD(50),
-                .CLKOUT0_DIVIDE(80),
-                .DIVCLK_DIVIDE(1),
-                .STARTUP_WAIT("TRUE")
-                )
-   PLLE2_BASE_inst (
-                    .CLKOUT0(clk),
-                    .CLKOUT1(),
-                    .CLKOUT2(),
-                    .CLKOUT3(),
-                    .CLKOUT4(),
-                    .CLKOUT5(),
-                    .CLKFBOUT(fb),
-                    .LOCKED(locked),
-                    .CLKIN1(JTAG_OSC),
-                    .PWRDWN(),
-                    .RST(1'b0),
-                    .CLKFBIN(fb)
-                    );
+   MMCME2_BASE #(.BANDWIDTH("OPTIMIZED"), // Jitter programming ("HIGH","LOW","OPTIMIZED")
+                 .CLKFBOUT_MULT_F(30.0), // Multiply value for all CLKOUT (2.000-64.000).
+                 .CLKFBOUT_PHASE(0.0),
+                 .CLKIN1_PERIOD(50.0),
+                 .CLKOUT0_DIVIDE_F(60.0), // Divide amount for CLKOUT0 (1.000-128.000).
+                 // CLKOUT0_DUTY_CYCLE - CLKOUT6_DUTY_CYCLE: Duty cycle for each CLKOUT (0.01-0.99).
+                 .CLKOUT0_DUTY_CYCLE(0.5),
+                 // CLKOUT0_PHASE - CLKOUT6_PHASE: Phase offset for each CLKOUT (-360.000-360.000).
+                 .CLKOUT0_PHASE(0.0),
+                 .CLKOUT4_CASCADE("FALSE"),
+                 .DIVCLK_DIVIDE(1),
+                 .REF_JITTER1(0.0), // Reference input jitter in UI (0.000-0.999).
+                 .STARTUP_WAIT("TRUE")
+                 )
+   MMCME2_BASE_inst (.CLKOUT0(clk),
+                     .CLKOUT0B(),
+                     .CLKOUT1(),
+                     .CLKOUT1B(),
+                     .CLKOUT2(),
+                     .CLKOUT2B(),
+                     .CLKOUT3(),
+                     .CLKOUT3B(),
+                     .CLKOUT4(),
+                     .CLKOUT5(),
+                     .CLKOUT6(),
+                     .CLKFBOUT(fb),
+                     .CLKFBOUTB(),
+                     .LOCKED(locked),
+                     .CLKIN1(JTAG_OSC),
+                     .PWRDWN(),
+                     .RST(1'b0),
+                     .CLKFBIN(fb)
+                     );
 
    // clocks
    BUFGCE jtag_bufg 

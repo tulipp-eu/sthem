@@ -26,15 +26,17 @@
 #include <string.h>
 #include <em_usart.h>
 
+static uint32_t initOk = false;
+
 #ifdef USE_FPGA_JTAG_CONTROLLER
 
-#define SPI_CMD_STATUS      0 // CMD/status
+#define SPI_CMD_STATUS      0 // CMD/status - 0/status
 #define SPI_CMD_MAGIC       1 // CMD/status - 0/data
 #define SPI_CMD_JTAG_SEL    2 // CMD/status - sel/0
 #define SPI_CMD_WR_SEQ      3 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
 #define SPI_CMD_RDWR_SEQ    4 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
 #define SPI_CMD_GET_DATA    5 // CMD/status - (0/data)*
-#define SPI_CMD_STORE_SEQ   6 // CMD/status - size/0 size/0 (tdidata/0 tmsdata/0 readdata/0)* 0/0
+#define SPI_CMD_STORE_SEQ   6 // CMD/status - size/0 size/0 (tdidata/0 tmsdata/0 readdata/0)*
 #define SPI_CMD_EXECUTE_SEQ 7 // CMD/status - 0/0
 #define SPI_CMD_JTAG_TEST   8 // CMD/status - 0/data
 #define SPI_CMD_OSC_TEST    9 // CMD/status - 0/data
@@ -45,18 +47,15 @@
 
 #define MAGIC 0xad
 
-//#define OUTPUT_SPI_COMMANDS
-
-static uint32_t initOk = false;
+bool outputSpiCommands = false;
 
 ///////////////////////////////////////////////////////////////////////////////
 
 static inline uint8_t transfer(uint8_t data) {
   uint8_t data_out = USART_SpiTransfer(FPGA_USART, data);
-#ifdef OUTPUT_SPI_COMMANDS
-  msleep(1);
-  printf("spi_transfer(%d, data);\n", data);
-#endif
+  if(outputSpiCommands) {
+    printf("spi_transfer(%d, data);\n", data);
+  }
   return data_out;
 }
 
@@ -64,35 +63,38 @@ static inline uint8_t startCmd(uint8_t cmd) {
   // assert CS */
   GPIO_PinOutClear(FPGA_PORT, FPGA_CS_BIT);
 
-#ifdef OUTPUT_SPI_COMMANDS
-  switch(cmd) {
-    case 0: printf("spi_command(`SPI_CMD_STATUS, data);\n"); break;
-    case 1: printf("spi_command(`SPI_CMD_MAGIC, data);\n"); break;
-    case 2: printf("spi_command(`SPI_CMD_JTAG_SEL, data);\n"); break;
-    case 3: printf("spi_command(`SPI_CMD_WR_SEQ, data);\n"); break;
-    case 4: printf("spi_command(`SPI_CMD_RDWR_SEQ, data);\n"); break;
-    case 5: printf("spi_command(`SPI_CMD_GET_DATA, data);\n"); break;
-    case 6: printf("spi_command(`SPI_CMD_STORE_SEQ, data);\n"); break;
-    case 7: printf("spi_command(`SPI_CMD_EXECUTE_SEQ, data);\n"); break;
+  if(outputSpiCommands) {
+    switch(cmd) {
+      case SPI_CMD_STATUS:      printf("spi_command(`SPI_CMD_STATUS, data);\n"); break;
+      case SPI_CMD_MAGIC:       printf("spi_command(`SPI_CMD_MAGIC, data);\n"); break;
+      case SPI_CMD_JTAG_SEL:    printf("spi_command(`SPI_CMD_JTAG_SEL, data);\n"); break;
+      case SPI_CMD_WR_SEQ:      printf("spi_command(`SPI_CMD_WR_SEQ, data);\n"); break;
+      case SPI_CMD_RDWR_SEQ:    printf("spi_command(`SPI_CMD_RDWR_SEQ, data);\n"); break;
+      case SPI_CMD_GET_DATA:    printf("spi_command(`SPI_CMD_GET_DATA, data);\n"); break;
+      case SPI_CMD_STORE_SEQ:   printf("spi_command(`SPI_CMD_STORE_SEQ, data);\n"); break;
+      case SPI_CMD_EXECUTE_SEQ: printf("spi_command(`SPI_CMD_EXECUTE_SEQ, data);\n"); break;
+      case SPI_CMD_JTAG_TEST:   printf("spi_command(`SPI_CMD_JTAG_TEST, data);\n"); break;
+      case SPI_CMD_OSC_TEST:    printf("spi_command(`SPI_CMD_OSC_TEST, data);\n"); break;
+    }
+    return USART_SpiTransfer(FPGA_USART, cmd);
+  } else {
+    return transfer(cmd);
   }
-  return USART_SpiTransfer(FPGA_USART, cmd);
-#else
-  return transfer(cmd);
-#endif
 }
 
 static inline void endCmd(void) {
   // release CS
   GPIO_PinOutSet(FPGA_PORT, FPGA_CS_BIT);
-#ifdef OUTPUT_SPI_COMMANDS
-  printf("spi_done();\n\n");
-#endif
+  if(outputSpiCommands) {
+    printf("spi_done();\n\n");
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 uint8_t readStatus(void) {
-  uint8_t status = startCmd(SPI_CMD_STATUS);
+  startCmd(SPI_CMD_STATUS);
+  uint8_t status = transfer(0);
   endCmd();
   return status;
 }
@@ -147,6 +149,21 @@ bool oscTest(void) {
   return oscTest == 0xf;
 }
 
+void waitStatus() {
+  if(outputSpiCommands) {
+    printf("data = 0;\n");
+    printf("while((data & 3) != 3) begin\n");
+    printf("  spi_command(`SPI_CMD_STATUS, data);\n");
+    printf("  spi_transfer(0, data);\n");
+    printf("  spi_done();\n");
+    printf("end\n\n");
+  }
+  bool oldOutput = outputSpiCommands;
+  outputSpiCommands = false;
+  while((readStatus() & 3) != 3);
+  outputSpiCommands = oldOutput;
+}
+    
 ///////////////////////////////////////////////////////////////////////////////
 
 void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
@@ -183,7 +200,6 @@ void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readDa
       transfer(*tdiData++);
       transfer(*tmsData++);
     }
-    transfer(0);
     endCmd();
   }
 }
@@ -199,11 +215,12 @@ void readSeq(unsigned size, uint8_t *tdoData) {
   unsigned bits = size%8;
   if(bits) bytes++;
 
-  while((readStatus() & 3) != 3);
+  waitStatus();
 
   startCmd(SPI_CMD_GET_DATA);
+
   for(int i = 0; i < bytes; i++) {
-    uint8_t data = transfer(0);
+    uint8_t data = transfer((i == bytes-1) ? 0xff : 0);
     if((i == bytes-1) && bits) {
       *tdoData++ = data >> (8 - bits);
     } else {
@@ -230,11 +247,11 @@ void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *td
     transfer(0);
     endCmd();
 
-    while((readStatus() & 3) != 3);
+    waitStatus();
 
     startCmd(SPI_CMD_GET_DATA);
     for(int i = 0; i < bytes; i++) {
-      uint8_t data = transfer(0);
+      uint8_t data = transfer((i == bytes-1) ? 0xff : 0);
       if((i == bytes-1) && size%8) {
         *tdoData++ = data >> (8 - bits);
       } else {
@@ -265,7 +282,10 @@ bool fpgaInit(void) {
   initOk = FPGA_INIT_OK;
 
   // set up pins
-  GPIO_PinModeSet(PROGRAM_B_PORT, PROGRAM_B_BIT, gpioModePushPull, 1);
+  GPIO_PinModeSet(PROGRAM_B_PORT, PROGRAM_B_BIT, gpioModePushPull, 0);
+  GPIO_PinOutClear(PROGRAM_B_PORT, PROGRAM_B_BIT);
+  GPIO_PinOutSet(PROGRAM_B_PORT, PROGRAM_B_BIT);
+
   GPIO_PinModeSet(DONE_PORT, DONE_BIT, gpioModeInput, 0);
 
   // wait until the FPGA is configured
@@ -313,9 +333,10 @@ bool fpgaInit(void) {
   // read magic
 
   uint8_t magic = readMagic();
-  printf("Got FPGA magic number %x\n", magic);
-  if(magic != MAGIC) {
-    printf("Incorrect FPGA magic number '%x'", magic);
+  if(magic == MAGIC) {
+    printf("Got FPGA magic number %x\n", magic);
+  } else {
+    printf("Got incorrect FPGA magic number '%x'\n", magic);
     initOk = FPGA_SPI_FAILED;
     return false;
   }

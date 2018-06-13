@@ -37,6 +37,8 @@
 #define USB_CMD_BREAKPOINT     'b'
 #define USB_CMD_START_SAMPLING 's'
 #define USB_CMD_CAL            'l'
+#define USB_CMD_CAL_SET        'c'
+#define USB_CMD_ADC_SET        'a'
 #define USB_CMD_TEST           't'
 
 #define BP_TYPE_START 0
@@ -81,6 +83,17 @@ struct __attribute__((__packed__)) CalibrateRequestPacket {
   bool hw;
 };
 
+struct __attribute__((__packed__)) CalSetRequestPacket {
+  struct RequestPacket request;
+  uint8_t channel;
+  double cal;
+};
+
+struct __attribute__((__packed__)) AdcSetRequestPacket {
+  struct RequestPacket request;
+  uint32_t cal;
+};
+
 struct __attribute__((__packed__)) TestRequestPacket {
   struct RequestPacket request;
   uint8_t testNum;
@@ -92,6 +105,7 @@ struct __attribute__((__packed__)) InitReplyPacket {
   uint8_t hwVersion;
   uint8_t swVersion;
   double calibration[7];
+  uint32_t adcCal;
 };
 
 struct __attribute__((__packed__)) TestReplyPacket {

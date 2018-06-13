@@ -35,6 +35,7 @@ struct JtagDevice devices[MAX_JTAG_DEVICES];
 uint32_t dpIdcode = 0;
 
 unsigned numCores;
+unsigned numEnabledCores;
 struct Core cores[MAX_CORES];
 
 bool zynqUltrascale;
@@ -191,7 +192,7 @@ uint64_t coreReadPcsr(struct Core *core) {
   uint64_t dbgpcsr;
 
   if(zynqUltrascale) {
-    if(coreReadReg(core, A53_PRSR) & 1) {
+    if(core->enabled) {
       dbgpcsr = ((uint64_t)coreReadReg(core, A53_PCSR_H) << 32) | coreReadReg(core, A53_PCSR_L);
     } else {
       dbgpcsr = 0xffffffff;
@@ -239,7 +240,7 @@ void coresResume(void) {
 
   if(zynqUltrascale) {
     for(int i = 0; i < numCores; i++) {
-      if(coreReadReg(&cores[i], A53_PRSR) & 1) {
+      if(cores[i].enabled) {
         /* ack */
         coreWriteReg(&cores[i], A53_CTIINTACK, HALT_EVENT_BIT);
       }
@@ -274,7 +275,7 @@ void coresResume(void) {
 
 bool coreHalted(void) {
   if(zynqUltrascale) {
-    return coreReadReg(&cores[0], A53_PRSR) & (1 << 4);
+    return coreReadReg(&cores[stopCore], A53_PRSR) & (1 << 4);
   } else {
     return false;
   }
@@ -285,7 +286,9 @@ struct Core coreInit(uint32_t baddr) {
   core.baddr = baddr;
 
   if(zynqUltrascale) {
-    if(coreReadReg(&core, A53_PRSR) & 1) {
+    core.enabled = coreReadReg(&core, A53_PRSR) & 1;
+
+    if(core.enabled) {
       /* enable CTI */
       coreWriteReg(&core, A53_CTICONTROL, 1);
 
@@ -301,6 +304,9 @@ struct Core coreInit(uint32_t baddr) {
       /* restart on channel 0 */
       coreWriteReg(&core, A53_CTIOUTEN(RESTART_EVENT), CHANNEL_0);
     }
+
+  } else {
+    core.enabled = true;
   }
 
   return core;
@@ -394,20 +400,26 @@ void jtagInitCores(void) {
     unsigned increment;
 
     if(zynqUltrascale) {
-      numCores = 1; //CORTEXA53_CORES;
+      numCores = CORTEXA53_CORES;
       base = CORTEXA53_CORE0_BASE;
       increment = CORTEXA53_INCREMENT;
+
+      printf("Number of cores running: %d\n", numCores);
     } else {
       numCores = CORTEXA9_CORES;
       base = CORTEXA9_CORE0_BASE;
       increment = CORTEXA9_INCREMENT;
     }
 
+    numEnabledCores = 0;
     for(int i = 0; i < numCores; i++) {
       cores[i] = coreInit(base);
+      if(cores[i].enabled) numEnabledCores++;
       base += increment;
     }
   }
+
+  printf("Number of cores: %d. Number of enabled cores: %d\n", numCores, numEnabledCores);
 
   coreReadPcsrInit();
 
@@ -424,7 +436,7 @@ void jtagInitCores(void) {
   // clear all breakpoints
   for(unsigned j = 0; j < numCores; j++) {
     if(zynqUltrascale) {
-      if(coreReadReg(&cores[j], A53_PRSR) & 1) {
+      if(cores[j].enabled) {
         for(unsigned i = 0; i < numBps; i++) {
           coreClearBp(j, i);
         }

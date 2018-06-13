@@ -94,7 +94,7 @@ module jtag_controller
       jtag_tms <= tms_seq[0];
    end
 
-   always @(posedge clk or posedge rst) begin
+   always @(posedge clk) begin
       if(rst) begin
          jtag_cnt <= 8'h80;
          read_seq <= 0;
