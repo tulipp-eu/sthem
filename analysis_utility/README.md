@@ -10,8 +10,12 @@ Requirements:
 Requirements are met on Ubuntu 18.04 with the following command:
 * sudo apt install build-essential qt5-default libqt5charts5-dev libqt5serialport5-dev libusb-1.0-0-dev clang-6.0 libclang-6.0-dev
 
-Requirements are met on Ubuntu 17.10 and Ubuntu 16.04 with the following command:
+Requirements are met on Ubuntu 17.10 with the following command:
 * sudo apt install build-essential qt5-default libqt5charts5-dev libqt5serialport5-dev libusb-1.0-0-dev clang-5.0 libclang-5.0-dev
+
+Requirements are met on Ubuntu 16.04 with the following:
+* sudo apt install build-essential libusb-1.0-0-dev clang-5.0 libclang-5.0-dev
+* Install Qt5.9 from the [Qt homepage](https://www.qt.io/download)
 
 Instructions:
 1. Enter the analysis_utility directory
