@@ -17,7 +17,7 @@ Requirements:
 Instructions:
 1. Go to the power_measurement_utility directory
 2. Edit the Makefile such that SDK points to your gecko SDK directory
-2. make
+3. make
 
 The resulting binaries are put in analysis_utility/bin.
 
