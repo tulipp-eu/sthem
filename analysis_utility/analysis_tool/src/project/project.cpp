@@ -29,6 +29,7 @@
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QSettings>
+#include <QDirIterator>
 
 #include <usbprotocol.h>
 
@@ -399,15 +400,16 @@ bool Project::readSdSocProject(QString path, QString configType) {
   this->configType = configType;
 
   // get list of sources
-  QDir srcDir(path + "/src");
-  srcDir.setFilter(QDir::Files);
+  QDirIterator dirIt(path + "/src", QDir::Files, QDirIterator::Subdirectories);
+  while(dirIt.hasNext()) {
+    QString source = dirIt.next();
 
-  QFileInfoList srcList = srcDir.entryInfoList();
-  for(auto fileInfo : srcList) {
+    QFileInfo fileInfo(source);
     if((fileInfo.suffix() == "cpp") || (fileInfo.suffix() == "cc")) {
       isCpp = true;
     }
-    sources.push_back(fileInfo.filePath());
+
+    sources.push_back(source);
   }
 
   // get project options
