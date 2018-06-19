@@ -142,6 +142,8 @@ public:
   bool enableHwSwTrace;
   bool traceApplication;
   QVector<ProjectAcc> accelerators;
+  QString cSysInc;
+  QString cppSysInc;
 
   // settings from either sdsoc project or user
   QStringList sources;

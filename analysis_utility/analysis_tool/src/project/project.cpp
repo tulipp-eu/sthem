@@ -210,10 +210,10 @@ bool Project::createXmlMakefile() {
   for(auto source : sources) {
     QFileInfo info(source);
     if(info.suffix() == "c") {
-      writeClangRule(Config::clang, makefile, source, cOptions);
+      writeClangRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
       xmlFiles << info.baseName() + ".xml";
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
-      writeClangRule(Config::clangpp, makefile, source, cppOptions);
+      writeClangRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
       xmlFiles << info.baseName() + ".xml";
     }
   }
@@ -266,21 +266,21 @@ bool Project::createMakefile() {
 
     if(info.suffix() == "c") {
       if(useClang) {
-        writeClangRule(Config::clang, makefile, source, cOptions);
+        writeClangRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
       } else if(isSdSocProject) {
         writeSdsRule("sdscc", makefile, source, cOptions);
       } else {
-        writeCompileRule(Config::clang, makefile, source, cOptions);
+        writeCompileRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
       }
       objects << info.baseName() + ".o";
 
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       if(useClang) {
-        writeClangRule(Config::clangpp, makefile, source, cppOptions);
+        writeClangRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
       } else if(isSdSocProject) {
         writeSdsRule("sds++", makefile, source, cppOptions);
       } else {
-        writeCompileRule(Config::clangpp, makefile, source, cppOptions);
+        writeCompileRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
       }
       objects << info.baseName() + ".o";
 
@@ -543,7 +543,14 @@ bool Project::readSdSocProject(QString path, QString configType) {
   }
 
   // get custom platforms
-  if(Config::sdsocVersion == 20172) {
+  {
+    QString key;
+    if(Config::sdsocVersion == 20172) {
+      key = "sdx.custom.platform.repository.locations";
+    } else if(Config::sdsocVersion == 20172) {
+      key = "sdsoc.platform";
+    }
+        
     QDomDocument doc;
     QFile file(path + "/../.metadata/.plugins/com.xilinx.sdsoc.ui/dialog_settings.xml");
     bool success = file.open(QIODevice::ReadOnly);
@@ -557,7 +564,7 @@ bool Project::readSdSocProject(QString path, QString configType) {
       for(int i = 0; i < elements.size(); i++) {
         QDomElement element = elements.at(i).toElement();
         assert(!element.isNull());
-        if(element.attribute("key", "") == "sdx.custom.platform.repository.locations") {
+        if(element.attribute("key", "") == key) {
           QStringList locations = element.attribute("value", "").split(';');
           for(int j = 0; j < locations.size(); j++) {
             QFileInfo fileInfo(locations[j]);
@@ -631,7 +638,7 @@ bool Project::readSdSocProject(QString path, QString configType) {
       QString command = "sdscc -v -sds-pf " + platform + " -target-os " + os +
         " -c __tulipp_test__.c -o __tulipp_test__.o > __tulipp_test__.out";
       ret = system(command.toUtf8().constData());
-      cOptions += processIncludePaths("__tulipp_test__.out");
+      cSysInc = processIncludePaths("__tulipp_test__.out");
       Q_UNUSED(ret);
     }
     { // C++
@@ -639,7 +646,7 @@ bool Project::readSdSocProject(QString path, QString configType) {
       QString command = "sds++ -v -sds-pf " + platform + " -target-os " + os +
         " -c __tulipp_test__.cpp -o __tulipp_test__.o > __tulipp_test__.out";
       ret = system(command.toUtf8().constData());
-      cppOptions += processIncludePaths("__tulipp_test__.out");
+      cppSysInc = processIncludePaths("__tulipp_test__.out");
       Q_UNUSED(ret);
     }
   }
