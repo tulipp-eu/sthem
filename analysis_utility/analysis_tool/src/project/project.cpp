@@ -39,9 +39,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 // makefile creation
 
-void Project::writeSdsRule(QString compiler, QFile &makefile, QString path) {
+void Project::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
   QStringList options;
+
+  options << opt.split(' ');
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
+
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
   }
@@ -56,14 +59,14 @@ void Project::writeSdsRule(QString compiler, QFile &makefile, QString path) {
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 }
 
-void Project::writeCompileRule(QString compiler, QFile &makefile, QString path) {
+void Project::writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt) {
   QFileInfo fileInfo(path);
 
   QString clangTarget = ultrascale ? A53_CLANG_TARGET : A9_CLANG_TARGET;
 
   QStringList options;
 
-  options << cOptions.split(' ');
+  options << opt.split(' ');
   options << clangTarget;
 
   for(auto include : systemIncludes) {
@@ -78,7 +81,7 @@ void Project::writeCompileRule(QString compiler, QFile &makefile, QString path) 
   makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());
 }
 
-void Project::writeClangRule(QString compiler, QFile &makefile, QString path, QString additionalOptions) {
+void Project::writeClangRule(QString compiler, QFile &makefile, QString path, QString opt) {
   QFileInfo fileInfo(path);
 
   QString clangTarget = A9_CLANG_TARGET;
@@ -94,12 +97,15 @@ void Project::writeClangRule(QString compiler, QFile &makefile, QString path, QS
   // .ll
   {
     QStringList options;
+
+    options << opt.split(' ');
+
     if(cfgOptLevel >= 0) {
       options << QString("-O") + QString::number(cfgOptLevel);
     } else {
       options << QString("-Os");
     }
-    options << cOptions.split(' ') << additionalOptions << clangTarget;
+    options << clangTarget;
 
     for(auto include : systemIncludes) {
       if(include.trimmed() != "") {
@@ -204,10 +210,10 @@ bool Project::createXmlMakefile() {
   for(auto source : sources) {
     QFileInfo info(source);
     if(info.suffix() == "c") {
-      writeClangRule(Config::clang, makefile, source);
+      writeClangRule(Config::clang, makefile, source, cOptions);
       xmlFiles << info.baseName() + ".xml";
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
-      writeClangRule(Config::clangpp, makefile, source);
+      writeClangRule(Config::clangpp, makefile, source, cppOptions);
       xmlFiles << info.baseName() + ".xml";
     }
   }
@@ -260,21 +266,21 @@ bool Project::createMakefile() {
 
     if(info.suffix() == "c") {
       if(useClang) {
-        writeClangRule(Config::clang, makefile, source);
+        writeClangRule(Config::clang, makefile, source, cOptions);
       } else if(isSdSocProject) {
-        writeSdsRule("sdscc", makefile, source);
+        writeSdsRule("sdscc", makefile, source, cOptions);
       } else {
-        writeCompileRule(Config::clang, makefile, source);
+        writeCompileRule(Config::clang, makefile, source, cOptions);
       }
       objects << info.baseName() + ".o";
 
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       if(useClang) {
-        writeClangRule(Config::clangpp, makefile, source);
+        writeClangRule(Config::clangpp, makefile, source, cppOptions);
       } else if(isSdSocProject) {
-        writeSdsRule("sds++", makefile, source);
+        writeSdsRule("sds++", makefile, source, cppOptions);
       } else {
-        writeCompileRule(Config::clangpp, makefile, source);
+        writeCompileRule(Config::clangpp, makefile, source, cppOptions);
       }
       objects << info.baseName() + ".o";
 
@@ -290,7 +296,7 @@ bool Project::createMakefile() {
 
       makefile.write(QString("###############################################################################\n\n").toUtf8());
 
-      writeSdsRule("sds++", makefile, "__tulipp__.cpp");
+      writeSdsRule("sds++", makefile, "__tulipp__.cpp", cppOptions);
 
     } else {
       makefile.write(QString("__tulipp__.c :\n").toUtf8());
@@ -299,7 +305,7 @@ bool Project::createMakefile() {
 
       makefile.write(QString("###############################################################################\n\n").toUtf8());
 
-      writeSdsRule("sdscc", makefile, "__tulipp__.c");
+      writeSdsRule("sdscc", makefile, "__tulipp__.c", cOptions);
     }
 
     objects << "__tulipp__.o";
@@ -309,10 +315,10 @@ bool Project::createMakefile() {
   for(auto acc : accelerators) {
     QFileInfo info(acc.filepath);
     if(info.suffix() == "c") {
-      writeSdsRule("sdscc", makefile, acc.filepath);
+      writeSdsRule("sdscc", makefile, acc.filepath, cOptions);
       objects << info.baseName() + ".o";
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
-      writeSdsRule("sds++", makefile, acc.filepath);
+      writeSdsRule("sds++", makefile, acc.filepath, cppOptions);
       objects << info.baseName() + ".o";
     }
   }
@@ -617,6 +623,27 @@ bool Project::readSdSocProject(QString path, QString configType) {
   // cd
   QDir::setCurrent(dir.path());
 
+  // get system includes
+  // TODO: This slows down startup, and is not very elegant.  Can we do it differently, or cache results?
+  {
+    { // C
+      int ret = system("touch __tulipp_test__.c");
+      QString command = "sdscc -v -sds-pf " + platform + " -target-os " + os +
+        " -c __tulipp_test__.c -o __tulipp_test__.o > __tulipp_test__.out";
+      ret = system(command.toUtf8().constData());
+      cOptions += processIncludePaths("__tulipp_test__.out");
+      Q_UNUSED(ret);
+    }
+    { // C++
+      int ret = system("touch __tulipp_test__.cpp");
+      QString command = "sds++ -v -sds-pf " + platform + " -target-os " + os +
+        " -c __tulipp_test__.cpp -o __tulipp_test__.o > __tulipp_test__.out";
+      ret = system(command.toUtf8().constData());
+      cppOptions += processIncludePaths("__tulipp_test__.out");
+      Q_UNUSED(ret);
+    }
+  }
+
   loadProjectFile();
 
   timingOk = false;
@@ -629,6 +656,40 @@ bool Project::readSdSocProject(QString path, QString configType) {
   parseSynthesisReport();
 
   return true;
+}
+
+QString Project::processIncludePaths(QString filename) {
+  QString options;
+
+  QFile file(filename);
+
+  if(file.open(QIODevice::ReadOnly)) {
+    QTextStream in(&file);
+
+    QString line;
+    do {
+      line = in.readLine();
+
+      if(line.contains("#include <...> search starts here:", Qt::CaseSensitive)) {
+        options = "";
+        line = in.readLine();
+
+        while(!line.contains("End of search list.", Qt::CaseSensitive)) {
+          options += "-I" + line + " ";
+          line = in.readLine();
+        }
+      }
+    } while(!line.isNull());
+    file.close();
+  }
+
+  return options;
+}
+
+QString Project::sdsocExpand(QString text) {
+  text.replace(QRegularExpression("\\${workspace_loc:*(.*)}"), Config::workspace + "\\1");
+  text.replace(QRegularExpression("\\${ProjName:*(.*)}"), name + "\\1");
+  return text;
 }
 
 QString Project::processCompilerOptions(QDomElement &childElement, int *optLevel) {
@@ -648,7 +709,7 @@ QString Project::processCompilerOptions(QDomElement &childElement, int *optLevel
             QDomElement grandGrandChildElement = grandGrandChildNode.toElement();
             if(!grandGrandChildElement.isNull()) {
               if(grandGrandChildElement.tagName() == "listOptionValue") {
-                options += "-I" + xmlPurify(grandGrandChildElement.attribute("value", "")) + " ";
+                options += "-I" + sdsocExpand(xmlPurify(grandGrandChildElement.attribute("value", ""))) + " ";
               }
             }
             grandGrandChildNode = grandGrandChildNode.nextSibling();
@@ -788,7 +849,7 @@ QString Project::processLinkerOptions(QDomElement &childElement) {
             QDomElement grandGrandChildElement = grandGrandChildNode.toElement();
             if(!grandGrandChildElement.isNull()) {
               if(grandGrandChildElement.tagName() == "listOptionValue") {
-                options += "-L" + xmlPurify(grandGrandChildElement.attribute("value", "")) + " ";
+                options += "-L" + sdsocExpand(xmlPurify(grandGrandChildElement.attribute("value", ""))) + " ";
               }
             }
             grandGrandChildNode = grandGrandChildNode.nextSibling();

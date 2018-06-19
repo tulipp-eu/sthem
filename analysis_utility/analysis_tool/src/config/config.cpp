@@ -22,15 +22,6 @@
 #include "config.h"
 
 const QStringList Config::defaultSystemIncludeDirs = {
-  "/opt/Xilinx/SDx/2017.2/target/aarch64-none/include",
-  "/opt/Xilinx/SDx/2017.2/Vivado_HLS/include",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/aarch64-none-elf/include/c++/6.2.1",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/aarch64-none-elf/include/c++/6.2.1/aarch64-none-elf",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/aarch64-none-elf/include/c++/6.2.1/backward",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/lib/gcc/aarch64-none-elf/6.2.1/include",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/lib/gcc/aarch64-none-elf/6.2.1/include-fixed",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/aarch64-none-elf/include",
-  "/opt/Xilinx/SDx/2017.2/SDK/gnu/aarch64/lin/aarch64-none/aarch64-none-elf/libc/usr/include"
 };
 
 const QStringList Config::defaultSystemXmls = {

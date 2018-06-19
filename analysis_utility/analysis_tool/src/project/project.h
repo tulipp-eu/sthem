@@ -92,11 +92,13 @@ private:
   void releaseLynsyn();
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
+  QString sdsocExpand(QString text);
   QString processCompilerOptions(QDomElement &childElement, int *optLevel);
   QString processLinkerOptions(QDomElement &childElement);
-  void writeSdsRule(QString compiler, QFile &makefile, QString path);
-  void writeClangRule(QString compiler, QFile &makefile, QString path, QString additionalOptions = "");
-  void writeCompileRule(QString compiler, QFile &makefile, QString path);
+  QString processIncludePaths(QString filename);
+  void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
+  void writeClangRule(QString compiler, QFile &makefile, QString path, QString opt);
+  void writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
   void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects);
   void writeLinkRule(QString linker, QFile &makefile, QStringList objects);
   Addr2Line addr2line(QString elfFile, uint64_t pc);
