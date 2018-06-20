@@ -19,29 +19,23 @@
  *
  *****************************************************************************/
 
-#ifndef EXHAUSTIVE_H
-#define EXHAUSTIVE_H
+#ifndef CUSTOMPROJECT_H
+#define CUSTOMPROJECT_H
 
-#include <QObject>
+#include "project.h"
 
-#include "dsealgorithm.h"
-
-class Exhaustive : public DseAlgorithm {
+class CustomProject : public Project {
 
 private:
-  int runCounter;
-
-  void runAll(std::ostream &outStream, QVector<Loop*> loops, QVector<unsigned> loopDepths, int n, QVector<unsigned> genome);
 
 public:
-  Exhaustive(Sdsoc *mainProject, unsigned fitnessChoice, QVector<DseRun> *dseRuns, std::ostream *outStream,
-             QVector<Loop*> loops, QVector<unsigned> loopDepths, bool rerunFailed) :
-    DseAlgorithm(mainProject, fitnessChoice, dseRuns, outStream, loops, loopDepths, rerunFailed) {}
-  ~Exhaustive() {
+  CustomProject() {
+    configType = "";
   }
 
-public slots:
-  void run();
+  bool openProject(QString path);
+  bool createProject(QString path);
+  virtual bool createMakefile();
 };
 
 #endif

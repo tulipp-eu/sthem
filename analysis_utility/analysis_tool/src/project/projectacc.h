@@ -19,29 +19,20 @@
  *
  *****************************************************************************/
 
-#ifndef EXHAUSTIVE_H
-#define EXHAUSTIVE_H
+#ifndef PROJECTACC_H
+#define PROJECTACC_H
 
-#include <QObject>
+#include <QString>
 
-#include "dsealgorithm.h"
-
-class Exhaustive : public DseAlgorithm {
-
-private:
-  int runCounter;
-
-  void runAll(std::ostream &outStream, QVector<Loop*> loops, QVector<unsigned> loopDepths, int n, QVector<unsigned> genome);
-
+class ProjectAcc {
 public:
-  Exhaustive(Sdsoc *mainProject, unsigned fitnessChoice, QVector<DseRun> *dseRuns, std::ostream *outStream,
-             QVector<Loop*> loops, QVector<unsigned> loopDepths, bool rerunFailed) :
-    DseAlgorithm(mainProject, fitnessChoice, dseRuns, outStream, loops, loopDepths, rerunFailed) {}
-  ~Exhaustive() {
-  }
+  QString name;
+  QString filepath;
+  unsigned clkid;
 
-public slots:
-  void run();
+  void print() {
+    printf("  %s %s %d\n", name.toUtf8().constData(), filepath.toUtf8().constData(), clkid);
+  }
 };
 
 #endif

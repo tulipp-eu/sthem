@@ -36,7 +36,6 @@ class QStackedWidget;
 class ProjectMainPage : public QWidget {
 public:
   QPlainTextEdit *xmlEdit;
-  QPlainTextEdit *binEdit;
 
   ProjectMainPage(Project *project, QWidget *parent = 0);
 };

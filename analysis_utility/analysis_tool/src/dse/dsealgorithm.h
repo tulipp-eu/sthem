@@ -49,7 +49,7 @@ protected:
   QVector<Loop*> loops;
   QVector<unsigned> loopDepths;
   unsigned fitnessChoice;
-  Project *mainProject;
+  Sdsoc *mainProject;
   bool rerunFailed;
 
   double fitnessFunction(DseRun *run);
@@ -58,7 +58,7 @@ protected:
 public:
   static QMap<QString,QStringList> getFilesToTransform(QVector<Loop*> loops, QVector<unsigned> genome);
 
-  DseAlgorithm(Project *mainProject, unsigned fitnessChoice, QVector<DseRun> *dseRuns, std::ostream *outStream,
+  DseAlgorithm(Sdsoc *mainProject, unsigned fitnessChoice, QVector<DseRun> *dseRuns, std::ostream *outStream,
                QVector<Loop*> loops, QVector<unsigned> loopDepths, bool rerunFailed) {
     this->mainProject = mainProject;
     this->fitnessChoice = fitnessChoice;
@@ -89,7 +89,7 @@ public:
     }
   }
 
-  static double getFitness(Profile *profile, Project *project, unsigned x) {
+  static double getFitness(Profile *profile, Sdsoc *project, unsigned x) {
     switch(x) {
       default:
       case FITNESS_RUNTIME:  return profile->getRuntime();

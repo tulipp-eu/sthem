@@ -33,7 +33,7 @@ class Dse : public QObject {
 
 private:
   QVector<DseRun> dseRuns;
-  Project *mainProject;
+  Sdsoc *mainProject;
   unsigned fitnessChoice;
   unsigned algorithm;
   QString containerId;
@@ -53,7 +53,7 @@ private:
   void ga(std::ostream &outStream, QVector<Loop*> loops, QVector<unsigned> loopDepths);
 
 public:
-  Dse(Project *project) {
+  Dse(Sdsoc *project) {
     mainProject = project;
     progDialog = NULL;
     dseAlgorithm = NULL;

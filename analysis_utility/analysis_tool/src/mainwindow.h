@@ -32,6 +32,8 @@
 #include "analysis_tool.h"
 
 #include "project/project.h"
+#include "project/customproject.h"
+#include "project/sdsoc.h"
 #include "cfg/cfgscene.h"
 #include "profile/graphscene.h"
 #include "cfg/vertex.h"
@@ -46,7 +48,7 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 
 private:
-  Project project;
+  Project *project;
   Dse *dse;
   Profile *profile;
   QString elfFile;

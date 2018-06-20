@@ -41,24 +41,8 @@ ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(pa
 
   //---------------------------------------------------------------------------
 
-  QGroupBox *binGroup = new QGroupBox("Additional symbol files (ELF)");
-
-  binEdit = new QPlainTextEdit;
-  binEdit->setFixedHeight((m.lineSpacing()+2) * 5);
-  binEdit->setFixedWidth(m.maxWidth() * 20);
-
-  binEdit->insertPlainText(project->systemBins.join('\n'));
-
-  QVBoxLayout *binLayout = new QVBoxLayout;
-  binLayout->addWidget(binEdit);
-
-  binGroup->setLayout(binLayout);
-
-  //---------------------------------------------------------------------------
-
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(xmlGroup);
-  mainLayout->addWidget(binGroup);
   mainLayout->addStretch(1);
   setLayout(mainLayout);
 }
@@ -93,7 +77,7 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
   compLayout->addLayout(optLayout);
   compLayout->addWidget(createBbInfoCheckBox);
 
-  if(!project->isSdSocProject) {
+  if(!project->isSdSocProject()) {
     QLabel *cOptLabel = new QLabel("C optimization level:");
 
     cOptCombo = new QComboBox;
@@ -182,7 +166,7 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(compGroup);
 
-  if(!project->isSdSocProject) {
+  if(!project->isSdSocProject()) {
     QGroupBox *sourcesGroup = new QGroupBox("Source files");
 
     {
@@ -243,7 +227,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   rlLabel->setFixedWidth(labelWidth);
   rlLayout->addWidget(rlLabel);
   for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    rlEdit[i] = new QLineEdit(QString::number(project->rl[i]));
+    rlEdit[i] = new QLineEdit(QString::number(project->lynsyn.rl[i]));
     rlEdit[i]->setFixedWidth(inputWidth);
     rlLayout->addWidget(rlEdit[i]);
   }
@@ -263,20 +247,11 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   supplyVoltageLabel->setFixedWidth(labelWidth);
   supplyVoltageLayout->addWidget(supplyVoltageLabel);
   for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    supplyVoltageEdit[i] = new QLineEdit(QString::number(project->supplyVoltage[i]));
+    supplyVoltageEdit[i] = new QLineEdit(QString::number(project->lynsyn.supplyVoltage[i]));
     supplyVoltageEdit[i]->setFixedWidth(inputWidth);
     supplyVoltageLayout->addWidget(supplyVoltageEdit[i]);
   }
   supplyVoltageLayout->addStretch(1);
-
-  QHBoxLayout *coresLayout = new QHBoxLayout;
-  QLabel *coresLabel = new QLabel("Cores:");
-  coresLabel->setFixedWidth(labelWidth);
-  coresLayout->addWidget(coresLabel);
-  coresEdit = new QLineEdit(QString::number(project->cores));
-  coresEdit->setValidator(new QIntValidator(0, LYNSYN_MAX_CORES, this));
-  coresLayout->addWidget(coresEdit);
-  coresLayout->addStretch(1);
 
   QLabel *zynqLabel = new QLabel("Zynq version:");
   zynqCombo = new QComboBox;
@@ -294,7 +269,6 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
 
   QVBoxLayout *targetLayout = new QVBoxLayout;
   targetLayout->addLayout(supplyVoltageLayout);
-  targetLayout->addLayout(coresLayout);
   targetLayout->addLayout(zynqLayout);
   targetLayout->addStretch(1);
   targetGroup->setLayout(targetLayout);
@@ -430,7 +404,6 @@ void ProjectDialog::changePage(QListWidgetItem *current, QListWidgetItem *previo
 
 void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->systemXmls = mainPage->xmlEdit->toPlainText().split("\n");
-  project->systemBins = mainPage->binEdit->toPlainText().split("\n");
 
   if(buildPage->optCombo->currentIndex() == 4) {
     project->cfgOptLevel = -1;
@@ -440,7 +413,7 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
 
   project->createBbInfo = buildPage->createBbInfoCheckBox->checkState() == Qt::Checked;
 
-  if(!project->isSdSocProject) {
+  if(!project->isSdSocProject()) {
     project->sources = buildPage->sourcesEdit->toPlainText().split("\n");
   
     if(buildPage->cOptCombo->currentIndex() == 4) {
@@ -466,11 +439,10 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->customElfFile = profPage->customElfEdit->text();
 
   for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    project->supplyVoltage[i] = profPage->supplyVoltageEdit[i]->text().toDouble();
-    project->rl[i] = profPage->rlEdit[i]->text().toDouble();
+    project->lynsyn.supplyVoltage[i] = profPage->supplyVoltageEdit[i]->text().toDouble();
+    project->lynsyn.rl[i] = profPage->rlEdit[i]->text().toDouble();
   }
 
-  project->cores = profPage->coresEdit->text().toUInt();
   if(profPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
   else project->ultrascale = false;
 

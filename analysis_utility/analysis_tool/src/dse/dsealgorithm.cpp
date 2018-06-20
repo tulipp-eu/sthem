@@ -67,7 +67,14 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
   timer.start();
 
   // create run
-  DseRun dseRun(genome, new Project(mainProject), new Profile);
+  Sdsoc *project = NULL;
+  if(Config::sdsocVersion == 20162) {
+    project = new Sdsoc20162(mainProject);
+  } else if(Config::sdsocVersion == 20172) {
+    project = new Sdsoc20172(mainProject);
+  }
+
+  DseRun dseRun(genome, project, new Profile);
 
   // clear and set temp directory
   QDir oldDir = QDir::current();

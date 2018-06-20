@@ -40,18 +40,12 @@ QString colorNames[] = COLOR_NAMES;
 MainWindow::MainWindow() {
   progDialog = NULL;
 
-  elfFile = "";
-  project.elfFile = elfFile;
-
-  connect(&project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
-
+  project = NULL;
   profile = NULL;
   hwGroup = NULL;
   topGroup = NULL;
   profModel = NULL;
-
-  dse = new Dse(&project);
-  dse->setCfg(project.getCfg());
+  dse = NULL;
 
   treeView = new QTreeView();
 
@@ -301,7 +295,7 @@ void MainWindow::buildProjectMenu() {
       for(auto fileInfo2 : projectFiles) {
         if((fileInfo2.fileName() == "project.sdx") || (fileInfo2.fileName() == "project.sdsoc")) {
           QMenu *menu = projectMenu->addMenu(fileInfo.fileName());
-          QStringList buildConfigs = Project::getBuildConfigurations(fileInfo.filePath());
+          QStringList buildConfigs = Sdsoc::getBuildConfigurations(fileInfo.filePath());
           for(auto configType : buildConfigs) {
             QAction *action = new QAction(configType, this);
             QStringList data;
@@ -326,11 +320,20 @@ void MainWindow::openCustomProject() {
   dialog.setFileMode(QFileDialog::Directory);
   if(dialog.exec()) {
     closeProject();
+
+    CustomProject *customProject = new CustomProject;
+
     QString path = dialog.selectedFiles()[0];
-    if(project.openProject(path)) {
-      setWindowTitle(QString(APP_NAME) + " : " + project.name + " (custom)");
+    if(customProject->openProject(path)) {
+      project = customProject;
+      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
+
+      setWindowTitle(QString(APP_NAME) + " : " + project->name + " (custom)");
       loadFiles();
+
     } else {
+      delete customProject;
+
       QMessageBox msgBox;
       msgBox.setText("Can't open project");
       msgBox.exec();
@@ -343,11 +346,20 @@ void MainWindow::createProject() {
   dialog.setFileMode(QFileDialog::Directory);
   if(dialog.exec()) {
     closeProject();
+
+    CustomProject *customProject = new CustomProject;
+
     QString path = dialog.selectedFiles()[0];
-    if(project.createProject(path)) {
-      setWindowTitle(QString(APP_NAME) + " : " + project.name + " (custom)");
+    if(customProject->createProject(path)) {
+      project = customProject;
+      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
+
+      setWindowTitle(QString(APP_NAME) + " : " + project->name + " (custom)");
       loadFiles();
+
     } else {
+      delete customProject;
+
       QMessageBox msgBox;
       msgBox.setText("Can't create project");
       msgBox.exec();
@@ -356,17 +368,19 @@ void MainWindow::createProject() {
 }
 
 void MainWindow::closeProject() {
+  delete project;
+  project = NULL;
+
+  if(dse) delete dse;
+  dse = NULL;
+
   if(profile) delete profile;
   profile = NULL;
-
-  dse->clear();
 
   if(hwGroup) delete hwGroup;
   hwGroup = NULL;
   if(topGroup) delete topGroup;
   topGroup = NULL;
-
-  project.close();
 
   clearGui();
 
@@ -396,10 +410,10 @@ void MainWindow::loadFiles() {
 
   clearGui();
 
-  project.loadFiles();
+  project->loadFiles();
 
-  dse->setCfg(project.getCfg());
-  treeView->setModel(project.cfgModel);
+  dse->setCfg(project->getCfg());
+  treeView->setModel(project->cfgModel);
   QSettings settings;
   treeView->header()->restoreState(settings.value("treeViewState").toByteArray());
 
@@ -429,14 +443,13 @@ void MainWindow::loadFile(const QString &fileName) {
   QFileInfo fileInfo(fileName);
   QString suffix = fileInfo.suffix();
   if(suffix == "xml") {
-    project.loadXmlFile(fileName);
+    project->loadXmlFile(fileName);
   } else if(suffix == "prof") {
     loadProfFile(fileName);
   } else if(suffix == "dse") {
     loadDseFile(fileName);
   } else {
-    elfFile = fileName;
-    project.elfFile = elfFile;
+    project->elfFile = fileName;
   }
 }
 
@@ -458,7 +471,7 @@ void MainWindow::loadProfFile(const QString &fileName) {
 
   QVector<Measurement> *measurements;
 
-  measurements = project.parseProfFile(file);
+  measurements = project->parseProfFile(file);
 
   file.close();
 
@@ -466,28 +479,57 @@ void MainWindow::loadProfFile(const QString &fileName) {
   profile = new Profile();
   profile->setProfData(measurements);
 
-  project.getCfg()->setProfile(profile);
+  project->getCfg()->setProfile(profile);
 
   if(profModel) delete profModel;
-  profModel = new ProfModel(Config::core, project.getCfg());
+  profModel = new ProfModel(Config::core, project->getCfg());
 
   tableView->setModel(profModel);
   tableView->sortByColumn(0, Qt::AscendingOrder);
   QSettings settings;
   tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
 
-  graphScene->drawProfile(Config::core, Config::sensor, project.getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
 }
 
 void MainWindow::openProject(QString path, QString configType) {
   if(configType == "") {
-    if(project.openProject(path)) {
-      setWindowTitle(QString(APP_NAME) + " : " + project.name + " (custom)");
+    CustomProject *customProject = new CustomProject;
+
+    if(customProject->openProject(path)) {
+      project = customProject;
+      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
+
+      setWindowTitle(QString(APP_NAME) + " : " + project->name + " (custom)");
       loadFiles();
-    }    
-  } else if(project.readSdSocProject(path, configType)) {
-    setWindowTitle(QString(APP_NAME) + " : " + project.name + " (" + project.configType + ")");
-    loadFiles();
+
+    } else {
+      delete customProject;
+    }
+
+  } else {
+    Sdsoc *sdsocProject = NULL;
+
+    if(Config::sdsocVersion == 20162) {
+      sdsocProject = new Sdsoc20162();
+
+    } else if(Config::sdsocVersion == 20172) {
+      sdsocProject = new Sdsoc20172();
+    }
+
+    if(sdsocProject->openProject(path, configType)) {
+      project = sdsocProject;
+      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
+
+      dse = new Dse(sdsocProject);
+      dse->setCfg(project->getCfg());
+
+      setWindowTitle(QString(APP_NAME) + " : " + project->name + " (" + project->configType + ")");
+      loadFiles();
+
+    } else {
+      delete sdsocProject;
+    }
   }
 }
 
@@ -506,8 +548,13 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   settings.setValue("includeAllInstructions", Config::includeAllInstructions);
   settings.setValue("includeProfData", Config::includeProfData);
   settings.setValue("includeId", Config::includeId);
-  settings.setValue("currentProject", project.path);
-  settings.setValue("currentBuildConfig", project.configType);
+  if(project) {
+    settings.setValue("currentProject", project->path);
+    settings.setValue("currentBuildConfig", project->configType);
+  } else {
+    settings.setValue("currentProject", "");
+    settings.setValue("currentBuildConfig", "");
+  }
   settings.setValue("xilinxDir", Config::xilinxDir);
   settings.setValue("hwserver", Config::hwserver);
   settings.setValue("hwport", Config::hwport);
@@ -557,19 +604,19 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::clearColorsEvent() {
-  project.cfgModel->clearColors();
+  project->cfgModel->clearColors();
   cfgScene->redraw();
 }
 
 void MainWindow::topEvent() {
-  project.cfgModel->collapseAll();
-  project.cfgModel->clearColors();
+  project->cfgModel->collapseAll();
+  project->cfgModel->clearColors();
 
   if(topGroup) delete topGroup;
   topGroup = new Group("Overview");
-  Vertex *main = project.cfgModel->getMain();
+  Vertex *main = project->cfgModel->getMain();
   if(main) topGroup->appendChild(main);
-  topGroup->appendChild(project.cfgModel->getCfg()->externalMod);
+  topGroup->appendChild(project->cfgModel->getCfg()->externalMod);
   
   topGroup->toggleExpanded();
   cfgScene->drawElement(topGroup);
@@ -580,15 +627,15 @@ void MainWindow::topEvent() {
 }
 
 void MainWindow::hwEvent() {
-  project.cfgModel->collapseAll();
-  project.cfgModel->clearColors();
+  project->cfgModel->collapseAll();
+  project->cfgModel->clearColors();
 
   if(hwGroup) delete hwGroup;
   hwGroup = new Group("HW functions");
 
-  for(auto acc : project.accelerators) {
+  for(auto acc : project->accelerators) {
     QFileInfo fileInfo(acc.filepath);
-    Module *module = project.getCfg()->getModuleById(fileInfo.baseName());
+    Module *module = project->getCfg()->getModuleById(fileInfo.baseName());
     QVector<Function*> functions = module->getFunctionsByName(acc.name);
     assert(functions.size() == 1);
     hwGroup->appendChild(functions.at(0));
@@ -607,15 +654,15 @@ void MainWindow::configDialog() {
 }
 
 void MainWindow::projectDialog() {
-  ProjectDialog dialog(&project);
+  ProjectDialog dialog(project);
   dialog.exec();
-  project.saveProjectFile();
+  project->saveProjectFile();
   cfgScene->redraw();
 }
 
 void MainWindow::cleanEvent() {
-  if(project.opened) {
-    project.clean();
+  if(project) {
+    project->clean();
     dse->clear();
     loadFiles();
     if(profile) delete profile;
@@ -631,20 +678,22 @@ void MainWindow::advance(int step, QString message) {
 }
 
 void MainWindow::makeXmlEvent() {
-  treeView->setModel(NULL);
+  if(project) {
+    treeView->setModel(NULL);
 
-  QApplication::setOverrideCursor(Qt::WaitCursor);
+    QApplication::setOverrideCursor(Qt::WaitCursor);
 
-  progDialog = new QProgressDialog("Making XML files...", QString(), 0, project.xmlBuildSteps(), this);
-  progDialog->setWindowModality(Qt::WindowModal);
-  progDialog->setMinimumDuration(0);
-  progDialog->setValue(0);
+    progDialog = new QProgressDialog("Making XML files...", QString(), 0, project->xmlBuildSteps(), this);
+    progDialog->setWindowModality(Qt::WindowModal);
+    progDialog->setMinimumDuration(0);
+    progDialog->setValue(0);
 
-  thread.wait();
-  project.moveToThread(&thread);
-  connect(&thread, SIGNAL (started()), &project, SLOT (makeXml()));
-  connect(&project, SIGNAL(finished(int, QString)), this, SLOT(finishXml(int, QString)));
-  thread.start();
+    thread.wait();
+    project->moveToThread(&thread);
+    connect(&thread, SIGNAL (started()), project, SLOT (makeXml()));
+    connect(project, SIGNAL(finished(int, QString)), this, SLOT(finishXml(int, QString)));
+    thread.start();
+  }
 }
 
 void MainWindow::finishXml(int error, QString msg) {
@@ -667,26 +716,28 @@ void MainWindow::finishXml(int error, QString msg) {
   }
 
   disconnect(&thread, SIGNAL (started()), 0, 0);
-  disconnect(&project, SIGNAL(finished(int, QString)), 0, 0);
+  disconnect(project, SIGNAL(finished(int, QString)), 0, 0);
 
   thread.quit();
 }
 
 void MainWindow::makeBinEvent() {
-  treeView->setModel(NULL);
+  if(project) {
+    treeView->setModel(NULL);
 
-  QApplication::setOverrideCursor(Qt::WaitCursor);
+    QApplication::setOverrideCursor(Qt::WaitCursor);
 
-  progDialog = new QProgressDialog("Making binary...", QString(), 0, project.binBuildSteps(), this);
-  progDialog->setWindowModality(Qt::WindowModal);
-  progDialog->setMinimumDuration(0);
-  progDialog->setValue(0);
+    progDialog = new QProgressDialog("Making binary...", QString(), 0, project->binBuildSteps(), this);
+    progDialog->setWindowModality(Qt::WindowModal);
+    progDialog->setMinimumDuration(0);
+    progDialog->setValue(0);
 
-  thread.wait();
-  project.moveToThread(&thread);
-  connect(&thread, SIGNAL (started()), &project, SLOT (makeBin()));
-  connect(&project, SIGNAL(finished(int, QString)), this, SLOT(finishBin(int, QString)));
-  thread.start();
+    thread.wait();
+    project->moveToThread(&thread);
+    connect(&thread, SIGNAL (started()), project, SLOT (makeBin()));
+    connect(project, SIGNAL(finished(int, QString)), this, SLOT(finishBin(int, QString)));
+    thread.start();
+  }
 }
 
 void MainWindow::finishBin(int error, QString msg) {
@@ -702,8 +753,7 @@ void MainWindow::finishBin(int error, QString msg) {
     msgBox.exec();
 
   } else {
-    elfFile = project.elfFilename();
-    project.elfFile = elfFile;
+    project->elfFile = project->elfFilename();
     loadFiles();
 
     QMessageBox msgBox;
@@ -712,24 +762,26 @@ void MainWindow::finishBin(int error, QString msg) {
   }
 
   disconnect(&thread, SIGNAL (started()), 0, 0);
-  disconnect(&project, SIGNAL(finished(int, QString)), 0, 0);
+  disconnect(project, SIGNAL(finished(int, QString)), 0, 0);
 
   thread.quit();
 }
 
 void MainWindow::profileEvent() {
-  QApplication::setOverrideCursor(Qt::WaitCursor);
+  if(project) {
+    QApplication::setOverrideCursor(Qt::WaitCursor);
 
-  progDialog = new QProgressDialog("Profiling...", QString(), 0, project.profileSteps(), this);
-  progDialog->setWindowModality(Qt::WindowModal);
-  progDialog->setMinimumDuration(0);
-  progDialog->setValue(0);
+    progDialog = new QProgressDialog("Profiling...", QString(), 0, project->profileSteps(), this);
+    progDialog->setWindowModality(Qt::WindowModal);
+    progDialog->setMinimumDuration(0);
+    progDialog->setValue(0);
 
-  thread.wait();
-  project.moveToThread(&thread);
-  connect(&thread, SIGNAL (started()), &project, SLOT (runProfiler()));
-  connect(&project, SIGNAL(finished(int, QString)), this, SLOT(finishProfile(int, QString)));
-  thread.start();
+    thread.wait();
+    project->moveToThread(&thread);
+    connect(&thread, SIGNAL (started()), project, SLOT (runProfiler()));
+    connect(project, SIGNAL(finished(int, QString)), this, SLOT(finishProfile(int, QString)));
+    thread.start();
+  }
 }
 
 void MainWindow::finishProfile(int error, QString msg) {
@@ -745,21 +797,20 @@ void MainWindow::finishProfile(int error, QString msg) {
     msgBox.exec();
 
   } else {
-    elfFile = project.elfFilename();
-    project.elfFile = elfFile;
+    project->elfFile = project->elfFilename();
     loadFiles();
 
-    QVector<Measurement> *measurements = project.parseProfFile();
+    QVector<Measurement> *measurements = project->parseProfFile();
 
     if(profile) delete profile;
     profile = new Profile();
 
     profile->setProfData(measurements);
 
-    project.getCfg()->setProfile(profile);
+    project->getCfg()->setProfile(profile);
 
     if(profModel) delete profModel;
-    profModel = new ProfModel(Config::core, project.getCfg());
+    profModel = new ProfModel(Config::core, project->getCfg());
 
     tableView->setModel(profModel);
     tableView->sortByColumn(0, Qt::AscendingOrder);
@@ -767,7 +818,7 @@ void MainWindow::finishProfile(int error, QString msg) {
     tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
 
     graphScene->clearScene();
-    graphScene->drawProfile(Config::core, Config::sensor, project.getCfg(), profile);
+    graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
     graphScene->update();
 
     cfgScene->redraw();
@@ -778,13 +829,20 @@ void MainWindow::finishProfile(int error, QString msg) {
   }
 
   disconnect(&thread, SIGNAL (started()), 0, 0);
-  disconnect(&project, SIGNAL(finished(int, QString)), 0, 0);
+  disconnect(project, SIGNAL(finished(int, QString)), 0, 0);
 
   thread.quit();
 }
 
 void MainWindow::showDseSummary() {
-  dse->showResults();
+  if(dse) {
+    dse->showResults();
+
+  } else {
+    QMessageBox msgBox;
+    msgBox.setText("No data to display");
+    msgBox.exec();
+  }
 }
 
 void MainWindow::showProfileSummary() {
@@ -801,21 +859,6 @@ void MainWindow::showProfileSummary() {
       messageTextStream << "<td>Total energy " << QString::number(i) << ":</td><td>" << profile->getEnergy(i) << "J</td>";
       messageTextStream << "</tr>";
     }
-    messageTextStream << "<tr>";
-    messageTextStream << "<td>Timing:</td><td>" << (project.getTimingOk() ? "OK" : "Failed") << "</td>";
-    messageTextStream << "</tr>";
-    messageTextStream << "<tr>";
-    messageTextStream << "<td>BRAMs:</td><td>" << project.getBrams() << "%</td>";
-    messageTextStream << "</tr>";
-    messageTextStream << "<tr>";
-    messageTextStream << "<td>LUTs:</td><td>" << project.getLuts() << "%</td>";
-    messageTextStream << "</tr>";
-    messageTextStream << "<tr>";
-    messageTextStream << "<td>DSPs:</td><td>" << project.getDsps() << "%</td>";
-    messageTextStream << "</tr>";
-    messageTextStream << "<tr>";
-    messageTextStream << "<td>Registers:</td><td>" << project.getRegs() << "%</td>";
-    messageTextStream << "</tr>";
     messageTextStream << "</table>";
   
     QMessageBox msgBox;
@@ -834,15 +877,15 @@ void MainWindow::changeCore(int core) {
 
   if(hwGroup) hwGroup->clearCachedProfilingData();
   if(topGroup) topGroup->clearCachedProfilingData();
-  project.getCfg()->clearCachedProfilingData();
+  project->getCfg()->clearCachedProfilingData();
 
   cfgScene->redraw();
 
   graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project.getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
 
   if(profModel) delete profModel;
-  profModel = new ProfModel(Config::core, project.getCfg());
+  profModel = new ProfModel(Config::core, project->getCfg());
   tableView->setModel(profModel);
   tableView->sortByColumn(0, Qt::AscendingOrder);
   QSettings settings;
@@ -854,12 +897,12 @@ void MainWindow::changeSensor(int sensor) {
 
   if(hwGroup) hwGroup->clearCachedProfilingData();
   if(topGroup) topGroup->clearCachedProfilingData();
-  project.getCfg()->clearCachedProfilingData();
+  project->getCfg()->clearCachedProfilingData();
 
   cfgScene->redraw();
 
   graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project.getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
 
   tableView->reset();
 }
@@ -867,7 +910,7 @@ void MainWindow::changeSensor(int sensor) {
 void MainWindow::changeWindow(int window) {
   Config::window = windowBox->currentData().toUInt();
   graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project.getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
 }
 
 void MainWindow::changeCfgMode(int mode) {

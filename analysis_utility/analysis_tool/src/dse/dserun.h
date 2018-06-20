@@ -24,13 +24,13 @@
 
 #include <QVector>
 
-#include "project/project.h"
+#include "project/sdsoc.h"
 
 class DseRun {
 public:
   bool failed;
   QVector<unsigned> genome;
-  Project *project;
+  Sdsoc *project;
   Profile *profile;
   double time;
 
@@ -40,7 +40,7 @@ public:
     profile = NULL;
   }
 
-  DseRun(QVector<unsigned> genome, Project *project, Profile *profile) {
+  DseRun(QVector<unsigned> genome, Sdsoc *project, Profile *profile) {
     this->failed = false;
     this->genome = genome;
     this->project = project;
@@ -81,7 +81,13 @@ public:
     is >> d.time;
 
     if(!d.failed) {
-      if(!d.project) d.project = new Project;
+      if(!d.project) {
+        if(Config::sdsocVersion == 20162) {
+          d.project = new Sdsoc20162;
+        } else if(Config::sdsocVersion == 20172) {
+          d.project = new Sdsoc20172;
+        }
+      }
       if(!d.profile) d.profile = new Profile;
 
       is >> *d.project >> *d.profile;

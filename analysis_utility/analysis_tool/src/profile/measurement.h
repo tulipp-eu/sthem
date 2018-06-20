@@ -40,6 +40,7 @@ public:
   Function *func;
   quint64 time;
   quint64 timeSinceLast;
+  quint64 pc;
   double power[LYNSYN_SENSORS];
 
   quint32 sequence;
@@ -51,6 +52,20 @@ public:
   Measurement(unsigned core, BasicBlock *bb, uint64_t time, uint64_t timeSinceLast, double power[]) {
     this->core = core;
     this->bb = bb;
+    this->pc = -1;
+    this->func = NULL;
+    this->time = time;
+    this->timeSinceLast = timeSinceLast;
+    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+      this->power[i] = power[i];
+    }
+    sequence = Measurement::counter[core]++;
+  }
+
+  Measurement(unsigned core, uint64_t pc, uint64_t time, uint64_t timeSinceLast, double power[]) {
+    this->core = core;
+    this->bb = NULL;
+    this->pc = pc;
     this->func = NULL;
     this->time = time;
     this->timeSinceLast = timeSinceLast;
@@ -63,6 +78,7 @@ public:
   Measurement(unsigned core, BasicBlock *bb, Function *func, uint64_t time, uint64_t timeSinceLast, double power[]) {
     this->core = core;
     this->bb = bb;
+    this->pc = -1;
     this->func = func;
     this->time = time;
     this->timeSinceLast = timeSinceLast;

@@ -19,29 +19,61 @@
  *
  *****************************************************************************/
 
-#ifndef EXHAUSTIVE_H
-#define EXHAUSTIVE_H
+#ifndef ELFSUPPORT_H
+#define ELFSUPPORT_H
 
-#include <QObject>
+#include <QString>
+#include <QStringList>
 
-#include "dsealgorithm.h"
+#include <map>
+#include <sstream>
 
-class Exhaustive : public DseAlgorithm {
-
-private:
-  int runCounter;
-
-  void runAll(std::ostream &outStream, QVector<Loop*> loops, QVector<unsigned> loopDepths, int n, QVector<unsigned> genome);
-
+class Addr2Line {
 public:
-  Exhaustive(Sdsoc *mainProject, unsigned fitnessChoice, QVector<DseRun> *dseRuns, std::ostream *outStream,
-             QVector<Loop*> loops, QVector<unsigned> loopDepths, bool rerunFailed) :
-    DseAlgorithm(mainProject, fitnessChoice, dseRuns, outStream, loops, loopDepths, rerunFailed) {}
-  ~Exhaustive() {
+  QString filename;
+  QString function;
+  uint64_t lineNumber;
+
+  Addr2Line() {
+    filename = "";
+    function = "";
+    lineNumber = 0;
   }
 
-public slots:
-  void run();
+  Addr2Line(QString filename, QString function, uint64_t lineNumber) {
+    this->filename = filename;
+    this->function = function;
+    this->lineNumber = lineNumber;
+  }
+};
+
+class ElfSupport {
+
+private:
+  std::map<uint64_t, Addr2Line> addr2lineCache;
+
+  QString elfFile;
+  uint64_t prevPc;
+
+  Addr2Line addr2line;
+
+  void setPc(uint64_t pc);
+
+public:
+  ElfSupport(QString elfFile) {
+    this->elfFile = elfFile;
+    prevPc = -1;
+  }
+
+  // get debug info
+  QString getFilename(uint64_t pc);
+  QString getFunction(uint64_t pc);
+  uint64_t getLineNumber(uint64_t pc);
+  bool isBb(uint64_t pc);
+  QString getModuleId(uint64_t pc);
+
+  // get symbol value
+  uint64_t lookupSymbol(QString symbol);
 };
 
 #endif

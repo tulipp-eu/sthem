@@ -29,46 +29,14 @@
 #include <QDir>
 #include <QDomDocument>
 
-#include <libusb.h>
-
+#include "elfsupport.h"
+#include "projectacc.h"
 #include "config/config.h"
 #include "profile/measurement.h"
 #include "cfg/cfgmodel.h"
+#include "lynsyn.h"
 
-class Addr2Line {
-public:
-  QString filename;
-  QString function;
-  uint64_t lineNumber;
-
-  Addr2Line() {
-    filename = "";
-    function = "";
-    lineNumber = 0;
-  }
-  Addr2Line(QString file, QString func, uint64_t l) {
-    filename = file;
-    function = func;
-    lineNumber = l;
-  }
-  bool isBb() {
-    return filename[0] == '@';
-  }
-  QString getModuleId() {
-    return filename.right(filename.size()-1);
-  }
-};
-
-class ProjectAcc {
-public:
-  QString name;
-  QString filepath;
-  unsigned clkid;
-
-  void print() {
-    printf("  %s %s %d\n", name.toUtf8().constData(), filepath.toUtf8().constData(), clkid);
-  }
-};
+#define SAMPLEBUF_SIZE (128*1024*1024)
 
 class CfgModel;
 
@@ -77,52 +45,29 @@ class CfgModel;
 class Project : public QObject {
   Q_OBJECT
 
-private:
-  std::map<uint64_t, Addr2Line> addr2lineCache;
-
-	struct libusb_device_handle *lynsynHandle;
-  uint8_t outEndpoint;
-  uint8_t inEndpoint;
-	struct libusb_context *usbContext;
-	libusb_device **devs;
-  uint8_t hwVersion;
-  double sensorCalibration[LYNSYN_SENSORS];
-
-  bool initLynsyn();
-  void releaseLynsyn();
-  void sendBytes(uint8_t *bytes, int numBytes);
-  void getBytes(uint8_t *bytes, int numBytes);
-  QString sdsocExpand(QString text);
-  QString processCompilerOptions(QDomElement &childElement, int *optLevel);
-  QString processLinkerOptions(QDomElement &childElement);
-  QString processIncludePaths(QString filename);
-  void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
-  void writeClangRule(QString compiler, QFile &makefile, QString path, QString opt);
+protected:
+  void writeTulippCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
   void writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
-  void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects);
   void writeLinkRule(QString linker, QFile &makefile, QStringList objects);
-  Addr2Line addr2line(QString elfFile, uint64_t pc);
-  Addr2Line cachedAddr2line(QString elfFile, uint64_t pc);
-  void parseSynthesisReport();
+  void writeCleanRule(QFile &makefile);
+
   bool createXmlMakefile();
-  bool createMakefile();
+  virtual bool createMakefile(QFile &makefile);
+  virtual bool createMakefile() = 0;
+  void copy(Project *p);
 
 public:
   bool opened;
   bool isCpp;
-  bool isSdSocProject;
 
   QString path;
 
   // user specified settings
   QStringList systemXmls;
-  QStringList systemBins;
   int cfgOptLevel;
   QStringList systemIncludes;
   QString tcfUploadScript;
-  double rl[7];
-  double supplyVoltage[7];
-  unsigned cores;
+  Lynsyn lynsyn;
   bool ultrascale;
   QString startFunc;
   unsigned startCore;
@@ -130,22 +75,6 @@ public:
   unsigned stopCore;
   bool createBbInfo;
   bool useCustomElf;
-
-  // settings from sdsoc project
-  QString platform;
-  QString os;
-  QString sysConfig;
-  QString cpu;
-  QString configType;
-  bool insertapm;
-  bool genbitstream;
-  bool gensdcard;
-  unsigned dmclkid;
-  bool enableHwSwTrace;
-  bool traceApplication;
-  QVector<ProjectAcc> accelerators;
-  QString cSysInc;
-  QString cppSysInc;
 
   // settings from either sdsoc project or user
   QStringList sources;
@@ -156,11 +85,11 @@ public:
   int cppOptLevel;
   QString linkerOptions;
 
-  bool timingOk;
-  double brams;
-  double luts;
-  double dsps;
-  double regs;
+  // settings from sdsoc project, unused otherwise
+  QString configType;
+  QVector<ProjectAcc> accelerators;
+  QString cSysInc;
+  QString cppSysInc;
 
   QString customElfFile;
   QString elfFile;
@@ -178,21 +107,11 @@ public:
 
   void clean();
 
-  bool openProject(QString path);
-  bool createProject(QString path);
-  bool readSdSocProject(QString path, QString configType);
-
-  void print();
+  virtual void print();
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline);
 
   QVector<Measurement> *parseProfFile();
   QVector<Measurement> *parseProfFile(QFile &file);
-
-  bool getTimingOk() { return timingOk; }
-  double getBrams() { return brams; }
-  double getLuts() { return luts; }
-  double getDsps() { return dsps; }
-  double getRegs() { return regs; }
 
   QString elfFilename() {
     return name + ".elf";
@@ -207,30 +126,13 @@ public:
   int binBuildSteps() { return 2; }
   int profileSteps() { return 3; }
 
-  static QStringList getBuildConfigurations(QString path);
-
-  static uint64_t lookupSymbol(QString elfFile, QString symbol);
+  virtual bool isSdSocProject() { return false; }
 
   Cfg *getCfg();
 
-	friend std::ostream& operator<<(std::ostream &os, const Project &p) {
-    // only streams out the necessary parts for DSE
-		os << p.timingOk << '\n';
-		os << p.brams << '\n';
-		os << p.luts << '\n';
-		os << p.dsps << '\n';
-		os << p.regs;
-		return os;
-	}
-
-	friend std::istream& operator>>(std::istream &is, Project &p) {
-		is >> p.timingOk >> p.brams >> p.luts >> p.dsps >> p.regs;
-		return is;
-	}
-
 public slots:
   void makeXml();
-  void makeBin();
+  virtual void makeBin();
   void runProfiler();
 
 signals:
