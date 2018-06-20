@@ -43,7 +43,14 @@ void Project::writeSdsRule(QString compiler, QFile &makefile, QString path, QStr
   QStringList options;
 
   options << opt.split(' ');
+
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
+  if(sysConfig != "") {
+    options << "-sds-sys-config" << sysConfig;
+  }
+  if(cpu != "") {
+    options << "-sds-proc" << cpu;
+  } 
 
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
@@ -168,6 +175,13 @@ void Project::writeClangRule(QString compiler, QFile &makefile, QString path, QS
 void Project::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects) {
   QStringList options;
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
+  if(sysConfig != "") {
+    options << "-sds-sys-config" << sysConfig;
+  }
+  if(cpu != "") {
+    options << "-sds-proc" << cpu;
+  } 
+
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
   }
@@ -203,7 +217,7 @@ bool Project::createXmlMakefile() {
 
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
-  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof\n\n").toUtf8());
+  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof __tulipp_test__.* .Xil\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -252,7 +266,7 @@ bool Project::createMakefile() {
 
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
-  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof\n\n").toUtf8());
+  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof __tulipp_test__.* .Xil\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -456,6 +470,9 @@ bool Project::readSdSocProject(QString path, QString configType) {
     enableHwSwTrace = element.attribute("enableHwSwTrace", "false") != "false";
     traceApplication = element.attribute("traceApplication", "false") != "false";
 
+    sysConfig = "";
+    cpu = "";
+
     QDomNode node = element.firstChild();
     while(!node.isNull()) {
       QDomElement childElement = node.toElement();
@@ -495,8 +512,10 @@ bool Project::readSdSocProject(QString path, QString configType) {
     assert(!element.isNull());
 
     name = element.attribute("name", path);
-    platform = element.attribute("platform", "emc2dp");
+    platform = element.attribute("platform", "");
     os = element.attribute("os", "standalone");
+    cpu = element.attribute("cpu", "");
+    sysConfig = element.attribute("sysConfig", "standalone");
 
     elements = doc.elementsByTagName("configuration");
     assert(elements.size());

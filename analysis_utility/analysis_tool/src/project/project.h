@@ -134,6 +134,8 @@ public:
   // settings from sdsoc project
   QString platform;
   QString os;
+  QString sysConfig;
+  QString cpu;
   QString configType;
   bool insertapm;
   bool genbitstream;
