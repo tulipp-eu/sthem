@@ -491,7 +491,9 @@ void MainWindow::loadProfFile(const QString &fileName) {
   QSettings settings;
   tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
 
+  graphScene->clearScene();
   graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
+  graphScene->update();
 }
 
 void MainWindow::openProject(QString path, QString configType) {
@@ -802,27 +804,6 @@ void MainWindow::finishProfile(int error, QString msg) {
   } else {
     project->elfFile = project->elfFilename();
     loadFiles();
-
-    QVector<Measurement> *measurements = project->parseProfFile();
-
-    if(profile) delete profile;
-    profile = new Profile();
-
-    profile->setProfData(measurements);
-
-    project->getCfg()->setProfile(profile);
-
-    if(profModel) delete profModel;
-    profModel = new ProfModel(Config::core, project->getCfg());
-
-    tableView->setModel(profModel);
-    tableView->sortByColumn(0, Qt::AscendingOrder);
-    QSettings settings;
-    tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
-
-    graphScene->clearScene();
-    graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
-    graphScene->update();
 
     cfgScene->redraw();
 
