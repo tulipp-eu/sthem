@@ -144,11 +144,4 @@ QString getLine(QString filename, unsigned lineNumber, unsigned column);
 QVector<Loop*> getLoop(Loop *loop, unsigned depth);
 void addFitnessCombo(QComboBox *combo);
 
-#define LYNSYN_MAX_CURRENT_VALUE 32768
-#define LYNSYN_FREQ 48000000
-#define LYNSYN_REF_VOLTAGE 2.5
-#define LYNSYN_RS 8200
-#define LYNSYN_MAX_CORES 4
-#define LYNSYN_SENSORS 7
-
 #endif

@@ -87,10 +87,10 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
   double profData = 0;
 
   double runtimeTop;
-  double powerTop[LYNSYN_SENSORS], energyTop[LYNSYN_SENSORS];
+  double powerTop[Pmu::MAX_SENSORS], energyTop[Pmu::MAX_SENSORS];
 
   double runtime;
-  double power[LYNSYN_SENSORS], energy[LYNSYN_SENSORS];
+  double power[Pmu::MAX_SENSORS], energy[Pmu::MAX_SENSORS];
 
   visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop);
   if(runtimeTop) {

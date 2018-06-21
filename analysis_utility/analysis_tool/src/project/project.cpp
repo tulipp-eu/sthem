@@ -276,16 +276,16 @@ void Project::loadProjectFile() {
   createBbInfo = settings.value("createBbInfo", true).toBool();
   systemIncludes = settings.value("systemIncludeDirs", Config::defaultSystemIncludeDirs).toStringList();
   systemXmls = settings.value("systemXmls", Config::defaultSystemXmls).toStringList();
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    lynsyn.supplyVoltage[i] = settings.value("supplyVoltage" + QString::number(i), 5).toDouble();
+  for(unsigned i = 0; i < pmu.numSensors(); i++) {
+    pmu.supplyVoltage[i] = settings.value("supplyVoltage" + QString::number(i), 5).toDouble();
   }
-  lynsyn.rl[0] = settings.value("rl0", 0.025).toDouble();
-  lynsyn.rl[1] = settings.value("rl1", 0.05).toDouble();
-  lynsyn.rl[2] = settings.value("rl2", 0.05).toDouble();
-  lynsyn.rl[3] = settings.value("rl3", 0.1).toDouble();
-  lynsyn.rl[4] = settings.value("rl4", 0.1).toDouble();
-  lynsyn.rl[5] = settings.value("rl5", 1).toDouble();
-  lynsyn.rl[6] = settings.value("rl6", 10).toDouble();
+  pmu.rl[0] = settings.value("rl0", 0.025).toDouble();
+  pmu.rl[1] = settings.value("rl1", 0.05).toDouble();
+  pmu.rl[2] = settings.value("rl2", 0.05).toDouble();
+  pmu.rl[3] = settings.value("rl3", 0.1).toDouble();
+  pmu.rl[4] = settings.value("rl4", 0.1).toDouble();
+  pmu.rl[5] = settings.value("rl5", 1).toDouble();
+  pmu.rl[6] = settings.value("rl6", 10).toDouble();
   ultrascale = settings.value("ultrascale", true).toBool();
   tcfUploadScript = settings.value("tcfUploadScript",
                                    "connect -url tcp:127.0.0.1:3121\n"
@@ -330,9 +330,9 @@ void Project::saveProjectFile() {
   settings.setValue("createBbInfo", createBbInfo);
   settings.setValue("systemIncludeDirs", systemIncludes);
   settings.setValue("systemXmls", systemXmls);
-  for(int i = 0; i < LYNSYN_SENSORS; i++) { 
-    settings.setValue("supplyVoltage" + QString::number(i), lynsyn.supplyVoltage[i]);
-    settings.setValue("rl" + QString::number(i), lynsyn.rl[i]);
+  for(unsigned i = 0; i < pmu.numSensors(); i++) { 
+    settings.setValue("supplyVoltage" + QString::number(i), pmu.supplyVoltage[i]);
+    settings.setValue("rl" + QString::number(i), pmu.rl[i]);
   }
   settings.setValue("ultrascale", ultrascale);
   settings.setValue("tcfUploadScript", tcfUploadScript);
@@ -549,16 +549,16 @@ void Project::runProfiler() {
     elfSupport = ElfSupport(customElfFile);
   }
 
-  bool lynsynInited = lynsyn.init();
-  if(!lynsynInited) {
-    emit finished(1, "Can't connect to Lynsyn");
+  bool pmuInited = pmu.init();
+  if(!pmuInited) {
+    emit finished(1, "Can't connect to PMU");
     return;
   }
 
   emit advance(0, "Uploading binary");
 
   // upload binaries
-  QFile tclFile("temp-lynsyn-prof.tcl");
+  QFile tclFile("temp-pmu-prof.tcl");
   bool success = tclFile.open(QIODevice::WriteOnly);
   Q_UNUSED(success);
   assert(success);
@@ -569,10 +569,10 @@ void Project::runProfiler() {
 
   tclFile.close();
 
-  int ret = system("xsct temp-lynsyn-prof.tcl");
+  int ret = system("xsct temp-pmu-prof.tcl");
   if(ret) {
     emit finished(1, "Can't upload binaries");
-    lynsyn.release();
+    pmu.release();
     return;
   }
 
@@ -587,14 +587,14 @@ void Project::runProfiler() {
   uint8_t *buf = (uint8_t*)malloc(SAMPLEBUF_SIZE);
   assert(buf);
 
-  lynsyn.collectSamples(buf, SAMPLEBUF_SIZE, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
+  pmu.collectSamples(buf, SAMPLEBUF_SIZE, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
 
   emit advance(2, "Processing samples");
 
-  Measurement m[LYNSYN_MAX_CORES];
+  Measurement m[pmu.numCores()];
 
-  while(lynsyn.getNextSample(m)) {
-    for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
+  while(pmu.getNextSample(m)) {
+    for(unsigned core = 0; core < pmu.numCores(); core++) {
       if(!useCustomElf && elfSupport.isBb(m[core].pc)) {
         Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(m[core].pc));
         m[core].bb = NULL;
@@ -614,17 +614,18 @@ void Project::runProfiler() {
           }
           
         } else {
+          // the function does not exist in the CFG
           Module *mod = cfgModel->getCfg()->externalMod;
-          func = mod->getFunctionById(elfSupport.getFunction(m[core].pc));
+          m[core].func = mod->getFunctionById(elfSupport.getFunction(m[core].pc));
           m[core].bb = NULL;
-          if(func) {
-            m[core].bb = static_cast<BasicBlock*>(func->children[0]);
+          if(m[core].func) {
+            m[core].bb = static_cast<BasicBlock*>(m[core].func->children[0]);
           } else {
-            func = new Function(elfSupport.getFunction(m[core].pc), mod, mod->children.size());
-            mod->appendChild(func);
+            m[core].func = new Function(elfSupport.getFunction(m[core].pc), mod, mod->children.size());
+            mod->appendChild(m[core].func);
 
-            m[core].bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
-            func->appendChild(m[core].bb);
+            m[core].bb = new BasicBlock(QString::number(mod->children.size()), m[core].func, 0);
+            m[core].func->appendChild(m[core].bb);
           }
           m[core].write(profFile);
         }
@@ -634,7 +635,7 @@ void Project::runProfiler() {
 
   profFile.close();
 
-  lynsyn.release();
+  pmu.release();
 
   emit finished(0, "");
 }

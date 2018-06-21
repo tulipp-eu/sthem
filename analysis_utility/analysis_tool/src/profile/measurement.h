@@ -26,6 +26,7 @@
 #include <QFile>
 
 #include "analysis_tool.h"
+#include "project/pmu.h"
 
 class BasicBlock;
 class Cfg;
@@ -41,11 +42,11 @@ public:
   quint64 time;
   quint64 timeSinceLast;
   quint64 pc;
-  double power[LYNSYN_SENSORS];
+  double power[Pmu::MAX_SENSORS];
 
   quint32 sequence;
 
-  static unsigned counter[LYNSYN_MAX_CORES];
+  static unsigned counter[Pmu::MAX_CORES];
 
   Measurement() {}
 
@@ -56,7 +57,7 @@ public:
     this->func = NULL;
     this->time = time;
     this->timeSinceLast = timeSinceLast;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       this->power[i] = power[i];
     }
     sequence = Measurement::counter[core]++;
@@ -69,7 +70,7 @@ public:
     this->func = NULL;
     this->time = time;
     this->timeSinceLast = timeSinceLast;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       this->power[i] = power[i];
     }
     sequence = Measurement::counter[core]++;
@@ -82,7 +83,7 @@ public:
     this->func = func;
     this->time = time;
     this->timeSinceLast = timeSinceLast;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       this->power[i] = power[i];
     }
     sequence = Measurement::counter[core]++;

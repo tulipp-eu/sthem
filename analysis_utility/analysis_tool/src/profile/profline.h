@@ -35,8 +35,8 @@ class ProfLine {
 public:
   Vertex *vertex;
   double runtime;
-  double power[LYNSYN_SENSORS];
-  double energy[LYNSYN_SENSORS];
+  double power[Pmu::MAX_SENSORS];
+  double energy[Pmu::MAX_SENSORS];
   QVector<Measurement> measurements;
 
   ProfLine() {}
@@ -44,7 +44,7 @@ public:
   void init(Vertex *vertex, double runtime, double power[], double energy[]) {
     this->vertex = vertex;
     this->runtime = runtime;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       this->power[i] = power[i];
       this->energy[i]= energy[i];
     }

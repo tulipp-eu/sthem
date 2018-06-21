@@ -54,7 +54,7 @@ void Profile::addMeasurement(Measurement measurement) {
 
 void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {
   *runtime = 0;
-  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = 0;
   }
   
@@ -69,10 +69,10 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   for(unsigned i = 1; i < mments->size(); i++) {
     Measurement m = (*mments)[i];
 
-    (*runtime) += m.timeSinceLast / (double)LYNSYN_FREQ;
+    (*runtime) += Pmu::cyclesToSeconds(m.timeSinceLast);
 
-    for(unsigned sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
-      energy[sensor] += m.power[sensor] * m.timeSinceLast / (double)LYNSYN_FREQ;
+    for(unsigned sensor = 0; sensor < Pmu::MAX_SENSORS; sensor++) {
+      energy[sensor] += m.power[sensor] * Pmu::cyclesToSeconds(m.timeSinceLast);
     }
 
     if(measurements) measurements->push_back(m);
@@ -80,7 +80,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
 }
 
 void Profile::setProfData(QVector<Measurement> *measurements) {
-  for(unsigned core = 0; core < LYNSYN_MAX_CORES; core++) {
+  for(unsigned core = 0; core < Pmu::MAX_CORES; core++) {
     measurementsPerBb[core].clear();
   }
   this->measurements.clear();
@@ -90,16 +90,16 @@ void Profile::setProfData(QVector<Measurement> *measurements) {
   delete measurements;
 
   if(this->measurements.size()) {
-    runtime = ((this->measurements.last().time - this->measurements[0].time)) / (double)LYNSYN_FREQ;
+    runtime = Pmu::cyclesToSeconds(this->measurements.last().time - this->measurements[0].time);
   }
 
   if(this->measurements.size()) {
-    for(unsigned sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
+    for(unsigned sensor = 0; sensor < Pmu::MAX_SENSORS; sensor++) {
       energy[sensor] = 0;
 
       for(int i = 1; i < this->measurements.size(); i++) {
         if(this->measurements[i].core == 0) {
-          energy[sensor] += this->measurements[i].power[sensor] * this->measurements[i].timeSinceLast / (double)LYNSYN_FREQ;
+          energy[sensor] += this->measurements[i].power[sensor] * Pmu::cyclesToSeconds(this->measurements[i].timeSinceLast);
         }
       }
     }
@@ -107,7 +107,7 @@ void Profile::setProfData(QVector<Measurement> *measurements) {
 }
 
 void Profile::clear() {
-  for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
+  for(unsigned core = 0; core < Pmu::MAX_CORES; core++) {
     for(auto const &it : measurementsPerBb[core]) {
       delete it.second;
     }

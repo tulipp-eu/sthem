@@ -23,9 +23,14 @@
 
 #include <usbprotocol.h>
 
-#include "lynsyn.h"
+#define LYNSYN_MAX_CURRENT_VALUE 32768
+#define LYNSYN_REF_VOLTAGE 2.5
+#define LYNSYN_RS 8200
 
-bool Lynsyn::init() {
+#include "pmu.h"
+#include "profile/measurement.h"
+
+bool Pmu::init() {
   libusb_device *lynsynBoard;
 
   int r = libusb_init(&usbContext);
@@ -109,7 +114,7 @@ bool Lynsyn::init() {
 
     hwVersion = initReply.hwVersion;
 
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < MAX_SENSORS; i++) {
       if((initReply.calibration[i] < 0.8) || (initReply.calibration[i] > 1.2)) {
         printf("Suspect calibration values\n");
         return false;
@@ -121,7 +126,7 @@ bool Lynsyn::init() {
   return true;
 }
 
-void Lynsyn::release() {
+void Pmu::release() {
   libusb_release_interface(lynsynHandle, 0x1);
   libusb_attach_kernel_driver(lynsynHandle, 0x1);
   libusb_free_device_list(devs, 1);
@@ -130,7 +135,7 @@ void Lynsyn::release() {
   libusb_exit(usbContext);
 }
 
-void Lynsyn::sendBytes(uint8_t *bytes, int numBytes) {
+void Pmu::sendBytes(uint8_t *bytes, int numBytes) {
   int remaining = numBytes;
   int transfered = 0;
   while(remaining > 0) {
@@ -140,7 +145,7 @@ void Lynsyn::sendBytes(uint8_t *bytes, int numBytes) {
   }
 }
 
-void Lynsyn::getBytes(uint8_t *bytes, int numBytes) {
+void Pmu::getBytes(uint8_t *bytes, int numBytes) {
   int transfered = 0;
   int ret = 0;
 
@@ -154,7 +159,7 @@ void Lynsyn::getBytes(uint8_t *bytes, int numBytes) {
   return;
 }
 
-void Lynsyn::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
+void Pmu::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
   {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
@@ -212,7 +217,7 @@ void Lynsyn::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint6
   lastTime = curSample->time;
 }
 
-bool Lynsyn::getNextSample(Measurement *m) {
+bool Pmu::getNextSample(Measurement *m) {
   curSample++;
 
   if((uint8_t*)curSample >= endPtr) {
@@ -226,10 +231,10 @@ bool Lynsyn::getNextSample(Measurement *m) {
   int64_t interval = curSample->time - lastTime;
   lastTime = curSample->time;
 
-  for(unsigned core = 0; core < LYNSYN_MAX_CORES; core++) {
-    double p[LYNSYN_SENSORS];
+  for(unsigned core = 0; core < MAX_CORES; core++) {
+    double p[MAX_SENSORS];
 
-    for(unsigned sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
+    for(unsigned sensor = 0; sensor < MAX_SENSORS; sensor++) {
       switch(hwVersion) {
         case HW_VERSION_2_0: {
           double vo = (curSample->current[sensor] * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;

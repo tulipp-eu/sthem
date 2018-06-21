@@ -27,7 +27,7 @@ Cfg::Cfg() : Container("", "", NULL, 0) {
 
   profile = NULL;
 
-  for(unsigned i = 0; i < LYNSYN_MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
     unknownProfLine[i] = NULL;
   }
 }
@@ -40,12 +40,12 @@ void Cfg::buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forM
       unknownProfLine[core] = new ProfLine();
 
       double runtime;
-      double energy[LYNSYN_SENSORS];
+      double energy[Pmu::MAX_SENSORS];
 
       profile->getProfData(core, NULL, &runtime, energy, QVector<BasicBlock*>(), &(unknownProfLine[core]->measurements));
 
-      double power[LYNSYN_SENSORS];
-      for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+      double power[Pmu::MAX_SENSORS];
+      for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         power[i] = 0;
         if(runtime) power[i] = energy[i] / runtime;
       }
@@ -60,7 +60,7 @@ void Cfg::buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forM
 }
 
 void Cfg::clearCachedProfilingData() {
-  for(unsigned i = 0; i < LYNSYN_MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
     unknownProfLine[i] = NULL;
   }
 

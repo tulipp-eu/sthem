@@ -123,11 +123,11 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
               if(!callStack.contains(this)) { // TODO: check if this is correct
                 if(func->callers == 1) {
                   double runtimeChild;
-                  double energyChild[LYNSYN_SENSORS];
+                  double energyChild[Pmu::MAX_SENSORS];
                   callStack.push_back(this);
                   func->getProfData(core, callStack, &runtimeChild, energyChild, measurements);
                   cachedRuntime += runtimeChild;
-                  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+                  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
                     cachedEnergy[i] += energyChild[i];
                   }
                 } else {
@@ -145,14 +145,14 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
       }
     } else {
       cachedRuntime = 0;
-      for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+      for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] = 0;
       }
     }
   }
 
   *runtime = cachedRuntime;
-  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
   }
 }

@@ -351,7 +351,7 @@ public:
 
   virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements = NULL) {
     *runtime = 0;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       energy[i] = 0;
     }
   }

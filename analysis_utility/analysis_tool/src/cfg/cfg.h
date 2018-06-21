@@ -27,13 +27,14 @@
 #include "function.h"
 #include "module.h"
 #include "profile/profile.h"
+#include "project/pmu.h"
 
 class Profile;
 
 class Cfg : public Container {
 
 private:
-  ProfLine *unknownProfLine[LYNSYN_MAX_CORES];
+  ProfLine *unknownProfLine[Pmu::MAX_CORES];
   Profile *profile;
 
 public:

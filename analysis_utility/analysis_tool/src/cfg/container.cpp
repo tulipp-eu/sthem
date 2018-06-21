@@ -682,7 +682,7 @@ Container::~Container() {
   for(auto it : layers) {
     delete it;
   }
-  for(unsigned i = 0; i < LYNSYN_MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
     if(cachedProfLine[i]) {
       delete cachedProfLine[i];
     }
@@ -767,23 +767,23 @@ void Container::collapse() {
 void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements) {
   if((cachedRuntime == INT_MAX) || measurements) {
     cachedRuntime = 0;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       cachedEnergy[i] = 0;
     }
 
     for(auto child : children) {
       double runtimeChild;
-      double energyChild[LYNSYN_SENSORS];
+      double energyChild[Pmu::MAX_SENSORS];
       child->getProfData(core, callStack, &runtimeChild, energyChild, measurements);
       cachedRuntime += runtimeChild;
-      for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+      for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] += energyChild[i];
       }
     }
   }
 
   *runtime = cachedRuntime;
-  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
   }
 }
@@ -796,14 +796,14 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
   if(!forModel || isVisibleInTable()) {
     if(!cachedProfLine[core]) {
       double runtime;
-      double energy[LYNSYN_SENSORS];
+      double energy[Pmu::MAX_SENSORS];
 
       cachedProfLine[core] = new ProfLine();
 
       getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &(cachedProfLine[core]->measurements));
 
-      double power[LYNSYN_SENSORS];
-      for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+      double power[Pmu::MAX_SENSORS];
+      for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         power[i] = 0;
         if(runtime) power[i] = energy[i] / runtime;
       }

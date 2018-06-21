@@ -26,7 +26,7 @@
 
 #include <QDataStream>
 
-unsigned Measurement::counter[LYNSYN_MAX_CORES] = {0};
+unsigned Measurement::counter[Pmu::MAX_CORES] = {0};
 
 void Measurement::read(QFile &file, Cfg *cfg) {
   QDataStream in(&file);
@@ -69,7 +69,7 @@ void Measurement::read(QFile &file, Cfg *cfg) {
   in >> core;
   in >> time;
   in >> timeSinceLast;
-  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     in >> power[i];
   }
   in >> sequence;
@@ -92,7 +92,7 @@ void Measurement::write(QFile &file) {
   out << core;
   out << time;
   out << timeSinceLast;
-  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     out << power[i];
   }
   out << sequence;

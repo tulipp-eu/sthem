@@ -31,6 +31,7 @@
 #include "analysis/analysismodel.h"
 #include "config/configdialog.h"
 #include "project/projectdialog.h"
+#include "project/pmu.h"
 
 QColor edgeColors[] = EDGE_COLORS;
 QString colorNames[] = COLOR_NAMES;
@@ -75,7 +76,7 @@ MainWindow::MainWindow() {
   connect(windowBox, SIGNAL(activated(int)), this, SLOT(changeWindow(int)));
 
   sensorBox = new QComboBox();
-  for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     sensorBox->addItem(QString("Sensor ") + QString::number(i));
   }
   connect(sensorBox, SIGNAL(activated(int)), this, SLOT(changeSensor(int)));
@@ -244,7 +245,7 @@ MainWindow::MainWindow() {
   Config::window = settings.value("window", 1).toUInt();
   Config::sdsocVersion = settings.value("sdsocVersion", 20172).toUInt();
 
-  for(unsigned i = 0; i < LYNSYN_MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
     coreBox->addItem(QString("Core ") + QString::number(i));
   }
 
@@ -854,7 +855,7 @@ void MainWindow::showProfileSummary() {
     messageTextStream << "<tr>";
     messageTextStream << "<td>Total runtime:</td><td>" << profile->getRuntime() << "s</td>";
     messageTextStream << "</tr>";
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       messageTextStream << "<tr>";
       messageTextStream << "<td>Total energy " << QString::number(i) << ":</td><td>" << profile->getEnergy(i) << "J</td>";
       messageTextStream << "</tr>";

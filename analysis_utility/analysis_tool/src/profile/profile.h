@@ -35,12 +35,12 @@ class Profile {
 
 private:
   double runtime;
-  double energy[LYNSYN_SENSORS];
+  double energy[Pmu::MAX_SENSORS];
 
   void addMeasurement(Measurement measurement);
 
 public:
-  std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[LYNSYN_MAX_CORES];
+  std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[Pmu::MAX_CORES];
   QVector<Measurement> measurements;
 
   Profile();
@@ -62,16 +62,16 @@ public:
 	friend std::ostream& operator<<(std::ostream &os, const Profile &p) {
     // only streams out the necessary parts for DSE
 		os << p.runtime << '\n';
-    for(unsigned i = 0; i < (LYNSYN_SENSORS-1); i++) {
+    for(unsigned i = 0; i < (Pmu::MAX_SENSORS-1); i++) {
       os << p.energy[i] << '\n';
     }
-    os << p.energy[LYNSYN_SENSORS-1];
+    os << p.energy[Pmu::MAX_SENSORS-1];
 		return os;
 	}
 
 	friend std::istream& operator>>(std::istream &is, Profile &p) {
 		is >> p.runtime;
-    for(unsigned i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       is >> p.energy[i];
     }
 		return is;

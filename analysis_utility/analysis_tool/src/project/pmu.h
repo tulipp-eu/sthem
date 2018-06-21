@@ -19,15 +19,20 @@
  *
  *****************************************************************************/
 
-#ifndef LYNSYN_H
-#define LYNSYN_H
+#ifndef PMU_H
+#define PMU_H
 
 #include <libusb.h>
 
 #include "analysis_tool.h"
-#include "profile/measurement.h"
 
-class Lynsyn {
+#define LYNSYN_MAX_CORES 4
+#define LYNSYN_SENSORS 7
+#define LYNSYN_FREQ 48000000
+
+class Measurement;
+
+class Pmu {
 
 private:
 	struct libusb_device_handle *lynsynHandle;
@@ -46,12 +51,15 @@ private:
   void getBytes(uint8_t *bytes, int numBytes);
 
 public:
+  static const unsigned MAX_SENSORS = LYNSYN_SENSORS;
+  static const unsigned MAX_CORES = LYNSYN_MAX_CORES;
+
   double rl[LYNSYN_SENSORS];
   double supplyVoltage[LYNSYN_SENSORS];
 
-  Lynsyn() {}
+  Pmu() {}
 
-  Lynsyn(double rl[LYNSYN_SENSORS], double supplyVoltage[LYNSYN_SENSORS]) {
+  Pmu(double rl[LYNSYN_SENSORS], double supplyVoltage[LYNSYN_SENSORS]) {
     for(int i = 0; i < LYNSYN_SENSORS; i++) {
       this->rl[i] = rl[i];
       this->supplyVoltage[i] = supplyVoltage[i];
@@ -64,6 +72,10 @@ public:
   void collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr);
   bool getNextSample(Measurement *m);
 
+  unsigned numSensors() { return LYNSYN_SENSORS; }
+  unsigned numCores() { return LYNSYN_MAX_CORES; }
+
+  static double cyclesToSeconds(uint64_t cycles) { return cycles / (double)LYNSYN_FREQ; }
 };
 
 #endif

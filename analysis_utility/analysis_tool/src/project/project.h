@@ -34,7 +34,7 @@
 #include "config/config.h"
 #include "profile/measurement.h"
 #include "cfg/cfgmodel.h"
-#include "lynsyn.h"
+#include "pmu.h"
 
 #define SAMPLEBUF_SIZE (128*1024*1024)
 
@@ -67,7 +67,7 @@ public:
   int cfgOptLevel;
   QStringList systemIncludes;
   QString tcfUploadScript;
-  Lynsyn lynsyn;
+  Pmu pmu;
   bool ultrascale;
   QString startFunc;
   unsigned startCore;

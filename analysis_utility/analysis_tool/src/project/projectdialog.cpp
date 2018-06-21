@@ -226,8 +226,8 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   QLabel *rlLabel = new QLabel("Rl:");
   rlLabel->setFixedWidth(labelWidth);
   rlLayout->addWidget(rlLabel);
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    rlEdit[i] = new QLineEdit(QString::number(project->lynsyn.rl[i]));
+  for(unsigned i = 0; i < project->pmu.numSensors(); i++) {
+    rlEdit[i] = new QLineEdit(QString::number(project->pmu.rl[i]));
     rlEdit[i]->setFixedWidth(inputWidth);
     rlLayout->addWidget(rlEdit[i]);
   }
@@ -246,8 +246,8 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   QLabel *supplyVoltageLabel = new QLabel("Supply voltage:");
   supplyVoltageLabel->setFixedWidth(labelWidth);
   supplyVoltageLayout->addWidget(supplyVoltageLabel);
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    supplyVoltageEdit[i] = new QLineEdit(QString::number(project->lynsyn.supplyVoltage[i]));
+  for(unsigned i = 0; i < project->pmu.numSensors(); i++) {
+    supplyVoltageEdit[i] = new QLineEdit(QString::number(project->pmu.supplyVoltage[i]));
     supplyVoltageEdit[i]->setFixedWidth(inputWidth);
     supplyVoltageLayout->addWidget(supplyVoltageEdit[i]);
   }
@@ -292,7 +292,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   QLabel *startCoreLabel = new QLabel("On core:");
   startLayout->addWidget(startCoreLabel);
   startCoreEdit = new QLineEdit(QString::number(project->startCore));
-  startCoreEdit->setValidator(new QIntValidator(0, LYNSYN_MAX_CORES, this));
+  startCoreEdit->setValidator(new QIntValidator(0, Pmu::MAX_CORES, this));
   startLayout->addWidget(startCoreEdit);
   startLayout->addStretch(1);
 
@@ -304,7 +304,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   QLabel *stopCoreLabel = new QLabel("On core:");
   stopLayout->addWidget(stopCoreLabel);
   stopCoreEdit = new QLineEdit(QString::number(project->stopCore));
-  stopCoreEdit->setValidator(new QIntValidator(0, LYNSYN_MAX_CORES, this));
+  stopCoreEdit->setValidator(new QIntValidator(0, Pmu::MAX_CORES, this));
   stopLayout->addWidget(stopCoreEdit);
   stopLayout->addStretch(1);
 
@@ -438,9 +438,9 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->useCustomElf = profPage->customElfCheckBox->checkState() == Qt::Checked;
   project->customElfFile = profPage->customElfEdit->text();
 
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
-    project->lynsyn.supplyVoltage[i] = profPage->supplyVoltageEdit[i]->text().toDouble();
-    project->lynsyn.rl[i] = profPage->rlEdit[i]->text().toDouble();
+  for(unsigned i = 0; i < project->pmu.numSensors(); i++) {
+    project->pmu.supplyVoltage[i] = profPage->supplyVoltageEdit[i]->text().toDouble();
+    project->pmu.rl[i] = profPage->rlEdit[i]->text().toDouble();
   }
 
   if(profPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
