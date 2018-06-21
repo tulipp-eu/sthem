@@ -43,7 +43,7 @@ protected:
   QString processCompilerOptions(QDomElement &childElement, int *optLevel);
   QString processLinkerOptions(QDomElement &childElement);
   QString processIncludePaths(QString filename);
-  void parseSynthesisReport();
+  virtual void parseSynthesisReport() = 0;
   virtual bool getProjectOptions() = 0;
   void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
   void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects);
@@ -106,8 +106,9 @@ public:
 
 class Sdsoc20162 : public Sdsoc {
 
-private:
+protected:
   virtual bool getProjectOptions();
+  virtual void parseSynthesisReport();
 
 public:
   Sdsoc20162() {
@@ -123,8 +124,9 @@ public:
 
 class Sdsoc20172 : public Sdsoc {
 
-private:
+protected:
   virtual bool getProjectOptions();
+  virtual void parseSynthesisReport();
 
 public:
   Sdsoc20172() {

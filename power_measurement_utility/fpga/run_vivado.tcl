@@ -32,7 +32,7 @@ set project_name lynsyn
 
 
 # Target Device
-set device  xc7a15tftg256-3
+set device  xc7a15tftg256-1
 
 set design_name "lynsyn"
 set top_name "lynsyn"

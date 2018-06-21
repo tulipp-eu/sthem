@@ -862,6 +862,24 @@ void MainWindow::showProfileSummary() {
       messageTextStream << "<td>Total energy " << QString::number(i) << ":</td><td>" << profile->getEnergy(i) << "J</td>";
       messageTextStream << "</tr>";
     }
+    if(project->isSdSocProject()) {
+      Sdsoc *sdsoc = static_cast<Sdsoc*>(project);
+      messageTextStream << "<tr>";
+      messageTextStream << "<td>Timing:</td><td>" << (sdsoc->getTimingOk() ? "OK" : "Failed") << "</td>";
+      messageTextStream << "</tr>";
+      messageTextStream << "<tr>";
+      messageTextStream << "<td>BRAMs:</td><td>" << sdsoc->getBrams() << "%</td>";
+      messageTextStream << "</tr>";
+      messageTextStream << "<tr>";
+      messageTextStream << "<td>LUTs:</td><td>" << sdsoc->getLuts() << "%</td>";
+      messageTextStream << "</tr>";
+      messageTextStream << "<tr>";
+      messageTextStream << "<td>DSPs:</td><td>" << sdsoc->getDsps() << "%</td>";
+      messageTextStream << "</tr>";
+      messageTextStream << "<tr>";
+      messageTextStream << "<td>Registers:</td><td>" << sdsoc->getRegs() << "%</td>";
+      messageTextStream << "</tr>";
+    }
     messageTextStream << "</table>";
   
     QMessageBox msgBox;

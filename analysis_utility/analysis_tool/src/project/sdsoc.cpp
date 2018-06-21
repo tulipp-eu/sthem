@@ -480,40 +480,6 @@ QStringList Sdsoc::getBuildConfigurations(QString path) {
   return list;
 }
 
-void Sdsoc::parseSynthesisReport() {
-  QFile file("_sds/reports/sds.rpt");
-
-  if(file.open(QIODevice::ReadOnly)) {
-    QTextStream in(&file);
-
-    QString line;
-    do {
-      line = in.readLine();
-      if(line.contains("All user specified timing constraints are met", Qt::CaseSensitive)) {
-        timingOk = true;
-      }
-      if(line.contains("| Block RAM Tile", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        brams = list[5].trimmed().toFloat();
-      }
-      if(line.contains("| Slice LUTs", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        luts = list[5].trimmed().toFloat();
-      }
-      if(line.contains("| DSPs", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        dsps = list[5].trimmed().toFloat();
-      }
-      if(line.contains("| Slice Registers", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        regs = list[5].trimmed().toFloat();
-      }
-    } while(!line.isNull());
-
-    file.close();
-  }
-}
-
 bool Sdsoc::createMakefile() {
   QStringList objects;
 
@@ -593,6 +559,40 @@ bool Sdsoc::createMakefile() {
   return true;
 }
 
+void Sdsoc20162::parseSynthesisReport() {
+  QFile file("_sds/reports/sds.rpt");
+
+  if(file.open(QIODevice::ReadOnly)) {
+    QTextStream in(&file);
+
+    QString line;
+    do {
+      line = in.readLine();
+      if(line.contains("All user specified timing constraints are met", Qt::CaseSensitive)) {
+        timingOk = true;
+      }
+      if(line.contains("| Block RAM Tile", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        brams = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| Slice LUTs", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        luts = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| DSPs", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        dsps = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| Slice Registers", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        regs = list[5].trimmed().toFloat();
+      }
+    } while(!line.isNull());
+
+    file.close();
+  }
+}
+
 bool Sdsoc20162::getProjectOptions() {
   QDomDocument doc;
   QFile file(path + "/userbuildcfgs/" + configType + "_project.sdsoc");
@@ -651,6 +651,40 @@ bool Sdsoc20162::getProjectOptions() {
   }
 
   return true;
+}
+
+void Sdsoc20172::parseSynthesisReport() {
+  QFile file("_sds/reports/sds.rpt");
+
+  if(file.open(QIODevice::ReadOnly)) {
+    QTextStream in(&file);
+
+    QString line;
+    do {
+      line = in.readLine();
+      if(line.contains("All user specified timing constraints are met", Qt::CaseSensitive)) {
+        timingOk = true;
+      }
+      if(line.contains("| Block RAM Tile", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        brams = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| CLB LUTs", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        luts = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| DSPs", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        dsps = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| CLB Registers", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        regs = list[5].trimmed().toFloat();
+      }
+    } while(!line.isNull());
+
+    file.close();
+  }
 }
 
 bool Sdsoc20172::getProjectOptions() {
