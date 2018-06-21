@@ -22,6 +22,8 @@
 #include "sdsoc.h"
 
 void Sdsoc::copy(Sdsoc *p) {
+  Project::copy(p);
+
   platform = p->platform;
   os = p->os;
   insertapm = p->insertapm;
@@ -39,7 +41,6 @@ void Sdsoc::copy(Sdsoc *p) {
 }
 
 Sdsoc::Sdsoc(Sdsoc *p) {
-  Project::copy(p);
   copy(p);
 }
 

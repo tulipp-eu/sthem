@@ -66,7 +66,6 @@ class ProjectProfPage : public QWidget {
 public:
   QLineEdit *rlEdit[7];
   QLineEdit *supplyVoltageEdit[7];
-  QLineEdit *coresEdit;
   QComboBox *zynqCombo;
   QLineEdit *startFuncEdit;
   QLineEdit *startCoreEdit;

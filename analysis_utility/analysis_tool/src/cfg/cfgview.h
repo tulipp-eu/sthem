@@ -57,7 +57,11 @@ protected:
   void contextMenuEvent(QContextMenuEvent *event);
 
 public:
-  CfgView(QTreeView *analysisView, Dse *dse, QGraphicsScene *scene);
+  CfgView(QTreeView *analysisView, QGraphicsScene *scene);
+  void setDse(Dse *dse) {
+    this->dse = dse;
+    dseAct->setEnabled(dse);
+  }
 
 public slots:
   void zoomInEvent() {

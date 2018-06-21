@@ -99,7 +99,7 @@ void CfgView::setTopEvent() {
 
 void CfgView::dseEvent() {
   Container *cont = dynamic_cast<Container*>(contextVertex);
-  dse->dialog(cont);
+  if(dse) dse->dialog(cont);
 }
 
 QVector<AnalysisInfo> removeValid(QVector<AnalysisInfo> externalCalls) {
@@ -231,9 +231,10 @@ void CfgView::hlsAnalysisEvent() {
   analysisView->header()->restoreState(settings.value("analysisViewState").toByteArray());
 }
 
-CfgView::CfgView(QTreeView *analysisView, Dse *dse, QGraphicsScene *scene) : QGraphicsView(scene) {
+CfgView::CfgView(QTreeView *analysisView, QGraphicsScene *scene) : QGraphicsView(scene) {
+  dse = NULL;
+
   this->analysisView = analysisView;
-  this->dse = dse;
 
   setDragMode(QGraphicsView::ScrollHandDrag);
   viewport()->setCursor(Qt::ArrowCursor);
@@ -249,4 +250,6 @@ CfgView::CfgView(QTreeView *analysisView, Dse *dse, QGraphicsScene *scene) : QGr
 
   dseAct = new QAction("&Automatic DSE", this);
   connect(dseAct, SIGNAL(triggered()), this, SLOT(dseEvent()));
+
+  dseAct->setEnabled(false);
 }

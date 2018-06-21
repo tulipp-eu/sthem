@@ -95,7 +95,7 @@ MainWindow::MainWindow() {
 
   cfgScene = new CfgScene(colorBox, textView, this);
   cfgScene->setSceneRect(QRectF(0, 0, 1024, 512));
-  cfgView = new CfgView(analysisView, dse, cfgScene);
+  cfgView = new CfgView(analysisView, cfgScene);
   
   cfgSplitter2 = new QSplitter;
   cfgSplitter2->setOrientation(Qt::Vertical);
@@ -374,6 +374,7 @@ void MainWindow::closeProject() {
 
   if(dse) delete dse;
   dse = NULL;
+  cfgView->setDse(dse);
 
   if(profile) delete profile;
   profile = NULL;
@@ -413,7 +414,7 @@ void MainWindow::loadFiles() {
 
   project->loadFiles();
 
-  dse->setCfg(project->getCfg());
+  if(dse) dse->setCfg(project->getCfg());
   treeView->setModel(project->cfgModel);
   QSettings settings;
   treeView->header()->restoreState(settings.value("treeViewState").toByteArray());
@@ -524,6 +525,7 @@ void MainWindow::openProject(QString path, QString configType) {
 
       dse = new Dse(sdsocProject);
       dse->setCfg(project->getCfg());
+      cfgView->setDse(dse);
 
       setWindowTitle(QString(APP_NAME) + " : " + project->name + " (" + project->configType + ")");
       loadFiles();
@@ -664,7 +666,7 @@ void MainWindow::projectDialog() {
 void MainWindow::cleanEvent() {
   if(project) {
     project->clean();
-    dse->clear();
+    if(dse) dse->clear();
     loadFiles();
     if(profile) delete profile;
     profile = NULL;

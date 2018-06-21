@@ -818,7 +818,7 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
 void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack) {
   for(auto child : children) {
     if(child->isLoop()) {
-      if(!child->getSourceFilename().startsWith(Config::xilinxDir)) {
+      if(!child->getSourceFilename().contains(Config::xilinxDir)) {
         QString line = getLine(child->getSourceFilename(), child->sourceLineNumber, child->sourceColumn);
         if(line.startsWith("for") || line.startsWith("while") || line.startsWith("do")) {
           loops.push_back(static_cast<Loop*>(child));

@@ -480,17 +480,36 @@ void Project::copy(Project *p) {
   isCpp = p->isCpp;
 
   path = p->path;
+
+  systemXmls = p->systemXmls;
+  cfgOptLevel = p->cfgOptLevel;
+  systemIncludes = p->systemIncludes;
+  tcfUploadScript = p->tcfUploadScript;
+  //pmu = p->pmu;
+  ultrascale = p->ultrascale;
+  startFunc = p->startFunc;
+  startCore = p->startCore;
+  stopFunc = p->stopFunc;
+  stopCore = p->stopCore;
+  createBbInfo = p->createBbInfo;
+  useCustomElf = p->useCustomElf;
+  
+  // settings from either sdsoc project or user
   sources = p->sources;
   name = p->name;
-  configType = p->configType;
-  accelerators = p->accelerators;
-  
   cOptions = p->cOptions;
   cOptLevel = p->cOptLevel;
   cppOptions = p->cppOptions;
   cppOptLevel = p->cppOptLevel;
   linkerOptions = p->linkerOptions;
+
+  // settings from sdsoc project, unused otherwise
+  configType = p->configType;
+  accelerators = p->accelerators;
+  cSysInc = p->cSysInc;
+  cppSysInc = p->cppSysInc;
   
+  QString customElfFile;
   elfFile = p->elfFile;
 
   cfgModel = NULL;
