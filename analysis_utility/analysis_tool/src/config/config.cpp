@@ -21,15 +21,6 @@
 
 #include "config.h"
 
-const QStringList Config::defaultSystemIncludeDirs = {
-};
-
-const QStringList Config::defaultSystemXmls = {
-};
-
-const QStringList Config::defaultSystemBins = {
-};
-
 QString Config::workspace;
 Config::ColorMode Config::colorMode;
 bool Config::includeAllInstructions;

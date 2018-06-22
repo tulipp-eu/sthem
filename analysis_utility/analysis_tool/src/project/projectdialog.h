@@ -55,8 +55,6 @@ public:
   QLineEdit *cppOptionsEdit;
   QLineEdit *linkerOptionsEdit;
 
-  QPlainTextEdit *includeEdit;
-
   ProjectBuildPage(Project *project, QWidget *parent = 0);
 };
 

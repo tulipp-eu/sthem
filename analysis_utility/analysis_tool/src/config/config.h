@@ -39,10 +39,6 @@ public:
     ENERGY
   };
 
-  static const QStringList defaultSystemIncludeDirs;
-  static const QStringList defaultSystemXmls;
-  static const QStringList defaultSystemBins;
-
   static QString workspace;
   static ColorMode colorMode;
   static bool includeAllInstructions;

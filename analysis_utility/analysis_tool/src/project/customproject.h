@@ -27,6 +27,7 @@
 class CustomProject : public Project {
 
 private:
+  void writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
 
 public:
   CustomProject() {

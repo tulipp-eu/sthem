@@ -47,7 +47,6 @@ class Project : public QObject {
 
 protected:
   void writeTulippCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
-  void writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
   void writeLinkRule(QString linker, QFile &makefile, QStringList objects);
   void writeCleanRule(QFile &makefile);
 
@@ -65,7 +64,6 @@ public:
   // user specified settings
   QStringList systemXmls;
   int cfgOptLevel;
-  QStringList systemIncludes;
   QString tcfUploadScript;
   Pmu pmu;
   bool ultrascale;

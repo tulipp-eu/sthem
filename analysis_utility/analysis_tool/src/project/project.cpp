@@ -36,28 +36,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // makefile creation
 
-void Project::writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt) {
-  QFileInfo fileInfo(path);
-
-  QString clangTarget = ultrascale ? A53_CLANG_TARGET : A9_CLANG_TARGET;
-
-  QStringList options;
-
-  options << opt.split(' ');
-  options << clangTarget;
-
-  for(auto include : systemIncludes) {
-    if(include.trimmed() != "") {
-      options << QString("-I") + include;
-    }
-  }
-
-  options << QString("-I") + this->path + "/src";
-
-  makefile.write((fileInfo.baseName() + ".o : " + path + "\n").toUtf8());
-  makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());
-}
-
 void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString path, QString opt) {
   QFileInfo fileInfo(path);
 
@@ -83,12 +61,6 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
       options << QString("-Os");
     }
     options << clangTarget;
-
-    for(auto include : systemIncludes) {
-      if(include.trimmed() != "") {
-        options << QString("-I") + include;
-      }
-    }
 
     options << QString("-I") + this->path + "/src";
 
@@ -274,8 +246,7 @@ void Project::loadProjectFile() {
 
   cfgOptLevel = settings.value("cfgOptLevel", "-1").toInt();
   createBbInfo = settings.value("createBbInfo", true).toBool();
-  systemIncludes = settings.value("systemIncludeDirs", Config::defaultSystemIncludeDirs).toStringList();
-  systemXmls = settings.value("systemXmls", Config::defaultSystemXmls).toStringList();
+  systemXmls = settings.value("systemXmls").toStringList();
   for(unsigned i = 0; i < pmu.numSensors(); i++) {
     pmu.supplyVoltage[i] = settings.value("supplyVoltage" + QString::number(i), 5).toDouble();
   }
@@ -328,7 +299,6 @@ void Project::saveProjectFile() {
 
   settings.setValue("cfgOptLevel", cfgOptLevel);
   settings.setValue("createBbInfo", createBbInfo);
-  settings.setValue("systemIncludeDirs", systemIncludes);
   settings.setValue("systemXmls", systemXmls);
   for(unsigned i = 0; i < pmu.numSensors(); i++) { 
     settings.setValue("supplyVoltage" + QString::number(i), pmu.supplyVoltage[i]);
@@ -362,12 +332,6 @@ int Project::runSourceTool(QString inputFilename, QString outputFilename, QStrin
   for(auto x : cOptions.split(' ')) {
     if(x.trimmed() != "") {
       options << QString("-extra-arg=") + x;
-    }
-  }
-
-  for(auto include : systemIncludes) {
-    if(include.trimmed() != "") {
-      options << QString("-extra-arg=-I") + include;
     }
   }
 
@@ -483,7 +447,6 @@ void Project::copy(Project *p) {
 
   systemXmls = p->systemXmls;
   cfgOptLevel = p->cfgOptLevel;
-  systemIncludes = p->systemIncludes;
   tcfUploadScript = p->tcfUploadScript;
   //pmu = p->pmu;
   ultrascale = p->ultrascale;

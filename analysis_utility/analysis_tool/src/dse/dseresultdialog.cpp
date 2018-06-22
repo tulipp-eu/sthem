@@ -64,6 +64,7 @@ void DseResultDialog::changeFitnessFunction(int index) {
   if(!best.failed) {
     messageTextStream << "<tr>";
     messageTextStream << "<td>Fitness:</td><td>" << QString::number(fitness) << "</td>";
+    messageTextStream << "<td>Runtime:</td><td>" << best.profile->getRuntime() << "</td>";
     messageTextStream << "</tr>";
     messageTextStream << "<tr>";
     messageTextStream << "<td>Timing:</td><td>" << (best.project->getTimingOk() ? "OK" : "Failed") << "</td>";

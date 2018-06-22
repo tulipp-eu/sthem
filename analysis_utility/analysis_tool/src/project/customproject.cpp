@@ -23,6 +23,22 @@
 
 #include <QMessageBox>
 
+void CustomProject::writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt) {
+  QFileInfo fileInfo(path);
+
+  QString clangTarget = ultrascale ? A53_CLANG_TARGET : A9_CLANG_TARGET;
+
+  QStringList options;
+
+  options << opt.split(' ');
+  options << clangTarget;
+
+  options << QString("-I") + this->path + "/src";
+
+  makefile.write((fileInfo.baseName() + ".o : " + path + "\n").toUtf8());
+  makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());
+}
+
 bool CustomProject::openProject(QString path) {
   close();
 

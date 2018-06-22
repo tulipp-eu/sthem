@@ -145,24 +145,6 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
 
   //---------------------------------------------------------------------------
 
-  QGroupBox *includeGroup = new QGroupBox("System include directories");
-
-  {
-    includeEdit = new QPlainTextEdit;
-    QFontMetrics m(includeEdit->font());
-    includeEdit->setFixedHeight((m.lineSpacing()+2) * 10);
-    includeEdit->setFixedWidth(m.maxWidth() * 20);
-
-    includeEdit->insertPlainText(project->systemIncludes.join('\n'));
-
-    QVBoxLayout *includeLayout = new QVBoxLayout;
-    includeLayout->addWidget(includeEdit);
-
-    includeGroup->setLayout(includeLayout);
-  }
-
-  //---------------------------------------------------------------------------
-
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(compGroup);
 
@@ -188,7 +170,6 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
 
   //---------------------------------------------------------------------------
 
-  mainLayout->addWidget(includeGroup);
   mainLayout->addStretch(1);
 
   setLayout(mainLayout);
@@ -432,8 +413,6 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
 
     project->linkerOptions = buildPage->linkerOptionsEdit->text();
   }
-
-  project->systemIncludes = buildPage->includeEdit->toPlainText().split("\n");
 
   project->useCustomElf = profPage->customElfCheckBox->checkState() == Qt::Checked;
   project->customElfFile = profPage->customElfEdit->text();
