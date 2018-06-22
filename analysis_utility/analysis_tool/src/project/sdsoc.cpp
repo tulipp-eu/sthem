@@ -61,6 +61,8 @@ void Sdsoc::print() {
 void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
   QStringList options;
 
+  options << QString("-I") + this->path + "/src";
+
   options << opt.split(' ');
 
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
@@ -74,8 +76,6 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
   }
-
-  options << QString("-I") + this->path + "/src";
 
   QFileInfo fileInfo(path);
 

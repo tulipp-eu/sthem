@@ -53,6 +53,8 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
   {
     QStringList options;
 
+    options << QString("-I") + this->path + "/src";
+
     options << opt.split(' ');
 
     if(cfgOptLevel >= 0) {
@@ -61,8 +63,6 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
       options << QString("-Os");
     }
     options << clangTarget;
-
-    options << QString("-I") + this->path + "/src";
 
     makefile.write((fileInfo.baseName() + ".ll : " + path + "\n").toUtf8());
     makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -g -emit-llvm -S $<\n\n").toUtf8());
@@ -324,18 +324,18 @@ void Project::saveProjectFile() {
 ///////////////////////////////////////////////////////////////////////////////
 // transform source
 
-int Project::runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline) {
+int Project::runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt) {
   QStringList options;
 
   options << inputFilename;
 
-  for(auto x : cOptions.split(' ')) {
+  options << QString("-extra-arg=-I") + this->path + "/src";
+
+  for(auto x : opt.split(' ')) {
     if(x.trimmed() != "") {
       options << QString("-extra-arg=") + x;
     }
   }
-
-  options << QString("-extra-arg=-I") + this->path + "/src";
 
   for(auto l : loopsToPipeline) {
     options << QString("-pipeloop=") + l;

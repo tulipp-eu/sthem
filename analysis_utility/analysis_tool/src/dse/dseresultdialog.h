@@ -36,6 +36,7 @@ class DseResultDialog : public QDialog {
   Q_OBJECT
 
 private:
+  Sdsoc *mainProject;
   QLabel *genomeText;
   QVector<DseRun> *dseRuns;
   QVector<Loop*> loops;
@@ -54,7 +55,7 @@ private slots:
   void changeAxes(int dummy);
 
 public:
-  DseResultDialog(QVector<DseRun> *dseRuns, unsigned fitness, QVector<Loop*> loops);
+  DseResultDialog(Sdsoc *mainProject, QVector<DseRun> *dseRuns, unsigned fitness, QVector<Loop*> loops);
 };
 
 #endif

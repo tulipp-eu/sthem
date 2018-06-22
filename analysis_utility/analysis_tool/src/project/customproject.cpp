@@ -30,10 +30,10 @@ void CustomProject::writeCompileRule(QString compiler, QFile &makefile, QString 
 
   QStringList options;
 
+  options << QString("-I") + this->path + "/src";
+
   options << opt.split(' ');
   options << clangTarget;
-
-  options << QString("-I") + this->path + "/src";
 
   makefile.write((fileInfo.baseName() + ".o : " + path + "\n").toUtf8());
   makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());

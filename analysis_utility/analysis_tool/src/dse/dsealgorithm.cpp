@@ -44,6 +44,7 @@ QMap<QString,QStringList> DseAlgorithm::getFilesToTransform(QVector<Loop*> loops
       }
       QStringList list = hwFiles[l->sourceFilename];
       list.push_back(QString::number(l->sourceLineNumber) + "," + QString::number(l->sourceColumn));
+      list.removeDuplicates();
       hwFiles[l->sourceFilename] = list;
     }
   }
@@ -100,7 +101,14 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
       }
     }
 
-    dseRun.project->runSourceTool(f.first, fileInfo.fileName(), f.second);
+    QString opt;
+    if(fileInfo.suffix() == "c") {
+      opt = dseRun.project->cOptions + " " + dseRun.project->cSysInc;
+    } else if((fileInfo.suffix() == "cpp") || (fileInfo.suffix() == "cc")) {
+      opt = dseRun.project->cppOptions + " " + dseRun.project->cppSysInc;
+    }
+
+    dseRun.project->runSourceTool(f.first, fileInfo.fileName(), f.second, opt);
   }
 
   // build

@@ -106,7 +106,7 @@ public:
   void clean();
 
   virtual void print();
-  int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline);
+  int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
 
   QVector<Measurement> *parseProfFile();
   QVector<Measurement> *parseProfFile(QFile &file);

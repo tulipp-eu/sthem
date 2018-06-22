@@ -104,22 +104,55 @@ void DseResultDialog::genSource() {
       QFileInfo fileInfo(f.first);
 
       // run source tool
-      int ret = dseRun.project->runSourceTool(f.first, fileInfo.fileName(), f.second);
+      QString opt;
+      if(fileInfo.suffix() == "c") {
+        opt = mainProject->cOptions + " " + mainProject->cSysInc;
+      } else if((fileInfo.suffix() == "cpp") || (fileInfo.suffix() == "cc")) {
+        opt = mainProject->cppOptions + " " + mainProject->cppSysInc;
+      }
+      int ret = mainProject->runSourceTool(f.first, fileInfo.fileName(), f.second, opt);
       Q_UNUSED(ret);
       assert(ret == 0);
 
+      // remove old backup file
+      bool r = QFile::remove(f.first + ".old");
+      if(!r) {
+        QApplication::restoreOverrideCursor();
+        QMessageBox msgBox;
+        msgBox.setText("Can't copy file");
+        msgBox.exec();
+        return;
+      }
+
       // backup old file
-      bool r = QFile::copy(f.first, f.first + ".old");
-      Q_UNUSED(r);
-      assert(r);
+      r = QFile::copy(f.first, f.first + ".old");
+      if(!r) {
+        QApplication::restoreOverrideCursor();
+        QMessageBox msgBox;
+        msgBox.setText("Can't copy file");
+        msgBox.exec();
+        return;
+      }
 
       // remove old file
       r = QFile::remove(f.first);
-      assert(r);
+      if(!r) {
+        QApplication::restoreOverrideCursor();
+        QMessageBox msgBox;
+        msgBox.setText("Can't copy file");
+        msgBox.exec();
+        return;
+      }
 
       // copy generated file
       r = QFile::copy(fileInfo.fileName(), f.first);
-      assert(r);
+      if(!r) {
+        QApplication::restoreOverrideCursor();
+        QMessageBox msgBox;
+        msgBox.setText("Can't copy file");
+        msgBox.exec();
+        return;
+      }
 
       QApplication::restoreOverrideCursor();
 
@@ -182,7 +215,8 @@ void DseResultDialog::changeAxes(int dummy) {
   y->setTitleText(yText);
 }
 
-DseResultDialog::DseResultDialog(QVector<DseRun> *dseRuns, unsigned fitness, QVector<Loop*> loops) {
+DseResultDialog::DseResultDialog(Sdsoc *mainProject, QVector<DseRun> *dseRuns, unsigned fitness, QVector<Loop*> loops) {
+  this->mainProject = mainProject;
   this->dseRuns = dseRuns;
   this->loops = loops;
 

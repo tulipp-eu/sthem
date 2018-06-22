@@ -140,7 +140,7 @@ void Dse::showResults() {
     loops.clear();
     cont->getAllLoops(loops, QVector<BasicBlock*>());
 
-    DseResultDialog resultDialog(&dseRuns, fitnessChoice, loops);
+    DseResultDialog resultDialog(mainProject, &dseRuns, fitnessChoice, loops);
     resultDialog.exec();
   } else {
     QMessageBox msgBox;
