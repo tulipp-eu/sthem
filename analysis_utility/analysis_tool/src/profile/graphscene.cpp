@@ -53,15 +53,6 @@ void GraphScene::addLineSegments(int line, QVector<Measurement> *measurements) {
   }
 }
 
-double GraphScene::avgVector(double *window, int size) {
-  double avg = 0;
-  for(int i = 0; i < size; i++) {
-    avg += window[i];
-  }
-  avg /= size;
-  return avg;
-}
-
 void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *profile) {
   clear();
   lines.clear();
@@ -86,8 +77,10 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 
       for(int i = 0; i < profile->measurements.size(); i++) {
         auto measurement =  profile->measurements[i];
-        double avg = ma.next(measurement.power[sensor]);
-        points.push_back(Point(measurement.time, avg));
+        if(measurement.core == core) {
+          double avg = ma.next(measurement.power[sensor]);
+          points.push_back(Point(measurement.time, avg));
+        }
       }
 
       for(auto it : points) {

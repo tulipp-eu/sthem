@@ -102,7 +102,6 @@ private:
   int addLine(QString id, QColor color);
   void addLineSegment(unsigned lineNum, int64_t start, int64_t stop);
   void addPoint(int64_t time, double value);
-  double avgVector(double *window, int size);
 
 public:
   Profile *profile;

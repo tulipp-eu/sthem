@@ -497,6 +497,8 @@ void MainWindow::loadProfFile(const QString &fileName) {
 }
 
 void MainWindow::openProject(QString path, QString configType) {
+  QApplication::setOverrideCursor(Qt::WaitCursor);
+
   if(configType == "") {
     CustomProject *customProject = new CustomProject;
 
@@ -536,6 +538,8 @@ void MainWindow::openProject(QString path, QString configType) {
       delete sdsocProject;
     }
   }
+
+  QApplication::restoreOverrideCursor();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
