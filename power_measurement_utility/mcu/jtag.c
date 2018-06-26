@@ -277,7 +277,7 @@ bool coreHalted(void) {
   if(zynqUltrascale) {
     return coreReadReg(&cores[stopCore], A53_PRSR) & (1 << 4);
   } else {
-    return false;
+    return coreReadPcsr(&cores[stopCore]) == 0xffffffff;
   }
 }
 

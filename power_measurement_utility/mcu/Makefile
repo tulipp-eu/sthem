@@ -1,13 +1,13 @@
 PART=EFM32GG332F1024
 
-AS = /usr/bin/arm-none-eabi-as
-CC = /usr/bin/arm-none-eabi-gcc
-OBJCOPY=/usr/bin/arm-none-eabi-objcopy
-OBJDUMP=/usr/bin/arm-none-eabi-objdump
+AS = ${TOOLCHAIN}/arm-none-eabi-as
+CC = ${TOOLCHAIN}/arm-none-eabi-gcc
+OBJCOPY= ${TOOLCHAIN}/arm-none-eabi-objcopy
+OBJDUMP= ${TOOLCHAIN}/arm-none-eabi-objdump
 
 CFLAGS = \
 	-g -O2 -Wall -std=gnu99 \
-	-mthumb -mcpu=cortex-m3 \
+	-mcpu=cortex-m3 -mthumb \
 	-D${PART} \
 	-I${SDK}/platform/Device/SiliconLabs/EFM32GG/Include/ \
 	-I${SDK}/hardware/kit/common/drivers/ \
@@ -15,16 +15,13 @@ CFLAGS = \
 	-I${SDK}/platform/emlib/inc/ \
 	-I${SDK}/platform/middleware/usb_gecko/inc/ \
 	-I.
-LDFLAGS = -mthumb -mcpu=cortex-m3 -Wl,-T${SDK}/platform/Device/SiliconLabs/EFM32GG/Source/GCC/efm32gg.ld --specs=nosys.specs 
+LDFLAGS = -mcpu=cortex-m3 -mthumb -Wl,-T${SDK}/platform/Device/SiliconLabs/EFM32GG/Source/GCC/efm32gg.ld --specs=nosys.specs 
 ASFLAGS =
 
 CFLAGS += -DUSE_FPGA_JTAG_CONTROLLER
 
 .PHONY: default
-default: lynsyn.bin lynsyn.hex
-
-%.hex : %.elf
-	${OBJCOPY} -O ihex $< $@
+default: lynsyn.bin
 
 %.bin : %.elf
 	${OBJCOPY} -O binary $< $@
@@ -72,4 +69,4 @@ upload: lynsyn.bin
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.elf *.bin *.hex *.dis ${SDK}/platform/emlib/src/*.o ${SDK}/platform/middleware/usb_gecko/src/*.o ${SDK}/Device/SiliconLabs/EFM32GG/Source/GCC/*.o ${SDK}/Device/SiliconLabs/EFM32GG/Source/*.o
+	rm -rf *.o *.elf *.bin *.hex *.dis ${SDK}/platform/emlib/src/*.o ${SDK}/platform/middleware/usb_gecko/src/*.o ${SDK}/Device/SiliconLabs/EFM32GG/Source/GCC/*.o ${SDK}/Device/SiliconLabs/EFM32GG/Source/*.o ${SDK}/platform/Device/SiliconLabs/EFM32GG/Source/GCC/startup_efm32gg.o

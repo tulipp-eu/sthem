@@ -1,4 +1,5 @@
 export SDK=/opt/SimplicityStudio_v4/developer/sdks/gecko_sdk_suite/v2.1/
+export TOOLCHAIN=/opt/SimplicityStudio_v4/developer/toolchains/gnu_arm/4.9_2015q3/bin/
 
 .PHONY: all
 all:
