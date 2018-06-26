@@ -52,9 +52,10 @@ public:
   static QString as;
   static QString linker;
   static QString linkerpp;
+  static QString asUs;
+  static QString linkerUs;
+  static QString linkerppUs;
   static QString xilinxDir;
-  static QString hwserver;
-  static unsigned hwport;
   static unsigned core;
   static unsigned sensor;
   static unsigned window;

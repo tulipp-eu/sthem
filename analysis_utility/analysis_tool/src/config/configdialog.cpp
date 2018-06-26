@@ -102,23 +102,41 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
   tulipp_source_toolLayout->addWidget(tulipp_source_toolLabel);
   tulipp_source_toolLayout->addWidget(tulipp_source_toolEdit);
 
-  QLabel *asLabel = new QLabel("Assembler:");
+  QLabel *asLabel = new QLabel("Assembler (Zynq):");
   asEdit = new QLineEdit(Config::as);
   QHBoxLayout *asLayout = new QHBoxLayout;
   asLayout->addWidget(asLabel);
   asLayout->addWidget(asEdit);
 
-  QLabel *linkerLabel = new QLabel("Linker:");
+  QLabel *linkerLabel = new QLabel("Linker (Zynq):");
   linkerEdit = new QLineEdit(Config::linker);
   QHBoxLayout *linkerLayout = new QHBoxLayout;
   linkerLayout->addWidget(linkerLabel);
   linkerLayout->addWidget(linkerEdit);
 
-  QLabel *linkerppLabel = new QLabel("Linker (CPP):");
+  QLabel *linkerppLabel = new QLabel("Linker (C++) (Zynq):");
   linkerppEdit = new QLineEdit(Config::linkerpp);
   QHBoxLayout *linkerppLayout = new QHBoxLayout;
   linkerppLayout->addWidget(linkerppLabel);
   linkerppLayout->addWidget(linkerppEdit);
+
+  QLabel *asUsLabel = new QLabel("Assembler (Zynq Ultrascale+):");
+  asUsEdit = new QLineEdit(Config::asUs);
+  QHBoxLayout *asUsLayout = new QHBoxLayout;
+  asUsLayout->addWidget(asUsLabel);
+  asUsLayout->addWidget(asUsEdit);
+
+  QLabel *linkerUsLabel = new QLabel("Linker (Zynq Ultrascale+):");
+  linkerUsEdit = new QLineEdit(Config::linkerUs);
+  QHBoxLayout *linkerUsLayout = new QHBoxLayout;
+  linkerUsLayout->addWidget(linkerUsLabel);
+  linkerUsLayout->addWidget(linkerUsEdit);
+
+  QLabel *linkerppUsLabel = new QLabel("Linker (C++) (Zynq Ultrascale+):");
+  linkerppUsEdit = new QLineEdit(Config::linkerppUs);
+  QHBoxLayout *linkerppUsLayout = new QHBoxLayout;
+  linkerppUsLayout->addWidget(linkerppUsLabel);
+  linkerppUsLayout->addWidget(linkerppUsEdit);
 
   QVBoxLayout *toolLayout = new QVBoxLayout;
   toolLayout->addLayout(clangLayout);
@@ -129,6 +147,9 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
   toolLayout->addLayout(asLayout);
   toolLayout->addLayout(linkerLayout);
   toolLayout->addLayout(linkerppLayout);
+  toolLayout->addLayout(asUsLayout);
+  toolLayout->addLayout(linkerUsLayout);
+  toolLayout->addLayout(linkerppUsLayout);
 
   toolGroup->setLayout(toolLayout);
 
@@ -166,38 +187,6 @@ CfgPage::CfgPage(QWidget *parent) : QWidget(parent) {
   setLayout(mainLayout);
 }
 
-ProfPage::ProfPage(QWidget *parent) : QWidget(parent) {
-  QGroupBox *tcfGroup = new QGroupBox("Xilinx debugger settings");
-
-  QLabel *hwserverLabel = new QLabel("HW server:");
-  hwserverEdit = new QLineEdit(Config::hwserver);
-  QHBoxLayout *hwserverLayout = new QHBoxLayout;
-  hwserverLayout->addWidget(hwserverLabel);
-  hwserverLayout->addWidget(hwserverEdit);
-  hwserverLayout->addStretch(1);
-
-  QLabel *hwportLabel = new QLabel("HW port:");
-  hwportEdit = new QLineEdit(QString::number(Config::hwport));
-  hwportEdit->setValidator(new QIntValidator(0, 9999, this));
-  QHBoxLayout *hwportLayout = new QHBoxLayout;
-  hwportLayout->addWidget(hwportLabel);
-  hwportLayout->addWidget(hwportEdit);
-  hwportLayout->addStretch(1);
-
-  QVBoxLayout *tcfLayout = new QVBoxLayout;
-  tcfLayout->addLayout(hwserverLayout);
-  tcfLayout->addLayout(hwportLayout);
-  tcfLayout->addStretch(1);
-  tcfGroup->setLayout(tcfLayout);
-
-  //---------------------------------------------------------------------------
-
-  QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addWidget(tcfGroup);
-  mainLayout->addStretch(1);
-  setLayout(mainLayout);
-}
-
 ConfigDialog::ConfigDialog() {
   contentsWidget = new QListWidget;
   contentsWidget->setViewMode(QListView::IconMode);
@@ -218,9 +207,6 @@ ConfigDialog::ConfigDialog() {
   cfgPage = new CfgPage;
   pagesWidget->addWidget(cfgPage);
 
-  profPage = new ProfPage;
-  pagesWidget->addWidget(profPage);
-
   QPushButton *closeButton = new QPushButton("Close");
 
   QListWidgetItem *mainButton = new QListWidgetItem(contentsWidget);
@@ -237,11 +223,6 @@ ConfigDialog::ConfigDialog() {
   cfgButton->setText("CFG");
   cfgButton->setTextAlignment(Qt::AlignHCenter);
   cfgButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-
-  QListWidgetItem *profButton = new QListWidgetItem(contentsWidget);
-  profButton->setText("Profiler");
-  profButton->setTextAlignment(Qt::AlignHCenter);
-  profButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
   connect(contentsWidget, &QListWidget::currentItemChanged, this, &ConfigDialog::changePage);
 
@@ -294,6 +275,7 @@ void ConfigDialog::closeEvent(QCloseEvent *e) {
   Config::as = buildPage->asEdit->text();
   Config::linker = buildPage->linkerEdit->text();
   Config::linkerpp = buildPage->linkerppEdit->text();
-  Config::hwserver = profPage->hwserverEdit->text();
-  Config::hwport = profPage->hwportEdit->text().toUInt();
+  Config::asUs = buildPage->asUsEdit->text();
+  Config::linkerUs = buildPage->linkerUsEdit->text();
+  Config::linkerppUs = buildPage->linkerppUsEdit->text();
 }

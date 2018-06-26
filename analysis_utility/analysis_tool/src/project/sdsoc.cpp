@@ -154,6 +154,8 @@ bool Sdsoc::openProject(QString path, QString configType) {
     }
   }
 
+  if(!getPlatformOptions()) return false;
+
   { // get compiler/linker options
     QDomDocument doc;
     QFile file(path + "/.cproject");
@@ -593,6 +595,10 @@ void Sdsoc20162::parseSynthesisReport() {
   }
 }
 
+bool Sdsoc20162::getPlatformOptions() {
+  return true;
+}
+
 bool Sdsoc20162::getProjectOptions() {
   QDomDocument doc;
   QFile file(path + "/userbuildcfgs/" + configType + "_project.sdsoc");
@@ -685,6 +691,10 @@ void Sdsoc20172::parseSynthesisReport() {
 
     file.close();
   }
+}
+
+bool Sdsoc20172::getPlatformOptions() {
+  return true;
 }
 
 bool Sdsoc20172::getProjectOptions() {

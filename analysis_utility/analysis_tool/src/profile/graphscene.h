@@ -48,7 +48,7 @@ public:
     delete buf;
   }
   void initialize(double d) {
-    buf[0] = d;
+    buf[0] = 0;
     for(unsigned i = 1; i < size+1; i++) {
       buf[i] = buf[i-1] + d;
     }

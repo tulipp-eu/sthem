@@ -49,9 +49,14 @@ public:
   QLineEdit *llcEdit;
   QLineEdit *llvm_ir_parserEdit;
   QLineEdit *tulipp_source_toolEdit;
+
   QLineEdit *asEdit;
   QLineEdit *linkerEdit;
   QLineEdit *linkerppEdit;
+
+  QLineEdit *asUsEdit;
+  QLineEdit *linkerUsEdit;
+  QLineEdit *linkerppUsEdit;
 
   BuildPage(QWidget *parent = 0);
 };
@@ -65,16 +70,6 @@ public:
   QCheckBox *idCheckBox;
 
   CfgPage(QWidget *parent = 0);
-};
-
-///////////////////////////////////////////////////////////////////////////////
-
-class ProfPage : public QWidget {
-public:
-  QLineEdit *hwserverEdit;
-  QLineEdit *hwportEdit;
-
-  ProfPage(QWidget *parent = 0);
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -95,7 +90,6 @@ private:
   MainPage *mainPage;
   BuildPage *buildPage;
   CfgPage *cfgPage;
-  ProfPage *profPage;
 
   QListWidget *contentsWidget;
   QStackedWidget *pagesWidget;

@@ -36,6 +36,7 @@ class QStackedWidget;
 class ProjectMainPage : public QWidget {
 public:
   QPlainTextEdit *xmlEdit;
+  QComboBox *zynqCombo;
 
   ProjectMainPage(Project *project, QWidget *parent = 0);
 };
@@ -61,10 +62,15 @@ public:
 ///////////////////////////////////////////////////////////////////////////////
 
 class ProjectProfPage : public QWidget {
+  Q_OBJECT
+
+public slots:
+  void setDefault(bool checked);
+  void setDefaultUs(bool checked);
+
 public:
   QLineEdit *rlEdit[7];
   QLineEdit *supplyVoltageEdit[7];
-  QComboBox *zynqCombo;
   QLineEdit *startFuncEdit;
   QLineEdit *startCoreEdit;
   QLineEdit *stopFuncEdit;

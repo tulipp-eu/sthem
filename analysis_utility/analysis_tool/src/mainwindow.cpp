@@ -230,16 +230,17 @@ MainWindow::MainWindow() {
   Config::includeProfData = settings.value("includeProfData", true).toBool();
   Config::includeId = settings.value("includeId", false).toBool();
   Config::xilinxDir = settings.value("xilinxDir", "/opt/Xilinx/SDx/2017.2/").toString();
-  Config::hwserver = settings.value("hwserver", "127.0.0.1").toString();
-  Config::hwport = settings.value("hwport", 3121).toUInt();
   Config::clang = settings.value("clang", "clang").toString();
   Config::clangpp = settings.value("clangpp", "clang++").toString();
   Config::llc = settings.value("llc", "llc").toString();
   Config::llvm_ir_parser = settings.value("llvm_ir_parserPath", "llvm_ir_parser").toString();
   Config::tulipp_source_tool = settings.value("tulipp_source_toolPath", "tulipp_source_tool").toString();
-  Config::as = settings.value("asPath", "aarch64-none-elf-as").toString();
-  Config::linker = settings.value("linkerPath", "aarch64-none-elf-gcc").toString();
-  Config::linkerpp = settings.value("linkerppPath", "aarch64-none-elf-g++").toString();
+  Config::as = settings.value("asPath", "arm-none-eabi-as").toString();
+  Config::linker = settings.value("linkerPath", "arm-none-eabi-gcc").toString();
+  Config::linkerpp = settings.value("linkerppPath", "arm-none-eabi-g++").toString();
+  Config::asUs = settings.value("asUsPath", "aarch64-none-elf-as").toString();
+  Config::linkerUs = settings.value("linkerUsPath", "aarch64-none-elf-gcc").toString();
+  Config::linkerppUs = settings.value("linkerppUsPath", "aarch64-none-elf-g++").toString();
   Config::core = settings.value("core", 0).toUInt();
   Config::sensor = settings.value("sensor", 0).toUInt();
   Config::window = settings.value("window", 1).toUInt();
@@ -565,8 +566,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     settings.setValue("currentBuildConfig", "");
   }
   settings.setValue("xilinxDir", Config::xilinxDir);
-  settings.setValue("hwserver", Config::hwserver);
-  settings.setValue("hwport", Config::hwport);
   settings.setValue("clang", Config::clang);
   settings.setValue("clangpp", Config::clangpp);
   settings.setValue("llc", Config::llc);
@@ -575,6 +574,9 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   settings.setValue("asPath", Config::as);
   settings.setValue("linkerPath", Config::linker);
   settings.setValue("linkerppPath", Config::linkerpp);
+  settings.setValue("asUsPath", Config::asUs);
+  settings.setValue("linkerUsPath", Config::linkerUs);
+  settings.setValue("linkerppUsPath", Config::linkerppUs);
   settings.setValue("core", Config::core);
   settings.setValue("sensor", Config::sensor);
   settings.setValue("window", Config::window);

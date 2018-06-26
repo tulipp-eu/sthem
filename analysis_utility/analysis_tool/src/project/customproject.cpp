@@ -105,10 +105,18 @@ bool CustomProject::createMakefile() {
   objects.removeDuplicates();
 
   // link
-  if(isCpp) {
-    writeLinkRule(Config::linkerpp, makefile, objects);
+  if(ultrascale) {
+    if(isCpp) {
+      writeLinkRule(Config::linkerppUs, makefile, objects);
+    } else {
+      writeLinkRule(Config::linkerUs, makefile, objects);
+    }
   } else {
-    writeLinkRule(Config::linker, makefile, objects);
+    if(isCpp) {
+      writeLinkRule(Config::linkerpp, makefile, objects);
+    } else {
+      writeLinkRule(Config::linker, makefile, objects);
+    }
   }
 
   makefile.close();

@@ -25,6 +25,26 @@
 
 ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(parent) {
 
+  QGroupBox *targetGroup = new QGroupBox("Target");
+
+  QLabel *zynqLabel = new QLabel("Zynq version:");
+  zynqCombo = new QComboBox;
+  zynqCombo->addItem("Zynq 7000");
+  zynqCombo->addItem("Zynq Ultrascale+");
+  if(project->ultrascale) {
+    zynqCombo->setCurrentIndex(1);
+  } else {
+    zynqCombo->setCurrentIndex(0);
+  }
+  QHBoxLayout *zynqLayout = new QHBoxLayout;
+  zynqLayout->addWidget(zynqLabel);
+  zynqLayout->addWidget(zynqCombo);
+  zynqLayout->addStretch(1);
+
+  targetGroup->setLayout(zynqLayout);
+
+  //---------------------------------------------------------------------------
+
   QGroupBox *xmlGroup = new QGroupBox("XML files to load at startup");
 
   xmlEdit = new QPlainTextEdit;
@@ -39,9 +59,10 @@ ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(pa
 
   xmlGroup->setLayout(xmlLayout);
 
-  //---------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(targetGroup);
   mainLayout->addWidget(xmlGroup);
   mainLayout->addStretch(1);
   setLayout(mainLayout);
@@ -175,6 +196,41 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
   setLayout(mainLayout);
 }
 
+void ProjectProfPage::setDefault(bool checked) {
+  tcfUploadScriptEdit->clear();
+  tcfUploadScriptEdit->insertPlainText("connect\n"
+                                       "source _sds/p0/ipi/emc2dp.sdk/ps7_init.tcl\n"
+                                       "targets 2\n"
+                                       "rst -system\n"
+                                       "after 3000\n"
+                                       "while {[catch {fpga -file $name.elf.bit}] eq 1} {rst -system}\n"
+                                       "ps7_init\n"
+                                       "ps7_post_config\n"
+                                       "dow sd_card/$name.elf\n");
+}
+
+void ProjectProfPage::setDefaultUs(bool checked) {
+  tcfUploadScriptEdit->clear();
+  tcfUploadScriptEdit->insertPlainText("connect\n"
+                                       "source /opt/Xilinx/SDx/2017.2/SDK/scripts/sdk/util/zynqmp_utils.tcl\n"
+                                       "targets 8\n"
+                                       "rst -system\n"
+                                       "after 3000\n"
+                                       "targets 8\n"
+                                       "while {[catch {fpga -file $name.elf.bit}] eq 1} {rst -system}\n"
+                                       "targets 8\n"
+                                       "source _sds/p0/ipi/emc2_hdmi_ultra.sdk/psu_init.tcl\n"
+                                       "psu_init\n"
+                                       "after 1000\n"
+                                       "psu_ps_pl_isolation_removal\n"
+                                       "after 1000\n"
+                                       "psu_ps_pl_reset_config\n"
+                                       "catch {psu_protection}\n"
+                                       "targets 9\n"
+                                       "rst -processor\n"
+                                       "dow sd_card/$name.elf\n");
+}
+
 ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(parent) {
   QLabel label;
   QFontMetrics m(label.font());
@@ -194,8 +250,20 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   tcfUploadScriptLayout->addWidget(tcfUploadScriptLabel);
   tcfUploadScriptLayout->addWidget(tcfUploadScriptEdit);
 
+  QPushButton *defaultButton = new QPushButton("Default (Zynq)");
+  connect(defaultButton, SIGNAL(clicked(bool)), this, SLOT(setDefault(bool)));
+
+  QPushButton *defaultUsButton = new QPushButton("Default (Zynq Ultrascale+)");
+  connect(defaultUsButton, SIGNAL(clicked(bool)), this, SLOT(setDefaultUs(bool)));
+
+  QHBoxLayout *buttonLayout = new QHBoxLayout;
+  buttonLayout->addWidget(defaultButton);
+  buttonLayout->addWidget(defaultUsButton);
+  buttonLayout->addStretch(1);
+
   QVBoxLayout *tcfLayout = new QVBoxLayout;
   tcfLayout->addLayout(tcfUploadScriptLayout);
+  tcfLayout->addLayout(buttonLayout);
   tcfLayout->addStretch(1);
   tcfGroup->setLayout(tcfLayout);
 
@@ -234,23 +302,8 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   }
   supplyVoltageLayout->addStretch(1);
 
-  QLabel *zynqLabel = new QLabel("Zynq version:");
-  zynqCombo = new QComboBox;
-  zynqCombo->addItem("Zynq 7000");
-  zynqCombo->addItem("Zynq Ultrascale+");
-  if(project->ultrascale) {
-    zynqCombo->setCurrentIndex(1);
-  } else {
-    zynqCombo->setCurrentIndex(0);
-  }
-  QHBoxLayout *zynqLayout = new QHBoxLayout;
-  zynqLayout->addWidget(zynqLabel);
-  zynqLayout->addWidget(zynqCombo);
-  zynqLayout->addStretch(1);
-
   QVBoxLayout *targetLayout = new QVBoxLayout;
   targetLayout->addLayout(supplyVoltageLayout);
-  targetLayout->addLayout(zynqLayout);
   targetLayout->addStretch(1);
   targetGroup->setLayout(targetLayout);
 
@@ -422,7 +475,7 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
     project->pmu.rl[i] = profPage->rlEdit[i]->text().toDouble();
   }
 
-  if(profPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
+  if(mainPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
   else project->ultrascale = false;
 
   project->tcfUploadScript = profPage->tcfUploadScriptEdit->toPlainText();
