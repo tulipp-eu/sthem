@@ -66,7 +66,6 @@ public:
   int cfgOptLevel;
   QString tcfUploadScript;
   Pmu pmu;
-  bool ultrascale;
   QString startFunc;
   unsigned startCore;
   QString stopFunc;
@@ -82,6 +81,7 @@ public:
   QString cppOptions;
   int cppOptLevel;
   QString linkerOptions;
+  bool ultrascale;
 
   // settings from sdsoc project, unused otherwise
   QString configType;

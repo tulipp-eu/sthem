@@ -261,8 +261,6 @@ void Project::loadProjectFile() {
   pmu.rl[4] = settings.value("rl4", 0.1).toDouble();
   pmu.rl[5] = settings.value("rl5", 1).toDouble();
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
-  ultrascale = settings.value("ultrascale", true).toBool();
-  tcfUploadScript = settings.value("tcfUploadScript", "").toString();
   useCustomElf = settings.value("useCustomElf", false).toBool();
   customElfFile = settings.value("customElfFile", "").toString();
   startFunc = settings.value("startFunc", "main").toString();
@@ -271,12 +269,21 @@ void Project::loadProjectFile() {
   stopCore = settings.value("stopCore", 0).toUInt();
 
   if(!isSdSocProject()) {
+    ultrascale = settings.value("ultrascale", true).toBool();
     sources = settings.value("sources").toStringList();
     cOptLevel = settings.value("cOptLevel", 0).toInt();
     cOptions = settings.value("cOptions", "").toString();
     cppOptLevel = settings.value("cppOptLevel", 0).toInt();
     cppOptions = settings.value("cppOptions", "").toString();
     linkerOptions = settings.value("linkerOptions", "").toString();
+    tcfUploadScript = settings.value("tcfUploadScript", "").toString();
+
+  } else {
+    if(ultrascale) {
+      tcfUploadScript = settings.value("tcfUploadScript", DEFAULT_TCF_UPLOAD_SCRIPT_US).toString();
+    } else {
+      tcfUploadScript = settings.value("tcfUploadScript", DEFAULT_TCF_UPLOAD_SCRIPT).toString();
+    }
   }
 }
 

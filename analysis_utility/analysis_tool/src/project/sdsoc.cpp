@@ -105,6 +105,59 @@ void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList object
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 }
 
+bool Sdsoc::getPlatformOptions() {
+  QString command = "sdscc -sds-pf-info " + platform + " > __tulipp_test__.out";
+  int ret = system(command.toUtf8().constData());
+
+  if(ret) {
+    QMessageBox msgBox;
+    msgBox.setText("Can't open project");
+    msgBox.exec();
+    return false;
+  }
+
+  QFile file("__tulipp_test__.out");
+
+  if(file.open(QIODevice::ReadOnly)) {
+    QTextStream in(&file);
+
+    bool done = false;
+
+    QString line;
+    do {
+      line = in.readLine();
+
+      if(line.contains("Architecture: zynquplus", Qt::CaseSensitive)) {
+        ultrascale = true;
+        done = true;
+        break;
+      }
+      if(line.contains("Architecture: zynq", Qt::CaseSensitive)) {
+        ultrascale = false;
+        done = true;
+        break;
+      }
+
+    } while(!line.isNull());
+    file.close();
+
+    if(!done) {
+      QMessageBox msgBox;
+      msgBox.setText("Unsupported architecture");
+      msgBox.exec();
+      return false;
+    }
+
+  } else {
+    QMessageBox msgBox;
+    msgBox.setText("Can't open project");
+    msgBox.exec();
+    return false;
+  }
+
+  return true;
+}
+
 bool Sdsoc::openProject(QString path, QString configType) {
   close();
 
@@ -595,10 +648,6 @@ void Sdsoc20162::parseSynthesisReport() {
   }
 }
 
-bool Sdsoc20162::getPlatformOptions() {
-  return true;
-}
-
 bool Sdsoc20162::getProjectOptions() {
   QDomDocument doc;
   QFile file(path + "/userbuildcfgs/" + configType + "_project.sdsoc");
@@ -691,10 +740,6 @@ void Sdsoc20172::parseSynthesisReport() {
 
     file.close();
   }
-}
-
-bool Sdsoc20172::getPlatformOptions() {
-  return true;
 }
 
 bool Sdsoc20172::getProjectOptions() {
