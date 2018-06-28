@@ -268,4 +268,3 @@ bool Vertex::isHw(QVector<BasicBlock*> callStack) {
   }
   return false;
 }
-

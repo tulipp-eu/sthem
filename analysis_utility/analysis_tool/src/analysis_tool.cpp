@@ -129,3 +129,7 @@ void addFitnessCombo(QComboBox *combo) {
   combo->addItem("DSPs");
   combo->addItem("Registers");
 }
+
+bool isSystemFile(QString filename) {
+  return !filename.startsWith(Config::workspace);
+}

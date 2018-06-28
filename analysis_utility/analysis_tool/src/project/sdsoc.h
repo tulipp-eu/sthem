@@ -85,6 +85,8 @@ public:
 
   static QStringList getBuildConfigurations(QString path);
 
+  static unsigned getSdsocVersion();
+
 	friend std::ostream& operator<<(std::ostream &os, const Sdsoc &p) {
     // only streams out the necessary parts for DSE
 		os << p.getTimingOk() << '\n';

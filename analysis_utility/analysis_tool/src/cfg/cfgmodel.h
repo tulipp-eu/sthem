@@ -56,7 +56,7 @@ public:
   QVariant headerData(int section, Qt::Orientation orientation, int role) const;
   Qt::ItemFlags flags(const QModelIndex &index) const;
 
-  void addModule(const QDomDocument &doc, const Project &project);
+  void addModule(const QDomDocument &doc, Project &project);
   void clearColors();
   void collapseAll();
   Container *getMain();

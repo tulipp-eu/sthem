@@ -32,6 +32,7 @@
 
 class Loop;
 class Instruction;
+class Project;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -127,7 +128,7 @@ public:
   // graph building
 
 
-  virtual int constructFromXml(const QDomElement &element, int treeviewRow);
+  virtual int constructFromXml(const QDomElement &element, int treeviewRow, Project *project);
 
   virtual void appendChild(Vertex *e);
   

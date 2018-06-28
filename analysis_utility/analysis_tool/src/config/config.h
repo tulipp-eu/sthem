@@ -84,7 +84,6 @@ public:
   static QString asUs;
   static QString linkerUs;
   static QString linkerppUs;
-  static QString xilinxDir;
   static unsigned core;
   static unsigned sensor;
   static unsigned window;

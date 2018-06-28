@@ -143,5 +143,6 @@ QString xmlPurify(QString text);
 QString getLine(QString filename, unsigned lineNumber, unsigned column);
 QVector<Loop*> getLoop(Loop *loop, unsigned depth);
 void addFitnessCombo(QComboBox *combo);
+bool isSystemFile(QString filename);
 
 #endif

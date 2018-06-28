@@ -191,7 +191,7 @@ QVector<AnalysisInfo> BasicBlock::getRecursiveFunctions(QVector<BasicBlock*> cal
             func = getTop()->getFunctionById(instr->target);
           }
           if(func) {
-            if(!func->getSourceFilename().startsWith(Config::xilinxDir)) {
+            if(!isSystemFile(func->getSourceFilename())) {
               callStack.push_back(this);
               recursiveFunctions += func->getRecursiveFunctions(callStack);
             }
@@ -219,7 +219,7 @@ QVector<AnalysisInfo> BasicBlock::getExternalCalls(QVector<BasicBlock*> callStac
             func = getTop()->getFunctionById(instr->target);
           }
           if(func) {
-            if(!func->getSourceFilename().startsWith(Config::xilinxDir)) {
+            if(!isSystemFile(func->getSourceFilename())) {
               callStack.push_back(this);
               externalCalls += func->getExternalCalls(callStack);
             }
@@ -252,7 +252,7 @@ QVector<AnalysisInfo> BasicBlock::getArraysWithPtrToPtr(QVector<BasicBlock*> cal
             func = getTop()->getFunctionById(instr->target);
           }
           if(func) {
-            if(!func->getSourceFilename().startsWith(Config::xilinxDir)) {
+            if(!isSystemFile(func->getSourceFilename())) {
               callStack.push_back(this);
               arraysWithPtrToPtr += func->getArraysWithPtrToPtr(callStack);
             }
@@ -279,7 +279,7 @@ bool BasicBlock::hasComplexPtrCast(QVector<BasicBlock*> callStack) {
             func = getTop()->getFunctionById(instr->target);
           }
           if(func) {
-            if(!func->getSourceFilename().startsWith(Config::xilinxDir)) {
+            if(!isSystemFile(func->getSourceFilename())) {
               callStack.push_back(this);
               if(func->hasComplexPtrCast(callStack)) {
                 return true;
@@ -307,7 +307,7 @@ void BasicBlock::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callSta
             func = getTop()->getFunctionById(instr->target);
           }
           if(func) {
-            if(!func->getSourceFilename().startsWith(Config::xilinxDir)) {
+            if(!isSystemFile(func->getSourceFilename())) {
               callStack.push_back(this);
               func->getAllLoops(loops, callStack);
             }

@@ -194,7 +194,7 @@ void Container::layerOrdering() {
 
 /* recursive function that constructs the graph from XML DOM elements */
 /* the DOM element represents one child of this object */
-int Container::constructFromXml(const QDomElement &element, int treeviewRow) {
+int Container::constructFromXml(const QDomElement &element, int treeviewRow, Project *project) {
   Container *child = this;
 
   // create child from DOM element
@@ -273,7 +273,7 @@ int Container::constructFromXml(const QDomElement &element, int treeviewRow) {
   int i = 0;
   while(!n.isNull()) {
     QDomElement e = n.toElement();
-    if(!e.isNull()) i = child->constructFromXml(e, i);
+    if(!e.isNull()) i = child->constructFromXml(e, i, project);
     n = n.nextSibling();
   }
 
@@ -818,7 +818,7 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
 void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack) {
   for(auto child : children) {
     if(child->isLoop()) {
-      if(!child->getSourceFilename().contains(Config::xilinxDir)) {
+      if(!isSystemFile(child->getSourceFilename())) {
         QString line = getLine(child->getSourceFilename(), child->sourceLineNumber, child->sourceColumn);
         if(line.startsWith("for") || line.startsWith("while") || line.startsWith("do")) {
           loops.push_back(static_cast<Loop*>(child));

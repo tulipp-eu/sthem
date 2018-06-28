@@ -170,8 +170,13 @@ MainWindow::MainWindow() {
 
   // menus
   fileMenu = menuBar()->addMenu("File");
-  projectMenu = fileMenu->addMenu("Open SDSoC project");
-  connect(projectMenu, SIGNAL(triggered(QAction*)), this, SLOT(openProjectEvent(QAction*)));
+
+  Config::sdsocVersion = Sdsoc::getSdsocVersion();
+  if(Config::sdsocVersion) {
+    projectMenu = fileMenu->addMenu("Open SDSoC project");
+    connect(projectMenu, SIGNAL(triggered(QAction*)), this, SLOT(openProjectEvent(QAction*)));
+  }
+
   fileMenu->addAction(openProjectAct);
   fileMenu->addAction(createProjectAct);
   fileMenu->addAction(closeProjectAct);
@@ -229,7 +234,6 @@ MainWindow::MainWindow() {
   Config::includeAllInstructions = settings.value("includeAllInstructions", false).toBool();
   Config::includeProfData = settings.value("includeProfData", true).toBool();
   Config::includeId = settings.value("includeId", false).toBool();
-  Config::xilinxDir = settings.value("xilinxDir", "/opt/Xilinx/SDx/2017.4/").toString();
   Config::clang = settings.value("clang", "clang").toString();
   Config::clangpp = settings.value("clangpp", "clang++").toString();
   Config::llc = settings.value("llc", "llc").toString();
@@ -244,7 +248,12 @@ MainWindow::MainWindow() {
   Config::core = settings.value("core", 0).toUInt();
   Config::sensor = settings.value("sensor", 0).toUInt();
   Config::window = settings.value("window", 1).toUInt();
-  Config::sdsocVersion = settings.value("sdsocVersion", 20174).toUInt();
+
+  if(!Config::sdsocVersion) {
+    QMessageBox msgBox;
+    msgBox.setText("SDSoC not found, or unsupported version");
+    msgBox.exec();
+  }
 
   for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
     coreBox->addItem(QString("Core ") + QString::number(i));
@@ -254,11 +263,13 @@ MainWindow::MainWindow() {
   sensorBox->setCurrentIndex(Config::sensor);
   windowBox->setCurrentIndex(windowBox->findData(Config::window));
 
-  buildProjectMenu();
+  if(Config::sdsocVersion) {
+    buildProjectMenu();
+  }
 
   // create .tulipp directory
   QDir dir(QDir::homePath() + "/.tulipp");
-  if (!dir.exists()) {
+  if(!dir.exists()) {
     dir.mkpath(".");
   }
 
@@ -523,6 +534,12 @@ void MainWindow::openProject(QString path, QString configType) {
       sdsocProject = new Sdsoc20172();
     } else if(Config::sdsocVersion == 20174) {
       sdsocProject = new Sdsoc20174();
+    } else {
+      QApplication::restoreOverrideCursor();
+      QMessageBox msgBox;
+      msgBox.setText("Can't open SDSoC project without SDSoC");
+      msgBox.exec();
+      return;
     }
 
     if(sdsocProject->openProject(path, configType)) {
@@ -566,7 +583,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     settings.setValue("currentProject", "");
     settings.setValue("currentBuildConfig", "");
   }
-  settings.setValue("xilinxDir", Config::xilinxDir);
   settings.setValue("clang", Config::clang);
   settings.setValue("clangpp", Config::clangpp);
   settings.setValue("llc", Config::llc);
@@ -581,7 +597,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   settings.setValue("core", Config::core);
   settings.setValue("sensor", Config::sensor);
   settings.setValue("window", Config::window);
-  settings.setValue("sdsocVersion", Config::sdsocVersion);
 
   QMainWindow::closeEvent(event);
 }
@@ -661,7 +676,7 @@ void MainWindow::hwEvent() {
 void MainWindow::configDialog() {
   ConfigDialog dialog;
   dialog.exec();
-  buildProjectMenu();
+  if(Config::sdsocVersion) buildProjectMenu();
   cfgScene->redraw();
 }
 

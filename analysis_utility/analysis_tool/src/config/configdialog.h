@@ -33,9 +33,7 @@ class QStackedWidget;
 
 class MainPage : public QWidget {
 public:
-  QLineEdit *sdsocEdit;
   QLineEdit *workspaceEdit;
-  QComboBox *versionCombo;
 
   MainPage(QWidget *parent = 0);
 };

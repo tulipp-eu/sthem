@@ -37,7 +37,6 @@ QString Config::linkerpp;
 QString Config::asUs;
 QString Config::linkerUs;
 QString Config::linkerppUs;
-QString Config::xilinxDir;
 unsigned Config::core;
 unsigned Config::sensor;
 unsigned Config::window;

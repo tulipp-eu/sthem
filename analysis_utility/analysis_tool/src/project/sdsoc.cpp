@@ -21,6 +21,36 @@
 
 #include "sdsoc.h"
 
+#include <QProcess>
+
+unsigned Sdsoc::getSdsocVersion() {
+  QProcess process;
+  process.start("sdscc -version");
+  process.waitForFinished(-1);
+
+  if(process.exitCode()) {
+    printf("No SDSoC detected\n");
+    return 0;
+  }
+
+  QString stdout = process.readAllStandardOutput();
+
+  if(stdout.contains("sdscc 2016.2")) {
+    printf("SDSoC version 2016.2 detected\n");
+    return 20162;
+  } else if(stdout.contains("sdscc 2017.2")) {
+    printf("SDSoC version 2017.2 detected\n");
+    return 20172;
+  } else if(stdout.contains("sdscc v2017.4")) {
+    printf("SDSoC version 2017.4 detected\n");
+    return 20174;
+  }
+
+  printf("Unsupported SDSoC version detected\n");
+
+  return 0;
+}
+
 void Sdsoc::copy(Sdsoc *p) {
   Project::copy(p);
 

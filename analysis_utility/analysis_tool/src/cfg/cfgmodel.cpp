@@ -111,14 +111,14 @@ CfgModel::CfgModel(QObject *parent) : QAbstractItemModel(parent) {
   top = new Cfg();
 }
 
-void CfgModel::addModule(const QDomDocument &doc, const Project &project) {
+void CfgModel::addModule(const QDomDocument &doc, Project &project) {
   QDomElement element = doc.documentElement();
   QString moduleName = element.attribute(ATTR_ID, "");
   QString fileName = element.attribute(ATTR_FILE, "");
 
   Module *module = new Module(moduleName, top, fileName);
 
-  module->constructFromXml(element, 0);
+  module->constructFromXml(element, 0, &project);
   module->buildEdgeList();
   module->buildExitNodes();
   module->buildEntryNodes();
