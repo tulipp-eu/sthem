@@ -44,6 +44,20 @@ Sdsoc::Sdsoc(Sdsoc *p) {
   copy(p);
 }
 
+void Sdsoc20172::print() {
+  Sdsoc::print();
+  printf("sysConfig: %s\n", sysConfig.toUtf8().constData());
+  printf("cpu: %s\n", cpu.toUtf8().constData());
+}
+
+void Sdsoc20174::print() {
+  Sdsoc::print();
+  printf("sysConfig: %s\n", sysConfig.toUtf8().constData());
+  printf("cpu: %s\n", cpu.toUtf8().constData());
+  printf("cpuInstance: %s\n", cpuInstance.toUtf8().constData());
+  printf("genEmulationModel: %d\n", genEmulationModel);
+}
+
 void Sdsoc::print() {
   Project::print();
 
@@ -56,6 +70,8 @@ void Sdsoc::print() {
   printf("DM clk ID: %d\n", dmclkid);
   printf("Enable HW/SW trace: %d\n", enableHwSwTrace);
   printf("Trace application: %d\n", traceApplication);
+  printf("C system includes: %s\n", cSysInc.toUtf8().constData());
+  printf("C++ system includes: %s\n", cppSysInc.toUtf8().constData());
 }
 
 void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
@@ -66,12 +82,6 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
   options << opt.split(' ');
 
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
-  if(sysConfig != "") {
-    options << "-sds-sys-config" << sysConfig;
-  }
-  if(cpu != "") {
-    options << "-sds-proc" << cpu;
-  } 
 
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
@@ -85,15 +95,9 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 }
 
-void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects) {
+void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt) {
   QStringList options;
-  options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
-  if(sysConfig != "") {
-    options << "-sds-sys-config" << sysConfig;
-  }
-  if(cpu != "") {
-    options << "-sds-proc" << cpu;
-  } 
+  options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid) << opt.split(' ');
 
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
@@ -111,7 +115,7 @@ bool Sdsoc::getPlatformOptions() {
 
   if(ret) {
     QMessageBox msgBox;
-    msgBox.setText("Can't open project");
+    msgBox.setText("Can't open project (Can't get platform info)");
     msgBox.exec();
     return false;
   }
@@ -150,7 +154,7 @@ bool Sdsoc::getPlatformOptions() {
 
   } else {
     QMessageBox msgBox;
-    msgBox.setText("Can't open project");
+    msgBox.setText("Can't open project (Can't get platform info)");
     msgBox.exec();
     return false;
   }
@@ -190,7 +194,7 @@ bool Sdsoc::openProject(QString path, QString configType) {
       file.close();
 
       QDomNodeList elements = doc.elementsByTagName("item");
-      assert(elements.size());
+
       for(int i = 0; i < elements.size(); i++) {
         QDomElement element = elements.at(i).toElement();
         assert(!element.isNull());
@@ -654,7 +658,7 @@ bool Sdsoc20162::getProjectOptions() {
   bool success = file.open(QIODevice::ReadOnly);
   if(!success) {
     QMessageBox msgBox;
-    msgBox.setText("Can't open project");
+    msgBox.setText("Can't open project (Can't find project file)");
     msgBox.exec();
     return false;
   }
@@ -685,9 +689,6 @@ bool Sdsoc20162::getProjectOptions() {
   enableHwSwTrace = element.attribute("enableHwSwTrace", "false") != "false";
   traceApplication = element.attribute("traceApplication", "false") != "false";
 
-  sysConfig = "";
-  cpu = "";
-
   QDomNode node = element.firstChild();
   while(!node.isNull()) {
     QDomElement childElement = node.toElement();
@@ -706,6 +707,16 @@ bool Sdsoc20162::getProjectOptions() {
   }
 
   return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+void Sdsoc20172::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
+  Sdsoc::writeSdsRule(compiler, makefile, path, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
+}
+
+void Sdsoc20172::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt) {
+  Sdsoc::writeSdsLinkRule(linker, makefile, objects, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
 }
 
 void Sdsoc20172::parseSynthesisReport() {
@@ -749,7 +760,7 @@ bool Sdsoc20172::getProjectOptions() {
 
   if(!success) {
     QMessageBox msgBox;
-    msgBox.setText("Can't open project");
+    msgBox.setText("Can't open project (Can't find project file)");
     msgBox.exec();
     return false;
   }
@@ -814,3 +825,128 @@ bool Sdsoc20172::getProjectOptions() {
 
   return true;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+void Sdsoc20174::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
+  Sdsoc::writeSdsRule(compiler, makefile, path, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
+}
+
+void Sdsoc20174::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt) {
+  Sdsoc::writeSdsLinkRule(linker, makefile, objects, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
+}
+
+void Sdsoc20174::parseSynthesisReport() {
+  QFile file("_sds/reports/sds.rpt");
+
+  if(file.open(QIODevice::ReadOnly)) {
+    QTextStream in(&file);
+
+    QString line;
+    do {
+      line = in.readLine();
+      if(line.contains("All user specified timing constraints are met", Qt::CaseSensitive)) {
+        timingOk = true;
+      }
+      if(line.contains("| Block RAM Tile", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        brams = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| CLB LUTs", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        luts = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| DSPs", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        dsps = list[5].trimmed().toFloat();
+      }
+      if(line.contains("| CLB Registers", Qt::CaseSensitive)) {
+        QStringList list = line.split('|');
+        regs = list[5].trimmed().toFloat();
+      }
+    } while(!line.isNull());
+
+    file.close();
+  }
+}
+
+bool Sdsoc20174::getProjectOptions() {
+  QDomDocument doc;
+  QFile file(path + "/project.sdx");
+  bool success = file.open(QIODevice::ReadOnly);
+
+  if(!success) {
+    QMessageBox msgBox;
+    msgBox.setText("Can't open project (Can't find project file)");
+    msgBox.exec();
+    return false;
+  }
+
+  success = doc.setContent(&file);
+  assert(success);
+  file.close();
+
+  QDomNodeList elements = doc.elementsByTagName("sdsproject:SDSProject");
+  assert(elements.size());
+  QDomElement element = elements.at(0).toElement();
+  assert(!element.isNull());
+
+  name = element.attribute("name", path);
+  os = element.attribute("os", "standalone");
+  cpu = element.attribute("cpu", "");
+  cpuInstance = element.attribute("cpuInstance", "");
+  sysConfig = element.attribute("sysConfig", "standalone");
+
+  {
+    QString p = element.attribute("platform", "");
+    QFileInfo fileInfo(p);
+    platform = fileInfo.path();
+  }
+
+  elements = doc.elementsByTagName("configuration");
+  assert(elements.size());
+
+  for(int i = 0; i < elements.size(); i++) {
+    element = elements.at(i).toElement();
+    assert(!element.isNull());
+
+    if(element.attribute("name", "") == configType) {
+      QDomNode node2 = element.firstChild();
+      while(!node2.isNull()) {
+        QDomElement childElement2 = node2.toElement();
+        if(!childElement2.isNull()) {
+          if(childElement2.tagName() == "configBuildOptions") {
+            dmclkid = childElement2.attribute("dmclkid", "2").toUInt();
+            enableHwSwTrace = childElement2.attribute("enableHwSwTrace", "false") != "false";
+            traceApplication = childElement2.attribute("traceApplication", "false") != "false";
+            insertapm = childElement2.attribute("insertapm", "false") != "false";
+            genbitstream = childElement2.attribute("genbitstream", "true") != "false";
+            gensdcard = childElement2.attribute("gensdcard", "true") != "false";
+            genEmulationModel = childElement2.attribute("genEmulationModel", "false") != "false";
+
+            QDomNode node = childElement2.firstChild();
+            while(!node.isNull()) {
+              QDomElement childElement = node.toElement();
+              if(!childElement.isNull()) {
+                if(childElement.tagName() == "accelerator") {
+                  ProjectAcc acc;
+                
+                  acc.name = childElement.attribute("name", name + "_hw");
+                  acc.filepath = path + "/" + childElement.attribute("filepath", acc.name + ".cpp");
+                  acc.clkid = childElement.attribute("clkid", "2").toUInt();
+
+                  accelerators.push_back(acc);
+                }
+              }
+              node = node.nextSibling();
+            }
+          }
+        }
+        node2 = node2.nextSibling();
+      }
+    }
+  }
+
+  return true;
+}
+

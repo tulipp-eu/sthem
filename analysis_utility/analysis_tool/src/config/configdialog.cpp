@@ -42,10 +42,13 @@ MainPage::MainPage(QWidget *parent) : QWidget(parent) {
   versionCombo = new QComboBox;
   versionCombo->addItem("2016.2");
   versionCombo->addItem("2017.2");
+  versionCombo->addItem("2017.4");
   if(Config::sdsocVersion == 20162) {
     versionCombo->setCurrentIndex(0);
-  } else {
+  } else if(Config::sdsocVersion == 20172) {
     versionCombo->setCurrentIndex(1);
+  } else if(Config::sdsocVersion == 20174) {
+    versionCombo->setCurrentIndex(2);
   }
   QHBoxLayout *versionLayout = new QHBoxLayout;
   versionLayout->addWidget(versionLabel);
@@ -264,6 +267,7 @@ void ConfigDialog::closeEvent(QCloseEvent *e) {
   Config::workspace = mainPage->workspaceEdit->text();
   if(mainPage->versionCombo->currentIndex() == 0) Config::sdsocVersion = 20162;
   else if(mainPage->versionCombo->currentIndex() == 1) Config::sdsocVersion = 20172;
+  else if(mainPage->versionCombo->currentIndex() == 2) Config::sdsocVersion = 20174;
   Config::includeAllInstructions = cfgPage->allInstructionsCheckBox->checkState() == Qt::Checked;
   Config::includeProfData = cfgPage->profDataCheckBox->checkState() == Qt::Checked;
   Config::includeId = cfgPage->idCheckBox->checkState() == Qt::Checked;

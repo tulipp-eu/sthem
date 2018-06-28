@@ -86,6 +86,8 @@ public:
           d.project = new Sdsoc20162;
         } else if(Config::sdsocVersion == 20172) {
           d.project = new Sdsoc20172;
+        } else if(Config::sdsocVersion == 20174) {
+          d.project = new Sdsoc20174;
         }
       }
       if(!d.profile) d.profile = new Profile;

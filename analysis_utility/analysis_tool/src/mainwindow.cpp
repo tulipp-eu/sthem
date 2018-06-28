@@ -229,7 +229,7 @@ MainWindow::MainWindow() {
   Config::includeAllInstructions = settings.value("includeAllInstructions", false).toBool();
   Config::includeProfData = settings.value("includeProfData", true).toBool();
   Config::includeId = settings.value("includeId", false).toBool();
-  Config::xilinxDir = settings.value("xilinxDir", "/opt/Xilinx/SDx/2017.2/").toString();
+  Config::xilinxDir = settings.value("xilinxDir", "/opt/Xilinx/SDx/2017.4/").toString();
   Config::clang = settings.value("clang", "clang").toString();
   Config::clangpp = settings.value("clangpp", "clang++").toString();
   Config::llc = settings.value("llc", "llc").toString();
@@ -244,7 +244,7 @@ MainWindow::MainWindow() {
   Config::core = settings.value("core", 0).toUInt();
   Config::sensor = settings.value("sensor", 0).toUInt();
   Config::window = settings.value("window", 1).toUInt();
-  Config::sdsocVersion = settings.value("sdsocVersion", 20172).toUInt();
+  Config::sdsocVersion = settings.value("sdsocVersion", 20174).toUInt();
 
   for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
     coreBox->addItem(QString("Core ") + QString::number(i));
@@ -519,9 +519,10 @@ void MainWindow::openProject(QString path, QString configType) {
 
     if(Config::sdsocVersion == 20162) {
       sdsocProject = new Sdsoc20162();
-
     } else if(Config::sdsocVersion == 20172) {
       sdsocProject = new Sdsoc20172();
+    } else if(Config::sdsocVersion == 20174) {
+      sdsocProject = new Sdsoc20174();
     }
 
     if(sdsocProject->openProject(path, configType)) {

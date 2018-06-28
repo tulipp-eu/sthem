@@ -28,8 +28,9 @@
 #define TCF_PROFILER 0
 #define LYNSYN_PROFILER 1
 
-#define DEFAULT_TCF_UPLOAD_SCRIPT "connect\n"                       \
-  "source _sds/p0/ipi/emc2dp.sdk/ps7_init.tcl\n"                    \
+#define DEFAULT_TCF_UPLOAD_SCRIPT \
+  "connect\n"                                                       \
+  "source [lindex [exec find _sds | grep sdk.*ps7_init.tcl] 0]\n"   \
   "targets 2\n"                                                     \
   "rst -system\n"                                                   \
   "after 3000\n"                                                    \
@@ -38,21 +39,20 @@
   "ps7_post_config\n"                                               \
   "dow sd_card/$name.elf\n"
 
-#define DEFAULT_TCF_UPLOAD_SCRIPT_US "connect\n"                        \
-  "source /opt/Xilinx/SDx/2017.2/SDK/scripts/sdk/util/zynqmp_utils.tcl\n" \
+#define DEFAULT_TCF_UPLOAD_SCRIPT_US                                    \
+  "connect\n"                                                           \
   "targets 8\n"                                                         \
   "rst -system\n"                                                       \
   "after 3000\n"                                                        \
   "targets 8\n"                                                         \
   "while {[catch {fpga -file $name.elf.bit}] eq 1} {rst -system}\n"     \
   "targets 8\n"                                                         \
-  "source _sds/p0/ipi/emc2_hdmi_ultra.sdk/psu_init.tcl\n"               \
+  "source [lindex [exec find _sds | grep psu_init.tcl] 0]\n"            \
   "psu_init\n"                                                          \
   "after 1000\n"                                                        \
   "psu_ps_pl_isolation_removal\n"                                       \
   "after 1000\n"                                                        \
   "psu_ps_pl_reset_config\n"                                            \
-  "catch {psu_protection}\n"                                            \
   "targets 9\n"                                                         \
   "rst -processor\n"                                                    \
   "dow sd_card/$name.elf\n"

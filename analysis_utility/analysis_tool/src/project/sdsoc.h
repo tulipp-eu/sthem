@@ -46,14 +46,12 @@ protected:
   virtual void parseSynthesisReport() = 0;
   virtual bool getPlatformOptions();
   virtual bool getProjectOptions() = 0;
-  void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
-  void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects);
+  virtual void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
+  virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
 
 public:
   QString platform;
   QString os;
-  QString sysConfig;
-  QString cpu;
   bool insertapm;
   bool genbitstream;
   bool gensdcard;
@@ -126,8 +124,13 @@ public:
 class Sdsoc20172 : public Sdsoc {
 
 protected:
+  QString sysConfig;
+  QString cpu;
+
   virtual bool getProjectOptions();
   virtual void parseSynthesisReport();
+  virtual void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
+  virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
 
 public:
   Sdsoc20172() {
@@ -137,6 +140,33 @@ public:
     Sdsoc::copy(p);
   }
 
+  virtual void print();
+};
+
+//-----------------------------------------------------------------------------
+
+class Sdsoc20174 : public Sdsoc {
+
+protected:
+  QString sysConfig;
+  QString cpu;
+  QString cpuInstance;
+  bool genEmulationModel;
+
+  virtual bool getProjectOptions();
+  virtual void parseSynthesisReport();
+  virtual void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
+  virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
+
+public:
+  Sdsoc20174() {
+    platformKey = "sdx.custom.platform.repository.locations";
+  }
+  Sdsoc20174(Sdsoc *p) {
+    Sdsoc::copy(p);
+  }
+
+  virtual void print();
 };
 
 #endif

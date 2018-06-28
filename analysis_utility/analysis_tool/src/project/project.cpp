@@ -512,6 +512,8 @@ void Project::print() {
   printf("C++ options: %s\n", cppOptions.toUtf8().constData());
   printf("C++ opt level: %d\n", cppOptLevel);
   printf("Linker options: %s\n", linkerOptions.toUtf8().constData());
+
+  printf("Architecture: %s\n", ultrascale ? "Zynq Ultrascale+" : "Zynq");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
