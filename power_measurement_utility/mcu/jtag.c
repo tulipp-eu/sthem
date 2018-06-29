@@ -250,7 +250,7 @@ void coresResume(void) {
     coreWriteReg(&cores[0], A53_CTIAPPPULSE, CHANNEL_0);
 
     /* Poll until restarted */
-    while((coreReadReg(&cores[0], A53_SCR) & 0x3f) != 2);
+    while(!(coreReadReg(&cores[0], A53_PRSR) & (1<<11)));
 
   } else {
     // enable halting debug mode for controlling breakpoints
