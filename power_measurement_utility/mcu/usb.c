@@ -81,7 +81,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_INIT: {
         struct InitReplyPacket initReply;
         initReply.hwVersion = getUint32("hwver");
-        initReply.swVersion = USB_PROTOCOL_VERSION;
+        initReply.swVersion = SW_VERSION;
         initReply.calibration[0] = getDouble("cal0");
         initReply.calibration[1] = getDouble("cal1");
         initReply.calibration[2] = getDouble("cal2");

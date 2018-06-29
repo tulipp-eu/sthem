@@ -193,6 +193,8 @@ bool Sdsoc::getPlatformOptions() {
 }
 
 bool Sdsoc::openProject(QString path, QString configType) {
+  printf("Opening SDSoC project\n");
+
   close();
 
   this->path = path;
@@ -298,6 +300,7 @@ bool Sdsoc::openProject(QString path, QString configType) {
   // TODO: This slows down startup, and is not very elegant.  Can we do it differently, or cache results?
   {
     { // C
+      printf("Finding default C include paths\n");
       int ret = system("touch __tulipp_test__.c");
       QString command = "sdscc -v -sds-pf " + platform + " -target-os " + os +
         " -c __tulipp_test__.c -o __tulipp_test__.o > __tulipp_test__.out";
@@ -306,6 +309,7 @@ bool Sdsoc::openProject(QString path, QString configType) {
       Q_UNUSED(ret);
     }
     { // C++
+      printf("Finding default C++ include paths\n");
       int ret = system("touch __tulipp_test__.cpp");
       QString command = "sds++ -v -sds-pf " + platform + " -target-os " + os +
         " -c __tulipp_test__.cpp -o __tulipp_test__.o > __tulipp_test__.out";
@@ -325,6 +329,8 @@ bool Sdsoc::openProject(QString path, QString configType) {
 
   // read previous synthesis report (if exists)
   parseSynthesisReport();
+
+  printf("SDSoC project opened\n");
 
   return true;
 }

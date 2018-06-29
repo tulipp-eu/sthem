@@ -36,6 +36,8 @@
 #include "em_system.h"
 #include "em_chip.h"
  
+#define SW_VERSION SW_VERSION_1_1
+
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 

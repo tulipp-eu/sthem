@@ -102,7 +102,7 @@ bool Pmu::init() {
     struct InitReplyPacket initReply;
     getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
 
-    if(initReply.swVersion != USB_PROTOCOL_VERSION) {
+    if((initReply.swVersion != SW_VERSION_1_0) && (initReply.swVersion != SW_VERSION_1_1)) {
       printf("Unsupported Lynsyn SW Version\n");
       return false;
     }
