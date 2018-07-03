@@ -24,14 +24,15 @@
 
 #include <stdint.h>
 
-#define SW_VERSION        SW_VERSION_1_1
-#define SW_VERSION_STRING "V1.1"
+#define SW_VERSION        SW_VERSION_1_2
+#define SW_VERSION_STRING "V1.2"
 
 #define HW_VERSION_2_0 0x20
 #define HW_VERSION_2_1 0x21
 
 #define SW_VERSION_1_0 1
 #define SW_VERSION_1_1 0x11
+#define SW_VERSION_1_2 0x12
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -63,6 +64,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #define MAX_PACKET_SIZE (sizeof(struct BreakpointRequestPacket))
+#define MAX_SAMPLES 32
 
 struct __attribute__((__packed__)) RequestPacket {
   uint8_t cmd;
@@ -124,10 +126,17 @@ struct __attribute__((__packed__)) AdcTestReplyPacket {
   int16_t current[7];
 };
 
+struct __attribute__((__packed__)) SampleReplyPacketV1_0 {
+  int64_t time;
+  uint64_t pc[4];
+  int16_t current[7];
+};
+
 struct __attribute__((__packed__)) SampleReplyPacket {
   int64_t time;
   uint64_t pc[4];
   int16_t current[7];
+  int16_t : 16;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

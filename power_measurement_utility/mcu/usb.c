@@ -139,6 +139,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_START_SAMPLING:
         printf("Starting sample mode\n");
 
+        setLed(0);
         sampleMode = true;
 
         // run until first bp
@@ -311,8 +312,8 @@ void usbInit(void) {
   USBD_Init(&initstruct);
 }
 
-void sendSample(struct SampleReplyPacket *sample) {
+void sendSamples(struct SampleReplyPacket *sample, unsigned n) {
   while(USBD_EpIsBusy(CDC_EP_DATA_IN));
-  int ret = USBD_Write(CDC_EP_DATA_IN, sample, sizeof(struct SampleReplyPacket), UsbDataSent);
+  int ret = USBD_Write(CDC_EP_DATA_IN, sample, n * sizeof(struct SampleReplyPacket), UsbDataSent);
   if(ret != USB_STATUS_OK) printf("USB write error: %d\n", ret);
 }

@@ -26,6 +26,6 @@
 #include "usbprotocol.h"
 
 void usbInit(void);
-void sendSample(struct SampleReplyPacket *sample);
+void sendSamples(struct SampleReplyPacket *sample, unsigned n);
 
 #endif

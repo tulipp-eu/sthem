@@ -102,7 +102,7 @@ bool Pmu::init() {
     struct InitReplyPacket initReply;
     getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
 
-    if((initReply.swVersion != SW_VERSION_1_0) && (initReply.swVersion != SW_VERSION_1_1)) {
+    if((initReply.swVersion != SW_VERSION_1_0) && (initReply.swVersion != SW_VERSION_1_1) && (initReply.swVersion != SW_VERSION_1_2)) {
       printf("Unsupported Lynsyn SW Version\n");
       return false;
     }
@@ -112,6 +112,7 @@ bool Pmu::init() {
       return false;
     }
 
+    swVersion = initReply.swVersion;
     hwVersion = initReply.hwVersion;
 
     for(unsigned i = 0; i < MAX_SENSORS; i++) {
@@ -147,16 +148,35 @@ void Pmu::sendBytes(uint8_t *bytes, int numBytes) {
 
 void Pmu::getBytes(uint8_t *bytes, int numBytes) {
   int transfered = 0;
-  int ret = 0;
+  int ret = LIBUSB_ERROR_TIMEOUT;
 
-  ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, numBytes, &transfered, 100);
-  if(ret != 0) {
-    printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
+  while(ret == LIBUSB_ERROR_TIMEOUT) {
+    ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, numBytes, &transfered, 100);
+    if((ret != 0) && (ret != LIBUSB_ERROR_TIMEOUT)) {
+      printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
+    }
   }
 
   assert(transfered == numBytes);
 
   return;
+}
+
+int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
+  int transfered = 0;
+  int ret = LIBUSB_ERROR_TIMEOUT;
+
+  while(ret == LIBUSB_ERROR_TIMEOUT) {
+    ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, maxNum * numBytes, &transfered, 100);
+    if((ret != 0) && (ret != LIBUSB_ERROR_TIMEOUT)) {
+      printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
+    }
+  }
+
+  assert((transfered % numBytes) == 0);
+  assert(transfered);
+
+  return transfered / numBytes;
 }
 
 void Pmu::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
@@ -196,10 +216,18 @@ void Pmu::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t
   endPtr = buf;
 
   while(true) {
-    getBytes(endPtr, sizeof(struct SampleReplyPacket));
+    if(swVersion <= SW_VERSION_1_1) {
+      getBytes(endPtr, sizeof(struct SampleReplyPacketV1_0));
 
-    endPtr += sizeof(struct SampleReplyPacket);
-    remainingSpace -= sizeof(struct SampleReplyPacket);
+      endPtr += sizeof(struct SampleReplyPacket);
+      remainingSpace -= sizeof(struct SampleReplyPacket);
+
+    } else {
+      int n = getArray(endPtr, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
+
+      endPtr += sizeof(struct SampleReplyPacket) * n;
+      remainingSpace -= sizeof(struct SampleReplyPacket) * n;
+    }
 
     if((unsigned)remainingSpace < sizeof(struct SampleReplyPacket)) {
       printf("Sample buffer full\n");

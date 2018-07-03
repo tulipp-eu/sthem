@@ -40,6 +40,7 @@ private:
   uint8_t inEndpoint;
 	struct libusb_context *usbContext;
 	libusb_device **devs;
+  uint8_t swVersion;
   uint8_t hwVersion;
   double sensorCalibration[LYNSYN_SENSORS];
 
@@ -49,6 +50,7 @@ private:
 
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
+  int getArray(uint8_t *bytes, int maxNum, int numBytes);
 
 public:
   static const unsigned MAX_SENSORS = LYNSYN_SENSORS;

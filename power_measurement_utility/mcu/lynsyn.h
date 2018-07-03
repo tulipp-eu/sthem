@@ -39,10 +39,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 
+#define TRIGGER_INPUT
+
 #define CAL_AVERAGE_SAMPLES 100
 
 ///////////////////////////////////////////////////////////////////////////////
 // lynsyn settings
+
+#define CLOCK_FREQ 48000000
+
+#define TRIGGER_IN_BIT 2
+#define TRIGGER_IN_PORT gpioPortF
 
 #define LED_ON  0
 #define LED_OFF 1

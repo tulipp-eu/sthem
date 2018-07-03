@@ -41,7 +41,7 @@
 
 volatile bool sampleMode;
 
-static struct SampleReplyPacket sample __attribute__((__aligned__(4)));
+static struct SampleReplyPacket sample[MAX_SAMPLES] __attribute__((__aligned__(4)));
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -93,15 +93,20 @@ int main(void) {
   CMU_ClockEnable(cmuClock_USB, true);
   CMU_ClockEnable(cmuClock_ADC0, true);
 
+#ifdef TRIGGER_INPUT
+  GPIO_PinModeSet(TRIGGER_IN_PORT, TRIGGER_IN_BIT, gpioModeInput, 0);
+#else
   swoInit();
+#endif
 
-  printf("Lynsyn initializing...\n");
+  printf("Lynsyn firmware %s initializing...\n", SW_VERSION_STRING);
 
   // setup LEDs
   GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
   GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
 
   // Enable cycle counter
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
   DWT->CTRL |= 0x01; 
   DWT->CYCCNT = 0;
 
@@ -120,6 +125,9 @@ int main(void) {
   uint32_t highWord = 0;
 
   int samples = 0;
+  int64_t startTime = 0;
+
+  unsigned currentSample = 0;
 
   // main loop
   while(true) {
@@ -127,23 +135,66 @@ int main(void) {
     if(lowWord < lastLowWord) highWord++;
     lastLowWord = lowWord;
 
-    if(sampleMode) {
-      sample.time = ((uint64_t)highWord << 32) | lowWord;
+    struct SampleReplyPacket *samplePtr = &sample[currentSample];
 
-      adcScan(sample.current);
-      bool halted = coreReadPcsrFast(sample.pc);
-      adcScanWait();
+    if(sampleMode) {
+      bool halted = false;
+
+#ifdef TRIGGER_INPUT
+      bool send = false;
+
+      if(!GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
+        halted = coreHalted();
+
+      } else
+#endif
+      {
+        samplePtr->time = ((uint64_t)highWord << 32) | lowWord;
+
+        adcScan(samplePtr->current);
+        halted = coreReadPcsrFast(samplePtr->pc);
+        adcScanWait();
+
+#ifdef TRIGGER_INPUT
+        if(GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
+          send = true;
+        }
+#endif
+      }
 
       if(halted) {
-        sample.time = -1;
+#ifdef TRIGGER_INPUT
+        send = true;
+#endif
+        samplePtr->time = -1;
+        clearLed(0);
         sampleMode = false;
         jtagExt();
-        printf("Exiting sample mode, %d samples\n", samples);
+
+        int64_t stopTime = ((uint64_t)highWord << 32) | lowWord;
+        double totalTime = (stopTime - startTime) / CLOCK_FREQ;
+        printf("Exiting sample mode, %d samples (%d per second)\n", samples, (unsigned)(samples/totalTime));
+
         samples = 0;
       }
 
-      sendSample(&sample);
-      samples++;
+#ifdef TRIGGER_INPUT
+      if(send) {
+#else
+      {
+#endif
+        samples++;
+        currentSample++;
+
+        if((currentSample >= MAX_SAMPLES) || halted) {
+          sendSamples(sample, currentSample);
+          currentSample = 0;
+        }
+      }
+
+    } else {
+      startTime = ((uint64_t)highWord << 32) | lowWord;
+      currentSample = 0;
     }
   }
 }
