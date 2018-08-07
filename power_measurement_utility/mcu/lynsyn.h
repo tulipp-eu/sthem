@@ -39,7 +39,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 
-#define TRIGGER_INPUT
+//#define TRIGGER_INPUT
 
 #define CAL_AVERAGE_SAMPLES 100
 

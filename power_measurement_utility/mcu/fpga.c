@@ -295,6 +295,7 @@ bool fpgaInit(void) {
     done = GPIO_PinInGet(DONE_PORT, DONE_BIT);
     if(DWT->CYCCNT > FPGA_CONFIGURE_TIMEOUT) {
       initOk = FPGA_CONFIGURE_FAILED;
+      printf("Can't configure the FPGA\n");
       return false;
     }
   } while(!done);
