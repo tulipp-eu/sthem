@@ -554,63 +554,81 @@ void Project::runProfiler() {
   }
 
   // collect samples
-  emit advance(1, "Collecting samples");
+  {
+    emit advance(1, "Collecting samples");
 
-  QFile profFile("profile.prof");
-  success = profFile.open(QIODevice::WriteOnly);
-  Q_UNUSED(success);
-  assert(success);
+    QFile rawFile("profile.profraw");
+    success = rawFile.open(QIODevice::WriteOnly);
+    Q_UNUSED(success);
+    assert(success);
 
-  uint8_t *buf = (uint8_t*)malloc(SAMPLEBUF_SIZE);
-  assert(buf);
+    QDataStream rawStream(&rawFile);
 
-  pmu.collectSamples(buf, SAMPLEBUF_SIZE, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
+    pmu.collectSamples(rawStream, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
 
-  emit advance(2, "Processing samples");
+    rawFile.close();
+  }
 
-  Measurement m[pmu.numCores()];
+  {
+    emit advance(2, "Processing samples");
 
-  while(pmu.getNextSample(m)) {
-    for(unsigned core = 0; core < pmu.numCores(); core++) {
-      if(!useCustomElf && elfSupport.isBb(m[core].pc)) {
-        Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(m[core].pc));
-        m[core].bb = NULL;
-        if(mod) {
-          m[core].bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(m[core].pc)));
-          m[core].write(profFile);
-        }
+    QFile rawFile("profile.profraw");
+    success = rawFile.open(QIODevice::ReadOnly);
+    Q_UNUSED(success);
+    assert(success);
 
-      } else {
-        Function *func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(m[core].pc));
+    QDataStream rawStream(&rawFile);
 
-        if(func) {
-          // we don't know the BB, but the function exists in the CFG: add to first BB
-          m[core].bb = func->getFirstBb();
-          if(m[core].bb) {
+    QFile profFile("profile.prof");
+    success = profFile.open(QIODevice::WriteOnly);
+    Q_UNUSED(success);
+    assert(success);
+
+    Measurement m[pmu.numCores()];
+
+    while(pmu.getNextSample(rawStream, m)) {
+      for(unsigned core = 0; core < pmu.numCores(); core++) {
+        if(!useCustomElf && elfSupport.isBb(m[core].pc)) {
+          Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(m[core].pc));
+          m[core].bb = NULL;
+          if(mod) {
+            m[core].bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(m[core].pc)));
             m[core].write(profFile);
           }
-          
-        } else {
-          // the function does not exist in the CFG
-          Module *mod = cfgModel->getCfg()->externalMod;
-          m[core].func = mod->getFunctionById(elfSupport.getFunction(m[core].pc));
-          m[core].bb = NULL;
-          if(m[core].func) {
-            m[core].bb = static_cast<BasicBlock*>(m[core].func->children[0]);
-          } else {
-            m[core].func = new Function(elfSupport.getFunction(m[core].pc), mod, mod->children.size());
-            mod->appendChild(m[core].func);
 
-            m[core].bb = new BasicBlock(QString::number(mod->children.size()), m[core].func, 0);
-            m[core].func->appendChild(m[core].bb);
+        } else {
+          Function *func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(m[core].pc));
+
+          if(func) {
+            // we don't know the BB, but the function exists in the CFG: add to first BB
+            m[core].bb = func->getFirstBb();
+            if(m[core].bb) {
+              m[core].write(profFile);
+            }
+          
+          } else {
+            // the function does not exist in the CFG
+            Module *mod = cfgModel->getCfg()->externalMod;
+            m[core].func = mod->getFunctionById(elfSupport.getFunction(m[core].pc));
+            m[core].bb = NULL;
+            if(m[core].func) {
+              m[core].bb = static_cast<BasicBlock*>(m[core].func->children[0]);
+            } else {
+              m[core].func = new Function(elfSupport.getFunction(m[core].pc), mod, mod->children.size());
+              mod->appendChild(m[core].func);
+
+              m[core].bb = new BasicBlock(QString::number(mod->children.size()), m[core].func, 0);
+              m[core].func->appendChild(m[core].bb);
+            }
+            m[core].write(profFile);
           }
-          m[core].write(profFile);
         }
       }
     }
-  }
 
-  profFile.close();
+    rawFile.close();
+    profFile.close();
+  }
 
   pmu.release();
 

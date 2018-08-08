@@ -168,8 +168,9 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
   int transfered = 0;
   int ret = LIBUSB_ERROR_TIMEOUT;
 
-  while(ret == LIBUSB_ERROR_TIMEOUT) {
+  while((transfered == 0) && (ret == LIBUSB_ERROR_TIMEOUT)) {
     ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, maxNum * numBytes, &transfered, 100);
+
     if((ret != 0) && (ret != LIBUSB_ERROR_TIMEOUT)) {
       printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
     }
@@ -181,7 +182,41 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
   return transfered / numBytes;
 }
 
-void Pmu::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
+void Pmu::storeRawSample(QDataStream &stream, SampleReplyPacket *sample) {
+  stream << (qint64)sample->time;
+  for(int i = 0; i < 4; i++) {
+    stream << (quint64)sample->pc[i];
+  }
+  for(int i = 0; i < 7; i++) {
+    stream << (qint16)sample->current[i];
+  }
+}
+
+bool Pmu::readRawSample(QDataStream &stream, SampleReplyPacket *sample) {
+  if(stream.atEnd()) {
+    return false;
+
+  } else {
+    qint64 time;
+    stream >> time;
+    sample->time = time;
+
+    for(int i = 0; i < 4; i++) {
+      quint64 pc;
+      stream >> pc;
+      sample->pc[i] = pc;
+    }
+    for(int i = 0; i < 7; i++) {
+      qint16 current;
+      stream >> current;
+      sample->current[i] = current;
+    }
+
+    return true;
+  }
+}
+
+void Pmu::collectSamples(QDataStream &stream, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
   {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
@@ -214,52 +249,57 @@ void Pmu::collectSamples(uint8_t *buf, int bufSize, unsigned startCore, uint64_t
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
   }
 
-  int remainingSpace = bufSize;
-  endPtr = buf;
+  uint8_t *buf = (uint8_t*)malloc(MAX_SAMPLES * sizeof(SampleReplyPacket));
 
-  while(true) {
+  int samplesReceived = 0;
+  int counter = 0;
+
+  bool done = false;
+
+  while(!done) {
+    counter++;
+    if((counter % 1000) == 0) printf("Got %d samples...\n", samplesReceived);
+
+    int n = 1;
+
     if(swVersion <= SW_VERSION_1_1) {
-      getBytes(endPtr, sizeof(struct SampleReplyPacketV1_0));
-
-      endPtr += sizeof(struct SampleReplyPacket);
-      remainingSpace -= sizeof(struct SampleReplyPacket);
-
+      getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
     } else {
-      int n = getArray(endPtr, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
-
-      endPtr += sizeof(struct SampleReplyPacket) * n;
-      remainingSpace -= sizeof(struct SampleReplyPacket) * n;
+      n = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
     }
 
-    if((unsigned)remainingSpace < sizeof(struct SampleReplyPacket)) {
-      printf("Sample buffer full\n");
-      break;
-    }
+    samplesReceived += n;
+      
+    SampleReplyPacket *sample = (SampleReplyPacket*)buf;
 
-    struct SampleReplyPacket *sample = (struct SampleReplyPacket *)(endPtr - sizeof(struct SampleReplyPacket));
-    if(sample->time == -1) {
-      printf("Sampling done\n");
-      break;
+    for(int i = 0; i < n; i++) {
+      if(sample->time == -1) {
+        printf("Sampling done\n");
+        done = true;
+        break;
+
+      } else {
+        storeRawSample(stream, sample++);
+      }
     }
   }
 
-  curSample = (struct SampleReplyPacket*)buf;
-  lastTime = curSample->time;
+  free(buf);
+
+  lastTime = -1;
 }
 
-bool Pmu::getNextSample(Measurement *m) {
-  curSample++;
+bool Pmu::getNextSample(QDataStream &stream, Measurement *m) {
+  SampleReplyPacket sample;
 
-  if((uint8_t*)curSample >= endPtr) {
-    return false;
-  } 
-
-  if(curSample->time == -1) {
+  if(!readRawSample(stream, &sample)) {
     return false;
   }
 
-  int64_t interval = curSample->time - lastTime;
-  lastTime = curSample->time;
+  if(lastTime == -1) lastTime = sample.time;
+
+  int64_t interval = sample.time - lastTime;
+  lastTime = sample.time;
 
   for(unsigned core = 0; core < MAX_CORES; core++) {
     double p[MAX_SENSORS];
@@ -267,14 +307,14 @@ bool Pmu::getNextSample(Measurement *m) {
     for(unsigned sensor = 0; sensor < MAX_SENSORS; sensor++) {
       switch(hwVersion) {
         case HW_VERSION_2_0: {
-          double vo = (curSample->current[sensor] * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;
+          double vo = (sample.current[sensor] * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;
           double i = (1000 * vo) / (LYNSYN_RS * rl[sensor]);
           p[sensor] = i * supplyVoltage[sensor];
           break;
         }
         case HW_VERSION_2_1: {
           double v =
-            (curSample->current[sensor] * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
+            (sample.current[sensor] * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
           double vs = v / 20;
           double i = vs / rl[sensor];
           p[sensor] = i * supplyVoltage[sensor];
@@ -283,7 +323,7 @@ bool Pmu::getNextSample(Measurement *m) {
       }
     }
 
-    m[core] = Measurement(core, curSample->pc[core], curSample->time, interval, p);
+    m[core] = Measurement(core, sample.pc[core], sample.time, interval, p);
   }
 
   return true;
