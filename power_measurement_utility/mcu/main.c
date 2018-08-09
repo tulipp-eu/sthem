@@ -41,7 +41,8 @@
 
 volatile bool sampleMode;
 
-static struct SampleReplyPacket sample[MAX_SAMPLES] __attribute__((__aligned__(4)));
+static struct SampleReplyPacket sampleBuf1[MAX_SAMPLES] __attribute__((__aligned__(4)));
+static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned__(4)));
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -129,13 +130,15 @@ int main(void) {
 
   unsigned currentSample = 0;
 
+  struct SampleReplyPacket *sampleBuf = sampleBuf1;
+
   // main loop
   while(true) {
     uint32_t lowWord = DWT->CYCCNT;
     if(lowWord < lastLowWord) highWord++;
     lastLowWord = lowWord;
 
-    struct SampleReplyPacket *samplePtr = &sample[currentSample];
+    struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
 
     if(sampleMode) {
       bool halted = false;
@@ -187,7 +190,9 @@ int main(void) {
         currentSample++;
 
         if((currentSample >= MAX_SAMPLES) || halted) {
-          sendSamples(sample, currentSample);
+          sendSamples(sampleBuf, currentSample);
+          if(sampleBuf == sampleBuf1) sampleBuf = sampleBuf2;
+          else sampleBuf = sampleBuf1;
           currentSample = 0;
         }
       }
