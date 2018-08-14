@@ -91,8 +91,6 @@ private:
   unsigned currentCore;
   unsigned currentSensor;
   Cfg *cfg;
-  int64_t minTime;
-  int64_t maxTime;
   double minPower;
   double maxPower;
 
@@ -104,6 +102,9 @@ private:
   void addPoint(int64_t time, double value);
 
 public:
+  int64_t minTime;
+  int64_t maxTime;
+
   Profile *profile;
   unsigned scaleFactorTime;
   unsigned scaleFactorPower;
@@ -111,8 +112,10 @@ public:
   GraphScene(QObject *parent = 0);
   ~GraphScene() {}
 
-  void drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *profile);
+  void drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *profile, int64_t beginTime = -1, int64_t endTime = -1);
   void redraw();
+  void redrawFull();
+  int64_t posToTime(double pos);
   void clearScene() {
     profile = NULL;
     clear();

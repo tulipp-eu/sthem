@@ -161,7 +161,7 @@ void Profile::addExternalFunctions(Cfg *cfg) {
 
   QString queryString =
     QString() +
-    "SELECT function" +
+    "SELECT function,basicblock" +
     " FROM location" +
     " WHERE module = \"" + mod->id + "\"";
 
@@ -169,12 +169,13 @@ void Profile::addExternalFunctions(Cfg *cfg) {
 
   while(query.next()) {
     QString funcId = query.value("function").toString();
+    QString bbId = query.value("basicblock").toString();
     Function *func = mod->getFunctionById(funcId);
     if(!func) {
       func = new Function(funcId, mod, mod->children.size());
       mod->appendChild(func);
 
-      BasicBlock *bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
+      BasicBlock *bb = new BasicBlock(bbId, func, 0);
       func->appendChild(bb);
     }
   }

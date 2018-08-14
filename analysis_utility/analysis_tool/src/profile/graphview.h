@@ -36,6 +36,28 @@ class GraphView : public QGraphicsView {
 
 protected:
   GraphScene *scene;
+  int64_t beginTime;
+
+  void mousePressEvent(QMouseEvent *mouseEvent) {
+    if(mouseEvent->button() == Qt::LeftButton) {
+      QPointF pos = mapToScene(mouseEvent->pos());
+      beginTime = scene->posToTime(pos.x());
+    } else if(mouseEvent->button() == Qt::RightButton) {
+      scene->redrawFull();
+      viewport()->update();
+    }
+  }
+
+  void mouseReleaseEvent(QMouseEvent *mouseEvent) {
+    if(mouseEvent->button() == Qt::LeftButton) {
+      QPointF pos = mapToScene(mouseEvent->pos());
+      int64_t endTime = scene->posToTime(pos.x());
+      scene->minTime = beginTime;
+      scene->maxTime = endTime;
+      scene->redraw();
+      viewport()->update();
+    }
+  }
 
   void wheelEvent(QWheelEvent *event) {
     if(event->modifiers() & Qt::ControlModifier) {

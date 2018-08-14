@@ -527,10 +527,17 @@ void Project::runProfiler() {
     return;
   }
 
+  uint64_t samples;
+  int64_t minTime;
+  int64_t maxTime;
+  double minPower[LYNSYN_SENSORS];
+  double maxPower[LYNSYN_SENSORS];
+
   // // collect samples
   {
     emit advance(1, "Collecting samples");
-    pmu.collectSamples(startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
+    pmu.collectSamples(startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc),
+                       &samples, &minTime, &maxTime, minPower, maxPower);
   }
 
   {
@@ -661,31 +668,6 @@ void Project::runProfiler() {
     }
 
     QSqlDatabase::database().commit();
-
-    uint64_t samples;
-    int64_t minTime;
-    int64_t maxTime;
-    double minPower[LYNSYN_SENSORS];
-    double maxPower[LYNSYN_SENSORS];
-
-    printf("Querying minmax time\n");
-
-    query.exec(QString() + "SELECT MIN(time),MAX(time) FROM sensor");
-    if(query.next()) {
-      minTime = query.value(0).toLongLong();
-      maxTime = query.value(1).toLongLong();
-    }
-
-    printf("Querying count,minmax power\n");
-
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
-      query.exec(QString() + "SELECT COUNT(*),MIN(power),MAX(power) FROM sensor WHERE sensor = " + QString::number(i));
-      if(query.next()) {
-        samples = query.value(0).toULongLong();
-        minPower[i] = query.value(1).toDouble();
-        maxPower[i] = query.value(2).toDouble();
-      }
-    }
 
     QSqlDatabase::database().transaction();
 

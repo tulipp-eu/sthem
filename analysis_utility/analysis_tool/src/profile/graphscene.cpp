@@ -53,7 +53,7 @@ void GraphScene::addLineSegments(int line, QVector<Measurement> *measurements) {
   }
 }
 
-void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *profile) {
+void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *profile, int64_t beginTime, int64_t endTime) {
   clear();
   lines.clear();
 
@@ -74,8 +74,12 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
     query.exec(QString() + "SELECT mintime,maxtime,minpower" + sensorString + ",maxpower" + sensorString + " FROM meta");
 
     if(query.next()) {
-      minTime = query.value(0).toLongLong();
-      maxTime = query.value(1).toLongLong();
+      if(beginTime < 0) minTime = query.value(0).toLongLong();
+      else minTime = beginTime;
+
+      if(endTime < 0) maxTime = query.value(1).toLongLong();
+      else maxTime = endTime;
+
       minPower = query.value(2).toDouble();
       maxPower = query.value(3).toDouble();
 
@@ -87,11 +91,12 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
       if(stride < 1) stride = 1;
 
       QString queryString = QString() +
-        "SELECT core.time,location.basicblock,location.function,location.module,sensor.power" +
+        "SELECT core.time,location.basicblock,location.module,sensor.power" +
         " FROM core JOIN location JOIN sensor" +
         " WHERE core.time = sensor.time AND core.location = location.id" +
         " AND core.core = " + QString::number(core) +
         " AND sensor.sensor = " + QString::number(sensor) +
+        " AND core.time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime) + 
         " GROUP BY core.time / " + QString::number(stride);
 
       query.exec(queryString);
@@ -148,6 +153,10 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 }
 
 void GraphScene::redraw() {
+  drawProfile(currentCore, currentSensor, cfg, profile, minTime, maxTime);
+}
+
+void GraphScene::redrawFull() {
   drawProfile(currentCore, currentSensor, cfg, profile);
 }
 
@@ -178,3 +187,6 @@ double GraphScene::scalePower(double power) {
   return scaleFactorPower * (double)(power - minPower) / (double)(maxPower - minPower);
 }
 
+int64_t GraphScene::posToTime(double pos) {
+  return (pos / scaleFactorTime) * (maxTime-minTime) + minTime;
+}
