@@ -69,20 +69,21 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 
     QString sensorString = QString::number(sensor+1);
 
-    query.exec(QString() + "SELECT samples,mintime,maxtime,minpower" + sensorString + ",maxpower" + sensorString + " FROM meta");
+    cfg->clearCachedProfilingData();
+
+    query.exec(QString() + "SELECT mintime,maxtime,minpower" + sensorString + ",maxpower" + sensorString + " FROM meta");
 
     if(query.next()) {
-      unsigned samples = query.value(0).toUInt();
-      minTime = query.value(1).toLongLong();
-      maxTime = query.value(2).toLongLong();
-      minPower = query.value(3).toDouble();
-      maxPower = query.value(4).toDouble();
+      minTime = query.value(0).toLongLong();
+      maxTime = query.value(1).toLongLong();
+      minPower = query.value(2).toDouble();
+      maxPower = query.value(3).toDouble();
 
       graph = new Graph(font(), minPower, maxPower);
       graph->setPos(0, GANTT_SIZE-GANTT_SPACING);
       addItem(graph);
 
-      unsigned stride = samples / scaleFactorTime;
+      unsigned stride = (maxTime - minTime) / scaleFactorTime;
       if(stride < 1) stride = 1;
 
       QString queryString = QString() +
@@ -91,7 +92,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
         " WHERE core.time = sensor.time AND core.location = location.id" +
         " AND core.core = " + QString::number(core) +
         " AND sensor.sensor = " + QString::number(sensor) +
-        " AND core.rowid % " + QString::number(stride) + " = 0";
+        " GROUP BY core.time / " + QString::number(stride);
 
       query.exec(queryString);
 
