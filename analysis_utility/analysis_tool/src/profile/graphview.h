@@ -84,7 +84,6 @@ protected:
 public:
   GraphView(GraphScene *scene) : QGraphicsView(scene) {
     this->scene = scene;
-    setDragMode(QGraphicsView::ScrollHandDrag);
   }
 
 public slots:

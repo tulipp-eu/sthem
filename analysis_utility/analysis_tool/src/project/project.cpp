@@ -550,85 +550,119 @@ void Project::runProfiler() {
 
     QSqlQuery query;
     query.setForwardOnly(true);
-    query.exec("SELECT core.rowid,core.core,core.pc,sensor.sensor,sensor.timeSinceLast,sensor.power FROM core JOIN sensor"
-               " WHERE core.time = sensor.time");
+    query.exec("SELECT rowid,timeSinceLast,pc1,pc2,pc3,pc4,power1,power2,power3,power4,power5,power6,power7 FROM measurements");
 
     int counter = 0;
 
     QSqlDatabase::database().transaction();
 
     QSqlQuery updateQuery;
-    updateQuery.prepare("UPDATE core SET location = :location WHERE rowid = :rowid");
+    updateQuery.prepare("UPDATE measurements SET"
+                        " basicblock1=:basicblock1,module1=:module1"
+                        ", basicblock2=:basicblock2,module2=:module2"
+                        ", basicblock3=:basicblock3,module3=:module3"
+                        ", basicblock4=:basicblock4,module4=:module4"
+                        " WHERE rowid = :rowid");
 
     while(query.next()) {
       if((counter++ % 10000) == 0) printf("Processed %d samples...\n", counter);
 
-      unsigned core = query.value("core").toUInt();
-      uint64_t pc = query.value("pc").toULongLong();
-      unsigned sensor = query.value("sensor").toUInt();
+      unsigned rowId = query.value("rowid").toUInt();
+
+      QString bbText[4];
+      QString modText[4];
+
+      uint64_t pc[4];
+      pc[0] = query.value("pc1").toULongLong();
+      pc[1] = query.value("pc2").toULongLong();
+      pc[2] = query.value("pc3").toULongLong();
+      pc[3] = query.value("pc4").toULongLong();
+
       int64_t timeSinceLast = query.value("timeSinceLast").toLongLong();
-      double power = query.value("power").toDouble();
 
-      BasicBlock *bb = NULL;
-      Function *func = NULL;
+      double power[7];
+      power[0] = query.value("power1").toDouble();
+      power[1] = query.value("power2").toDouble();
+      power[2] = query.value("power3").toDouble();
+      power[3] = query.value("power4").toDouble();
+      power[4] = query.value("power5").toDouble();
+      power[5] = query.value("power6").toDouble();
+      power[6] = query.value("power7").toDouble();
 
-      if(!useCustomElf && elfSupport.isBb(pc)) {
-        Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(pc));
-        if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(pc)));
+      for(int core = 0; core < 4; core++) {
+        BasicBlock *bb = NULL;
+        Function *func = NULL;
 
-      } else {
-        func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(pc));
-
-        if(func) {
-          // we don't know the BB, but the function exists in the CFG: add to first BB
-          bb = func->getFirstBb();
-          func = NULL;
+        if(!useCustomElf && elfSupport.isBb(pc[core])) {
+          Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(pc[core]));
+          if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(pc[core])));
 
         } else {
-          // the function does not exist in the CFG
-          Module *mod = cfgModel->getCfg()->externalMod;
-          func = mod->getFunctionById(elfSupport.getFunction(pc));
+          func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(pc[core]));
 
           if(func) {
-            bb = static_cast<BasicBlock*>(func->children[0]);
-          } else {
-            func = new Function(elfSupport.getFunction(pc), mod, mod->children.size());
-            mod->appendChild(func);
+            // we don't know the BB, but the function exists in the CFG: add to first BB
+            bb = func->getFirstBb();
+            func = NULL;
 
-            bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
-            func->appendChild(bb);
+          } else {
+            // the function does not exist in the CFG
+            Module *mod = cfgModel->getCfg()->externalMod;
+            func = mod->getFunctionById(elfSupport.getFunction(pc[core]));
+
+            if(func) {
+              bb = static_cast<BasicBlock*>(func->children[0]);
+            } else {
+              func = new Function(elfSupport.getFunction(pc[core]), mod, mod->children.size());
+              mod->appendChild(func);
+
+              bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
+              func->appendChild(bb);
+            }
           }
+        }
+
+        bbText[core] = "";
+        modText[core] = "";
+        QString funcText = "";
+
+        if(func) {
+          funcText = func->id;
+        }
+
+        assert(bb);
+
+        bbText[core] = bb->id;
+        modText[core] = bb->getModule()->id;
+
+        Location *location;
+        auto it = locations[core].find(bb);
+        if(it != locations[core].end()) {
+          location = it->second;
+        } else {
+          location = new Location(locationId++, modText[core], funcText, bbText[core]);
+          locations[core][bb] = location;
+        }
+
+        location->runtime += Pmu::cyclesToSeconds(timeSinceLast);
+
+        for(int sensor = 0; sensor < 7; sensor++) {
+          location->energy[sensor] += power[sensor] * Pmu::cyclesToSeconds(timeSinceLast);
         }
       }
 
-      QString modText = "";
-      QString funcText = "";
-      QString bbText = "";
-
-      if(func) {
-        funcText = func->id;
-      }
-
-      assert(bb);
-
-      bbText = bb->id;
-      modText = bb->getModule()->id;
-
-      Location *location;
-      auto it = locations[core].find(bb);
-      if(it != locations[core].end()) {
-        location = it->second;
-      } else {
-        location = new Location(locationId++, modText, funcText, bbText);
-        locations[core][bb] = location;
-      }
-
-      if(sensor == 0) location->runtime += Pmu::cyclesToSeconds(timeSinceLast);
-      location->energy[sensor] += power * Pmu::cyclesToSeconds(timeSinceLast);
-
-      unsigned rowId = query.value("rowid").toUInt();
       updateQuery.bindValue(":rowid", rowId);
-      updateQuery.bindValue(":location", location->id);
+
+      updateQuery.bindValue(":basicblock1", bbText[0]);
+      updateQuery.bindValue(":basicblock2", bbText[1]);
+      updateQuery.bindValue(":basicblock3", bbText[2]);
+      updateQuery.bindValue(":basicblock4", bbText[3]);
+
+      updateQuery.bindValue(":module1", modText[0]);
+      updateQuery.bindValue(":module2", modText[1]);
+      updateQuery.bindValue(":module3", modText[2]);
+      updateQuery.bindValue(":module4", modText[3]);
+
       bool success = updateQuery.exec();
       assert(success);
     }

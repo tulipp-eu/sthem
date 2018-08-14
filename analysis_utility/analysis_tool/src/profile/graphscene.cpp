@@ -91,26 +91,25 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
       if(stride < 1) stride = 1;
 
       QString queryString = QString() +
-        "SELECT core.time,location.basicblock,location.module,sensor.power" +
-        " FROM core JOIN location JOIN sensor" +
-        " WHERE core.time = sensor.time AND core.location = location.id" +
-        " AND core.core = " + QString::number(core) +
-        " AND sensor.sensor = " + QString::number(sensor) +
-        " AND core.time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime) + 
-        " GROUP BY core.time / " + QString::number(stride);
+        "SELECT time,basicblock" + QString::number(core+1) +
+        ",module" + QString::number(core+1) +
+        ",power" + QString::number(sensor+1) +
+        " FROM measurements" +
+        " WHERE time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime) + 
+        " GROUP BY time / " + QString::number(stride);
 
       query.exec(queryString);
 
       MovingAverage ma(Config::window);
 
       if(query.next()) {
-        ma.initialize(query.value("power").toDouble());
+        ma.initialize(query.value("power" + QString::number(sensor+1)).toDouble());
         
         do {
           int64_t time = query.value("time").toLongLong();
-          double power = query.value("power").toDouble();
-          QString moduleId = query.value("module").toString();
-          QString bbId = query.value("basicblock").toString();
+          double power = query.value("power" + QString::number(sensor+1)).toDouble();
+          QString moduleId = query.value("module" + QString::number(core+1)).toString();
+          QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
 
           Module *mod = cfg->getModuleById(moduleId);
           assert(mod);

@@ -185,44 +185,34 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
 }
 
 void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower) {
-  QSqlQuery query;
+  query.bindValue(":time", (qint64)sample->time);
+  query.bindValue(":timeSinceLast", (qint64)timeSinceLast);
+  query.bindValue(":pc1", (quint64)sample->pc[0]);
+  query.bindValue(":pc2", (quint64)sample->pc[1]);
+  query.bindValue(":pc3", (quint64)sample->pc[2]);
+  query.bindValue(":pc4", (quint64)sample->pc[3]);
 
-  for(int i = 0; i < 4; i++) {
-    query.prepare("INSERT INTO core (core, time, pc) "
-                  "VALUES (:core, :time, :pc)");
+  double power[LYNSYN_SENSORS];
 
-    query.bindValue(":core", i);
-    query.bindValue(":time", (qint64)sample->time);
-    query.bindValue(":pc", (quint64)sample->pc[i]);
-
-    bool success = query.exec();
-    if((swVersion == SW_VERSION_1_1) && !success) {
-      printf("Failed to insert %d %d\n", i, (unsigned)sample->time);
-    } else {
-      assert(success);
-    }
+  for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    power[i] = currentToPower(i, sample->current[i]);
+    if(power[i] < minPower[i]) minPower[i] = power[i];
+    if(power[i] > maxPower[i]) maxPower[i] = power[i];
   }
 
-  for(int i = 0; i < 7; i++) {
-    query.prepare("INSERT INTO sensor (sensor, time, timeSinceLast, current, power) "
-                  "VALUES (:sensor, :time, :timeSinceLast, :current, :power)");
+  query.bindValue(":power1", power[0]);
+  query.bindValue(":power2", power[1]);
+  query.bindValue(":power3", power[2]);
+  query.bindValue(":power4", power[3]);
+  query.bindValue(":power5", power[4]);
+  query.bindValue(":power6", power[5]);
+  query.bindValue(":power7", power[6]);
 
-    double power = currentToPower(i, sample->current[i]);
-    if(power < minPower[i]) minPower[i] = power;
-    if(power > maxPower[i]) maxPower[i] = power;
-
-    query.bindValue(":sensor", i);
-    query.bindValue(":time", (qint64)sample->time);
-    query.bindValue(":timeSinceLast", (qint64)timeSinceLast);
-    query.bindValue(":current", sample->current[i]);
-    query.bindValue(":power", power);
-
-    bool success = query.exec();
-    if((swVersion == SW_VERSION_1_1) && !success) {
-      printf("Failed to insert %d\n", (unsigned)sample->time);
-    } else {
-      assert(success);
-    }
+  bool success = query.exec();
+  if((swVersion == SW_VERSION_1_1) && !success) {
+    printf("Failed to insert %d\n", (unsigned)sample->time);
+  } else {
+    assert(success);
   }
 }
 
@@ -263,7 +253,7 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
   uint8_t *buf = (uint8_t*)malloc(MAX_SAMPLES * sizeof(SampleReplyPacket));
 
   *samples = 0;
-  *minTime = INT_MAX;
+  *minTime = 0;
   *maxTime = 0;
   for(int i = 0; i < LYNSYN_SENSORS; i++) {
     minPower[i] = INT_MAX;
@@ -275,6 +265,9 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
   bool done = false;
 
   QSqlDatabase::database().transaction();
+
+  query.prepare("INSERT INTO measurements (time, timeSinceLast, pc1, pc2, pc3, pc4, power1, power2, power3, power4, power5, power6, power7) "
+                "VALUES (:time, :timeSinceLast, :pc1, :pc2, :pc3, :pc4, :power1, :power2, :power3, :power4, :power5, :power6, :power7)");
 
   int64_t lastTime = -1;
 
@@ -298,7 +291,7 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
 
     SampleReplyPacket *sample = (SampleReplyPacket*)buf;
 
-    if(sample->time < *minTime) *minTime = sample->time;
+    if(*minTime == 0) *minTime = sample->time;
     if(sample->time > *maxTime) *maxTime = sample->time;
 
     for(int i = 0; i < n; i++) {

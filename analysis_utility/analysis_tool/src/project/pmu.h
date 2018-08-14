@@ -25,6 +25,7 @@
 #include <libusb.h>
 
 #include <QDataStream>
+#include <QtSql>
 
 #include <usbprotocol.h>
 
@@ -39,6 +40,7 @@ class Measurement;
 class Pmu {
 
 private:
+  QSqlQuery query;
 	struct libusb_device_handle *lynsynHandle;
   uint8_t outEndpoint;
   uint8_t inEndpoint;
