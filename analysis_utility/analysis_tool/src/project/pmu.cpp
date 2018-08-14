@@ -21,6 +21,8 @@
 
 #include <assert.h>
 
+#include <QtSql>
+
 #include <usbprotocol.h>
 
 #define LYNSYN_MAX_CURRENT_VALUE 32768
@@ -182,41 +184,45 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
   return transfered / numBytes;
 }
 
-void Pmu::storeRawSample(QDataStream &stream, SampleReplyPacket *sample) {
-  stream << (qint64)sample->time;
+void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast) {
+  QSqlQuery query;
+
   for(int i = 0; i < 4; i++) {
-    stream << (quint64)sample->pc[i];
+    query.prepare("INSERT INTO core (core, time, pc) "
+                  "VALUES (:core, :time, :pc)");
+
+    query.bindValue(":core", i);
+    query.bindValue(":time", (qint64)sample->time);
+    query.bindValue(":pc", (quint64)sample->pc[i]);
+
+    bool success = query.exec();
+    if((swVersion == SW_VERSION_1_1) && !success) {
+      printf("Failed to insert %d %d\n", i, (unsigned)sample->time);
+    } else {
+      assert(success);
+    }
   }
+
   for(int i = 0; i < 7; i++) {
-    stream << (qint16)sample->current[i];
+    query.prepare("INSERT INTO sensor (sensor, time, timeSinceLast, current, power) "
+                  "VALUES (:sensor, :time, :timeSinceLast, :current, :power)");
+
+    query.bindValue(":sensor", i);
+    query.bindValue(":time", (qint64)sample->time);
+    query.bindValue(":timeSinceLast", (qint64)timeSinceLast);
+    query.bindValue(":current", sample->current[i]);
+    query.bindValue(":power", currentToPower(i, sample->current[i]));
+
+    bool success = query.exec();
+    if((swVersion == SW_VERSION_1_1) && !success) {
+      printf("Failed to insert %d\n", (unsigned)sample->time);
+    } else {
+      assert(success);
+    }
   }
 }
 
-bool Pmu::readRawSample(QDataStream &stream, SampleReplyPacket *sample) {
-  if(stream.atEnd()) {
-    return false;
-
-  } else {
-    qint64 time;
-    stream >> time;
-    sample->time = time;
-
-    for(int i = 0; i < 4; i++) {
-      quint64 pc;
-      stream >> pc;
-      sample->pc[i] = pc;
-    }
-    for(int i = 0; i < 7; i++) {
-      qint16 current;
-      stream >> current;
-      sample->current[i] = current;
-    }
-
-    return true;
-  }
-}
-
-void Pmu::collectSamples(QDataStream &stream, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
+void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr) {
   {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
@@ -256,13 +262,21 @@ void Pmu::collectSamples(QDataStream &stream, unsigned startCore, uint64_t start
 
   bool done = false;
 
+  QSqlDatabase::database().transaction();
+
+  int64_t lastTime = -1;
+
   while(!done) {
     counter++;
-    if((counter % 1000) == 0) printf("Got %d samples...\n", samplesReceived);
+    if(swVersion == SW_VERSION_1_0) {
+      if((counter % 10000) == 0) printf("Got %d samples...\n", samplesReceived);
+    } else {
+      if((counter % 313) == 0) printf("Got %d samples...\n", samplesReceived);
+    }
 
     int n = 1;
 
-    if(swVersion <= SW_VERSION_1_1) {
+    if(swVersion == SW_VERSION_1_0) {
       getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
     } else {
       n = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
@@ -279,53 +293,33 @@ void Pmu::collectSamples(QDataStream &stream, unsigned startCore, uint64_t start
         break;
 
       } else {
-        storeRawSample(stream, sample++);
+        int64_t timeSinceLast = 0;
+        if(lastTime != -1) timeSinceLast = sample->time - lastTime;
+        lastTime = sample->time;
+
+        storeRawSample(sample++, timeSinceLast);
       }
     }
   }
+
+  QSqlDatabase::database().commit();
 
   free(buf);
-
-  lastTime = -1;
 }
 
-bool Pmu::getNextSample(QDataStream &stream, Measurement *m) {
-  SampleReplyPacket sample;
-
-  if(!readRawSample(stream, &sample)) {
-    return false;
-  }
-
-  if(lastTime == -1) lastTime = sample.time;
-
-  int64_t interval = sample.time - lastTime;
-  lastTime = sample.time;
-
-  for(unsigned core = 0; core < MAX_CORES; core++) {
-    double p[MAX_SENSORS];
-
-    for(unsigned sensor = 0; sensor < MAX_SENSORS; sensor++) {
-      switch(hwVersion) {
-        case HW_VERSION_2_0: {
-          double vo = (sample.current[sensor] * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;
-          double i = (1000 * vo) / (LYNSYN_RS * rl[sensor]);
-          p[sensor] = i * supplyVoltage[sensor];
-          break;
-        }
-        case HW_VERSION_2_1: {
-          double v =
-            (sample.current[sensor] * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
-          double vs = v / 20;
-          double i = vs / rl[sensor];
-          p[sensor] = i * supplyVoltage[sensor];
-          break;
-        }
-      }
+double Pmu::currentToPower(unsigned sensor, int16_t current) {
+  switch(hwVersion) {
+    case HW_VERSION_2_0: {
+      double vo = (current * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;
+      double i = (1000 * vo) / (LYNSYN_RS * rl[sensor]);
+      return i * supplyVoltage[sensor];
     }
-
-    m[core] = Measurement(core, sample.pc[core], sample.time, interval, p);
+    case HW_VERSION_2_1: {
+      double v = (current * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
+      double vs = v / 20;
+      double i = vs / rl[sensor];
+      return i * supplyVoltage[sensor];
+    }
   }
-
-  return true;
+  return 0;
 }
-

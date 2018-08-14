@@ -33,8 +33,6 @@ class Profile;
 
 class BasicBlock : public Container {
 
-  std::map<BasicBlock*, std::vector<Measurement>* > measurements;
-
 protected:
   virtual void appendLocalItems(int xx, int yy, Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling);
 
@@ -104,20 +102,10 @@ public:
   virtual void clearColors() {
     Vertex::clearColors();
   }
-  virtual void addMeasurement(BasicBlock *parent, Measurement measurement) {
-    std::vector<Measurement> *mVec = NULL;
 
-    if(measurements.find(parent) == measurements.end()) {
-      mVec = new std::vector<Measurement>();
-      measurements[parent] = mVec;
-    } else {
-      mVec = measurements[parent];
-    }
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy);
 
-    mVec->push_back(measurement);
-  }
-
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements = NULL);
+  virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements);
 
   virtual void calculateCallers();
 

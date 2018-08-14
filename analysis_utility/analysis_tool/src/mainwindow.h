@@ -102,10 +102,9 @@ private:
 
   void loadFiles();
   void loadFile(const QString &fileName);
-  void loadProfFile(const QString &fileName);
   void loadDseFile(const QString &fileName);
   void buildProjectMenu();
-  void openProject(QString path, QString buildConfig);
+  bool openProject(QString path, QString buildConfig);
   void clearGui();
 
 private slots:

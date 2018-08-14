@@ -189,7 +189,9 @@ public:
   //---------------------------------------------------------------------------
   // profiling data
   
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements = NULL);
+  virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements);
+
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy);
 
   virtual void buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forModel = false);
 

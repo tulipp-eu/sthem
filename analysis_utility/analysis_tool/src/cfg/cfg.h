@@ -81,16 +81,11 @@ public:
     }
   }
 
-  virtual void setProfile(Profile *profile) {
-    this->profile = profile;
-    clearCachedProfilingData();
-  }
+  virtual void setProfile(Profile *profile);
 
   virtual Profile *getProfile() {
     return profile;
   }
-
-  virtual void buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forModel = false);
 
   virtual void clearCachedProfilingData();
 };

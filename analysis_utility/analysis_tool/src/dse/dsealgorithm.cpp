@@ -134,13 +134,11 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
       dseRun.time = (timer.elapsed() / (double)1000);
 
     } else {
-      QVector<Measurement> *measurements = dseRun.project->parseProfFile();
-      dseRun.profile->setProfData(measurements);
       fitness = fitnessFunction(&dseRun);
       dseRun.time = (timer.elapsed() / (double)1000);
 
       dseRun.project->clear();
-      dseRun.profile->clear();
+      dseRun.profile->clean();
     }
   }
 

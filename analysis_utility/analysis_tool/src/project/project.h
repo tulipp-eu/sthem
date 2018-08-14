@@ -108,9 +108,6 @@ public:
   virtual void print();
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
 
-  QVector<Measurement> *parseProfFile();
-  QVector<Measurement> *parseProfFile(QFile &file);
-
   QString elfFilename() {
     return name + ".elf";
   }

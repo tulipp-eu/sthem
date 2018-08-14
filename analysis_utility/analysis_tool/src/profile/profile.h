@@ -24,6 +24,8 @@
 
 #include <QString>
 #include <QFile>
+#include <QtSql>
+
 #include <sstream>
 
 #include "profline.h"
@@ -34,9 +36,7 @@
 class Profile {
 
 private:
-  double runtime;
-  double energy[Pmu::MAX_SENSORS];
-
+  void clear();
   void addMeasurement(Measurement measurement);
 
 public:
@@ -46,33 +46,47 @@ public:
   Profile();
   virtual ~Profile();
 
-  void setProfData(QVector<Measurement> *measurements);
+  void setMeasurements(QVector<Measurement> *measurements);
+  void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy);
+  void getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements);
 
-  void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, QVector<BasicBlock*> callStack = QVector<BasicBlock*>(), QVector<Measurement> *measurements = NULL);
-
-  double getRuntime() {
-    return runtime;
+  double getRuntime() const {
+    return 0; // FIXME
   }
-  double getEnergy(unsigned sensor) {
-    return energy[sensor];
+  double getEnergy(unsigned sensor) const {
+    return 0; // FIXME
   }
 
-  void clear();
+  void setRuntime(double runtime) {
+    // FIXME
+  }
+  void setEnergy(unsigned sensor, double energy) {
+    // FIXME
+  }
+
+  void clean();
+
+  void addExternalFunctions(Cfg *cfg);
 
 	friend std::ostream& operator<<(std::ostream &os, const Profile &p) {
     // only streams out the necessary parts for DSE
-		os << p.runtime << '\n';
+		os << p.getRuntime() << '\n';
     for(unsigned i = 0; i < (Pmu::MAX_SENSORS-1); i++) {
-      os << p.energy[i] << '\n';
+      os << p.getEnergy(i) << '\n';
     }
-    os << p.energy[Pmu::MAX_SENSORS-1];
+    os << p.getEnergy(Pmu::MAX_SENSORS-1);
 		return os;
 	}
 
 	friend std::istream& operator>>(std::istream &is, Profile &p) {
-		is >> p.runtime;
+    double runtime;
+		is >> runtime;
+    p.setRuntime(runtime);
+
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
-      is >> p.energy[i];
+      double energy;
+      is >> energy;
+      p.setEnergy(i, energy);
     }
 		return is;
 	}

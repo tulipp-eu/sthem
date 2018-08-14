@@ -764,8 +764,8 @@ void Container::collapse() {
   }
 }
 
-void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements) {
-  if((cachedRuntime == INT_MAX) || measurements) {
+void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
+  if(cachedRuntime == INT_MAX) {
     cachedRuntime = 0;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       cachedEnergy[i] = 0;
@@ -774,7 +774,7 @@ void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, doubl
     for(auto child : children) {
       double runtimeChild;
       double energyChild[Pmu::MAX_SENSORS];
-      child->getProfData(core, callStack, &runtimeChild, energyChild, measurements);
+      child->getProfData(core, callStack, &runtimeChild, energyChild);
       cachedRuntime += runtimeChild;
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] += energyChild[i];
@@ -785,6 +785,12 @@ void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, doubl
   *runtime = cachedRuntime;
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
+  }
+}
+
+void Container::getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {
+  for(auto child : children) {
+    child->getMeasurements(core, callStack, measurements);
   }
 }
 
@@ -800,7 +806,8 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
 
       cachedProfLine[core] = new ProfLine();
 
-      getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &(cachedProfLine[core]->measurements));
+      getProfData(core, QVector<BasicBlock*>(), &runtime, energy);
+      getMeasurements(core, QVector<BasicBlock*>(), &(cachedProfLine[core]->measurements));
 
       double power[Pmu::MAX_SENSORS];
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {

@@ -62,60 +62,81 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
   this->cfg = cfg;
   this->profile = profile;
 
+  QVector<Measurement> *measurements = new QVector<Measurement>;
+
   if(profile) {
-    if(profile->measurements.size()) {
-      QVector<Point> points;
+    QSqlQuery query;
 
-      minTime = LLONG_MAX;
-      maxTime = 0;
+    QString sensorString = QString::number(sensor+1);
 
-      minPower = std::numeric_limits<double>::max();
-      maxPower = 0;
+    query.exec(QString() + "SELECT samples,mintime,maxtime,minpower" + sensorString + ",maxpower" + sensorString + " FROM meta");
+
+    if(query.next()) {
+      unsigned samples = query.value(0).toUInt();
+      minTime = query.value(1).toLongLong();
+      maxTime = query.value(2).toLongLong();
+      minPower = query.value(3).toDouble();
+      maxPower = query.value(4).toDouble();
+
+      graph = new Graph(font(), minPower, maxPower);
+      graph->setPos(0, GANTT_SIZE-GANTT_SPACING);
+      addItem(graph);
+
+      unsigned stride = samples / scaleFactorTime;
+      if(stride < 1) stride = 1;
+
+      QString queryString = QString() +
+        "SELECT core.time,location.basicblock,location.function,location.module,sensor.power" +
+        " FROM core JOIN location JOIN sensor" +
+        " WHERE core.time = sensor.time AND core.location = location.id" +
+        " AND core.core = " + QString::number(core) +
+        " AND sensor.sensor = " + QString::number(sensor) +
+        " AND core.rowid % " + QString::number(stride) + " = 0";
+
+      query.exec(queryString);
 
       MovingAverage ma(Config::window);
-      ma.initialize(profile->measurements[0].power[sensor]);
 
-      for(int i = 0; i < profile->measurements.size(); i++) {
-        auto measurement =  profile->measurements[i];
-        if(measurement.core == core) {
-          double avg = ma.next(measurement.power[sensor]);
-          points.push_back(Point(measurement.time, avg));
-        }
+      if(query.next()) {
+        ma.initialize(query.value("power").toDouble());
+        
+        do {
+          int64_t time = query.value("time").toLongLong();
+          double power = query.value("power").toDouble();
+          QString moduleId = query.value("module").toString();
+          QString bbId = query.value("basicblock").toString();
+
+          Module *mod = cfg->getModuleById(moduleId);
+          assert(mod);
+          BasicBlock *bb = mod->getBasicBlockById(bbId);
+
+          double avg = ma.next(power);
+
+          addPoint(time, avg);
+
+          measurements->push_back(Measurement(time, core, bb));
+          
+        } while(query.next());
       }
 
-      for(auto it : points) {
-        if(it.power > maxPower) maxPower = it.power;
-        if(it.power < minPower) minPower = it.power;
-        if(it.time > maxTime) maxTime = it.time;
-        if(it.time < minTime) minTime = it.time;
-      }
+      profile->setMeasurements(measurements);
 
-      if(points.size()) {
-        graph = new Graph(font(), minPower, maxPower);
-        graph->setPos(0, GANTT_SIZE-GANTT_SPACING);
-        addItem(graph);
+      std::vector<ProfLine*> table;
+      cfg->buildProfTable(core, table);
+      ProfSort profSort;
+      std::sort(table.begin(), table.end(), profSort);
 
-        for(auto it : points) {
-          addPoint(it.time, it.power);
-        }
-
-        std::vector<ProfLine*> table;
-        cfg->buildProfTable(core, table);
-        ProfSort profSort;
-        std::sort(table.begin(), table.end(), profSort);
-
-        for(auto profLine : table) {
-          if(!profLine->vertex) {
-            int l = addLine("Unknown", Qt::black);
-            addLineSegments(l, profLine->getMeasurements());
+      for(auto profLine : table) {
+        if(!profLine->vertex) {
+          int l = addLine("Unknown", Qt::black);
+          addLineSegments(l, profLine->getMeasurements());
       
-          } else {
-            Vertex *vertex = profLine->vertex;
+        } else {
+          Vertex *vertex = profLine->vertex;
 
-            if(vertex->isVisibleInGantt() && (profLine->measurements.size() > 0)) {
-              int l = addLine(vertex->getGanttName(), vertex->getColor());
-              addLineSegments(l, profLine->getMeasurements());
-            }
+          if(vertex->isVisibleInGantt() && (profLine->measurements.size() > 0)) {
+            int l = addLine(vertex->getGanttName(), vertex->getColor());
+            addLineSegments(l, profLine->getMeasurements());
           }
         }
       }

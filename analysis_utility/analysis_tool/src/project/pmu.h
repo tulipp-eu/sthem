@@ -48,15 +48,11 @@ private:
   uint8_t hwVersion;
   double sensorCalibration[LYNSYN_SENSORS];
 
-  struct SampleReplyPacket *curSample;
-  uint8_t *endPtr;
-  int64_t lastTime;
-
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
   int getArray(uint8_t *bytes, int maxNum, int numBytes);
-  void storeRawSample(QDataStream &stream, SampleReplyPacket *sample);
-  bool readRawSample(QDataStream &stream, SampleReplyPacket *sample);
+  void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast);
+  double currentToPower(unsigned sensor, int16_t current);
 
 public:
   static const unsigned MAX_SENSORS = LYNSYN_SENSORS;
@@ -77,8 +73,7 @@ public:
   bool init();
   void release();
 
-  void collectSamples(QDataStream &stream, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr);
-  bool getNextSample(QDataStream &stream, Measurement *m);
+  void collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr);
 
   unsigned numSensors() { return LYNSYN_SENSORS; }
   unsigned numCores() { return LYNSYN_MAX_CORES; }

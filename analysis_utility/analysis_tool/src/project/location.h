@@ -19,31 +19,32 @@
  *
  *****************************************************************************/
 
-#include "cfg.h"
+#ifndef LOCATION_H
+#define LOCATION_H
 
-Cfg::Cfg() : Container("", "", NULL, 0) {
-  externalMod = new Module("__External__", this);
-  appendChild(externalMod);
+#include "pmu.h"
 
-  profile = NULL;
+class Location {
+public:
+  unsigned id;
 
-  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
-    unknownProfLine[i] = NULL;
+  QString moduleId;
+  QString funcId;
+  QString bbId;
+
+  double runtime;
+  double energy[LYNSYN_SENSORS];
+
+  Location(unsigned i, QString mid, QString fid, QString bid) {
+    id = i;
+    moduleId = mid;
+    funcId = fid;
+    bbId = bid;
+    runtime = 0;
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      energy[i] = 0;
+    }
   }
-}
+};
 
-Cfg::~Cfg() {}
-
-void Cfg::clearCachedProfilingData() {
-  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
-    unknownProfLine[i] = NULL;
-  }
-
-  Container::clearCachedProfilingData();
-}
-
-void Cfg::setProfile(Profile *profile) {
-  this->profile = profile;
-  profile->addExternalFunctions(this);
-  clearCachedProfilingData();
-}
+#endif

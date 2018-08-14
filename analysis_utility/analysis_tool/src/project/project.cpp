@@ -32,6 +32,7 @@
 
 #include "analysis_tool.h"
 #include "project.h"
+#include "location.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // makefile creation
@@ -342,33 +343,6 @@ int Project::runSourceTool(QString inputFilename, QString outputFilename, QStrin
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// prof file parsing
-
-QVector<Measurement> *Project::parseProfFile() {
-  QFile file("profile.prof");
-  int ret = file.open(QIODevice::ReadOnly);
-  if(ret) {
-    QVector<Measurement> *measurements = parseProfFile(file);
-    file.close();
-    return measurements;
-  } else {
-    return new QVector<Measurement>;
-  }
-}
-
-QVector<Measurement> *Project::parseProfFile(QFile &file) {
-  QVector<Measurement> *measurements = new QVector<Measurement>;
-
-  while(!file.atEnd()) {
-    Measurement m;
-    m.read(file, cfgModel->getCfg());
-    measurements->push_back(m);
-  }
-
-  return measurements;
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // project files
 
 void Project::loadFiles() {
@@ -553,81 +527,194 @@ void Project::runProfiler() {
     return;
   }
 
-  // collect samples
+  // // collect samples
   {
     emit advance(1, "Collecting samples");
-
-    QFile rawFile("profile.profraw");
-    success = rawFile.open(QIODevice::WriteOnly);
-    Q_UNUSED(success);
-    assert(success);
-
-    QDataStream rawStream(&rawFile);
-
-    pmu.collectSamples(rawStream, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
-
-    rawFile.close();
+    pmu.collectSamples(startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc));
   }
 
   {
     emit advance(2, "Processing samples");
 
-    QFile rawFile("profile.profraw");
-    success = rawFile.open(QIODevice::ReadOnly);
-    Q_UNUSED(success);
-    assert(success);
+    std::map<BasicBlock*,Location*> locations[LYNSYN_MAX_CORES];
+    unsigned locationId = 0;
 
-    QDataStream rawStream(&rawFile);
+    printf("Querying samples\n");
 
-    QFile profFile("profile.prof");
-    success = profFile.open(QIODevice::WriteOnly);
-    Q_UNUSED(success);
-    assert(success);
+    QSqlQuery query;
+    query.setForwardOnly(true);
+    query.exec("SELECT core.rowid,core.core,core.pc,sensor.sensor,sensor.timeSinceLast,sensor.power FROM core JOIN sensor"
+               " WHERE core.time = sensor.time");
 
-    Measurement m[pmu.numCores()];
+    int counter = 0;
 
-    while(pmu.getNextSample(rawStream, m)) {
-      for(unsigned core = 0; core < pmu.numCores(); core++) {
-        if(!useCustomElf && elfSupport.isBb(m[core].pc)) {
-          Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(m[core].pc));
-          m[core].bb = NULL;
-          if(mod) {
-            m[core].bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(m[core].pc)));
-            m[core].write(profFile);
-          }
+    QSqlDatabase::database().transaction();
+
+    QSqlQuery updateQuery;
+    updateQuery.prepare("UPDATE core SET location = :location WHERE rowid = :rowid");
+
+    while(query.next()) {
+      if((counter++ % 10000) == 0) printf("Processed %d samples...\n", counter);
+
+      unsigned core = query.value("core").toUInt();
+      uint64_t pc = query.value("pc").toULongLong();
+      unsigned sensor = query.value("sensor").toUInt();
+      int64_t timeSinceLast = query.value("timeSinceLast").toLongLong();
+      double power = query.value("power").toDouble();
+
+      BasicBlock *bb = NULL;
+      Function *func = NULL;
+
+      if(!useCustomElf && elfSupport.isBb(pc)) {
+        Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(pc));
+        if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(pc)));
+
+      } else {
+        func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(pc));
+
+        if(func) {
+          // we don't know the BB, but the function exists in the CFG: add to first BB
+          bb = func->getFirstBb();
+          func = NULL;
 
         } else {
-          Function *func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(m[core].pc));
+          // the function does not exist in the CFG
+          Module *mod = cfgModel->getCfg()->externalMod;
+          func = mod->getFunctionById(elfSupport.getFunction(pc));
 
           if(func) {
-            // we don't know the BB, but the function exists in the CFG: add to first BB
-            m[core].bb = func->getFirstBb();
-            if(m[core].bb) {
-              m[core].write(profFile);
-            }
-          
+            bb = static_cast<BasicBlock*>(func->children[0]);
           } else {
-            // the function does not exist in the CFG
-            Module *mod = cfgModel->getCfg()->externalMod;
-            m[core].func = mod->getFunctionById(elfSupport.getFunction(m[core].pc));
-            m[core].bb = NULL;
-            if(m[core].func) {
-              m[core].bb = static_cast<BasicBlock*>(m[core].func->children[0]);
-            } else {
-              m[core].func = new Function(elfSupport.getFunction(m[core].pc), mod, mod->children.size());
-              mod->appendChild(m[core].func);
+            func = new Function(elfSupport.getFunction(pc), mod, mod->children.size());
+            mod->appendChild(func);
 
-              m[core].bb = new BasicBlock(QString::number(mod->children.size()), m[core].func, 0);
-              m[core].func->appendChild(m[core].bb);
-            }
-            m[core].write(profFile);
+            bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
+            func->appendChild(bb);
           }
         }
       }
+
+      QString modText = "";
+      QString funcText = "";
+      QString bbText = "";
+
+      if(func) {
+        funcText = func->id;
+      }
+
+      assert(bb);
+
+      bbText = bb->id;
+      modText = bb->getModule()->id;
+
+      Location *location;
+      auto it = locations[core].find(bb);
+      if(it != locations[core].end()) {
+        location = it->second;
+      } else {
+        location = new Location(locationId++, modText, funcText, bbText);
+        locations[core][bb] = location;
+      }
+
+      if(sensor == 0) location->runtime += Pmu::cyclesToSeconds(timeSinceLast);
+      location->energy[sensor] += power * Pmu::cyclesToSeconds(timeSinceLast);
+
+      unsigned rowId = query.value("rowid").toUInt();
+      updateQuery.bindValue(":rowid", rowId);
+      updateQuery.bindValue(":location", location->id);
+      bool success = updateQuery.exec();
+      assert(success);
     }
 
-    rawFile.close();
-    profFile.close();
+    QSqlDatabase::database().commit();
+
+    QSqlDatabase::database().transaction();
+
+    printf("Storing locations\n");
+
+    for(unsigned c = 0; c < LYNSYN_MAX_CORES; c++) {
+      for(auto location : locations[c]) {
+        QSqlQuery query;
+
+        query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
+                      "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+
+        query.bindValue(":id", location.second->id);
+        query.bindValue(":core", c);
+        query.bindValue(":basicblock", location.second->bbId);
+        query.bindValue(":function", location.second->funcId);
+        query.bindValue(":module", location.second->moduleId);
+        query.bindValue(":runtime", location.second->runtime);
+        query.bindValue(":energy1", location.second->energy[0]);
+        query.bindValue(":energy2", location.second->energy[1]);
+        query.bindValue(":energy3", location.second->energy[2]);
+        query.bindValue(":energy4", location.second->energy[3]);
+        query.bindValue(":energy5", location.second->energy[4]);
+        query.bindValue(":energy6", location.second->energy[5]);
+        query.bindValue(":energy7", location.second->energy[6]);
+
+        bool success = query.exec();
+        assert(success);
+
+        delete location.second;
+      }
+    }
+
+    QSqlDatabase::database().commit();
+
+    uint64_t samples;
+    int64_t minTime;
+    int64_t maxTime;
+    double minPower[LYNSYN_SENSORS];
+    double maxPower[LYNSYN_SENSORS];
+
+    printf("Querying minmax time\n");
+
+    query.exec(QString() + "SELECT MIN(time),MAX(time) FROM sensor");
+    if(query.next()) {
+      minTime = query.value(0).toLongLong();
+      maxTime = query.value(1).toLongLong();
+    }
+
+    printf("Querying count,minmax power\n");
+
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      query.exec(QString() + "SELECT COUNT(*),MIN(power),MAX(power) FROM sensor WHERE sensor = " + QString::number(i));
+      if(query.next()) {
+        samples = query.value(0).toULongLong();
+        minPower[i] = query.value(1).toDouble();
+        maxPower[i] = query.value(2).toDouble();
+      }
+    }
+
+    QSqlDatabase::database().transaction();
+
+    printf("storing meta\n");
+
+    query.prepare("INSERT INTO meta (samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,maxPower1,maxPower2,maxPower3,maxPower4,maxPower5,maxPower6,maxPower7) VALUES (:samples,:minTime,:maxTime,:minPower1,:minPower2,:minPower3,:minPower4,:minPower5,:minPower6,:minPower7,:maxPower1,:maxPower2,:maxPower3,:maxPower4,:maxPower5,:maxPower6,:maxPower7)");
+
+    query.bindValue(":samples", (quint64)samples);
+    query.bindValue(":minTime", (qint64)minTime);
+    query.bindValue(":maxTime", (qint64)maxTime);
+    query.bindValue(":minPower1", minPower[0]);
+    query.bindValue(":minPower2", minPower[1]);
+    query.bindValue(":minPower3", minPower[2]);
+    query.bindValue(":minPower4", minPower[3]);
+    query.bindValue(":minPower5", minPower[4]);
+    query.bindValue(":minPower6", minPower[5]);
+    query.bindValue(":minPower7", minPower[6]);
+    query.bindValue(":maxPower1", maxPower[0]);
+    query.bindValue(":maxPower2", maxPower[1]);
+    query.bindValue(":maxPower3", maxPower[2]);
+    query.bindValue(":maxPower4", maxPower[3]);
+    query.bindValue(":maxPower5", maxPower[4]);
+    query.bindValue(":maxPower6", maxPower[5]);
+    query.bindValue(":maxPower7", maxPower[6]);
+
+    bool success = query.exec();
+    assert(success);
+
+    QSqlDatabase::database().commit();
   }
 
   pmu.release();

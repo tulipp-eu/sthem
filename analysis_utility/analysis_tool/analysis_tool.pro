@@ -1,4 +1,4 @@
-QT += widgets xml charts
+QT += widgets xml charts sql
 QMAKE_CXXFLAGS += -std=gnu++11 -Wno-unused-parameter
 
 HEADERS = $$files(src/*.h, true)

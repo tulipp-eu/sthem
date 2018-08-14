@@ -24,6 +24,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <QtSql>
+
 #include "usbprotocol.h"
 
 #include "config/config.h"
@@ -49,6 +51,8 @@ MainWindow::MainWindow() {
   topGroup = NULL;
   profModel = NULL;
   dse = NULL;
+
+  QSqlDatabase::addDatabase("QSQLITE");
 
   treeView = new QTreeView();
 
@@ -284,12 +288,12 @@ MainWindow::MainWindow() {
 
   Config::colorMode = Config::STRUCT;
 
-  // open previous project
-  QString prevProject = settings.value("currentProject", "").toString();
-  QString prevBuildConfig = settings.value("currentBuildConfig", "").toString();
-  if(prevProject != "") {
-    openProject(prevProject, prevBuildConfig);
-  }
+  // // open previous project
+  // QString prevProject = settings.value("currentProject", "").toString();
+  // QString prevBuildConfig = settings.value("currentBuildConfig", "").toString();
+  // if(prevProject != "") {
+  //   openProject(prevProject, prevBuildConfig);
+  // }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -336,19 +340,8 @@ void MainWindow::openCustomProject() {
   if(dialog.exec()) {
     closeProject();
 
-    CustomProject *customProject = new CustomProject;
-
     QString path = dialog.selectedFiles()[0];
-    if(customProject->openProject(path)) {
-      project = customProject;
-      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
-
-      setWindowTitle(QString(APP_NAME) + " : " + project->name + " (custom)");
-      loadFiles();
-
-    } else {
-      delete customProject;
-
+    if(!openProject(path, "")) {
       QMessageBox msgBox;
       msgBox.setText("Can't open project");
       msgBox.exec();
@@ -422,15 +415,24 @@ void MainWindow::loadFiles() {
   QApplication::setOverrideCursor(Qt::WaitCursor);
 
   if(profile) delete profile;
-  profile = NULL;
+  profile = new Profile;
 
   clearGui();
 
   project->loadFiles();
 
+  project->getCfg()->setProfile(profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
+
+  if(profModel) delete profModel;
+  profModel = new ProfModel(Config::core, project->getCfg());
+  tableView->setModel(profModel);
+  tableView->sortByColumn(0, Qt::AscendingOrder);
+  QSettings settings;
+  tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
+
   if(dse) dse->setCfg(project->getCfg());
   treeView->setModel(project->cfgModel);
-  QSettings settings;
   treeView->header()->restoreState(settings.value("treeViewState").toByteArray());
 
   QDir dir(".");
@@ -460,8 +462,6 @@ void MainWindow::loadFile(const QString &fileName) {
   QString suffix = fileInfo.suffix();
   if(suffix == "xml") {
     project->loadXmlFile(fileName);
-  } else if(suffix == "prof") {
-    loadProfFile(fileName);
   } else if(suffix == "dse") {
     loadDseFile(fileName);
   } else {
@@ -475,42 +475,7 @@ void MainWindow::loadDseFile(const QString &fileName) {
   inputFile.close();
 }
 
-void MainWindow::loadProfFile(const QString &fileName) {
-  QFile file(fileName);
-
-  if(!file.open(QIODevice::ReadOnly)) {
-    QMessageBox msgBox;
-    msgBox.setText("File not found");
-    msgBox.exec();
-    return;
-  }
-
-  QVector<Measurement> *measurements;
-
-  measurements = project->parseProfFile(file);
-
-  file.close();
-
-  if(profile) delete profile;
-  profile = new Profile();
-  profile->setProfData(measurements);
-
-  project->getCfg()->setProfile(profile);
-
-  if(profModel) delete profModel;
-  profModel = new ProfModel(Config::core, project->getCfg());
-
-  tableView->setModel(profModel);
-  tableView->sortByColumn(0, Qt::AscendingOrder);
-  QSettings settings;
-  tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
-
-  graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
-  graphScene->update();
-}
-
-void MainWindow::openProject(QString path, QString configType) {
+bool MainWindow::openProject(QString path, QString configType) {
   QApplication::setOverrideCursor(Qt::WaitCursor);
 
   if(configType == "") {
@@ -518,11 +483,8 @@ void MainWindow::openProject(QString path, QString configType) {
 
     if(customProject->openProject(path)) {
       project = customProject;
-      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
 
       setWindowTitle(QString(APP_NAME) + " : " + project->name + " (custom)");
-      loadFiles();
-
     } else {
       delete customProject;
     }
@@ -541,26 +503,33 @@ void MainWindow::openProject(QString path, QString configType) {
       QMessageBox msgBox;
       msgBox.setText("Can't open SDSoC project without SDSoC");
       msgBox.exec();
-      return;
+      return false;
     }
 
     if(sdsocProject->openProject(path, configType)) {
       project = sdsocProject;
-      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
 
       dse = new Dse(sdsocProject);
       dse->setCfg(project->getCfg());
       cfgView->setDse(dse);
 
       setWindowTitle(QString(APP_NAME) + " : " + project->name + " (" + project->configType + ")");
-      loadFiles();
 
     } else {
       delete sdsocProject;
     }
   }
 
+  if(project) {
+    if(project->opened) {
+      connect(project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
+      loadFiles();
+    }
+  }
+
   QApplication::restoreOverrideCursor();
+
+  return project != NULL;
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -694,8 +663,7 @@ void MainWindow::cleanEvent() {
     project->clean();
     if(dse) dse->clear();
     loadFiles();
-    if(profile) delete profile;
-    profile = NULL;
+    if(profile) profile->clean();
   }
 }
 
@@ -799,6 +767,9 @@ void MainWindow::finishBin(int error, QString msg) {
 void MainWindow::profileEvent() {
   if(project) {
     QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    assert(profile);
+    profile->clean();
 
     progDialog = new QProgressDialog("Profiling...", QString(), 0, project->profileSteps(), this);
     progDialog->setWindowModality(Qt::WindowModal);

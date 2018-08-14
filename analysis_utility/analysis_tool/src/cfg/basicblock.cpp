@@ -104,12 +104,12 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
   height = yy;
 }
 
-void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements) {
-  if((cachedRuntime == INT_MAX) || measurements) {
+void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
+  if(cachedRuntime == INT_MAX) {
     Profile *profile = getTop()->getProfile();
 
     if(profile) {
-      profile->getProfData(core, this, &cachedRuntime, cachedEnergy, callStack, measurements);
+      profile->getProfData(core, this, &cachedRuntime, cachedEnergy);
 
       for(auto child : children) {
         Instruction *instr = dynamic_cast<Instruction*>(child);
@@ -125,7 +125,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
                   double runtimeChild;
                   double energyChild[Pmu::MAX_SENSORS];
                   callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild, measurements);
+                  func->getProfData(core, callStack, &runtimeChild, energyChild);
                   cachedRuntime += runtimeChild;
                   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
                     cachedEnergy[i] += energyChild[i];
@@ -154,6 +154,34 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
   *runtime = cachedRuntime;
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
+  }
+}
+
+void BasicBlock::getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {
+  Profile *profile = getTop()->getProfile();
+
+  if(profile) {
+    profile->getMeasurements(core, this, measurements);
+
+    for(auto child : children) {
+      Instruction *instr = dynamic_cast<Instruction*>(child);
+      if(instr) {
+        if(instr->name == INSTR_ID_CALL) {
+          Function *func = getModule()->getFunctionById(instr->target);
+          if(!func) {
+            func = getTop()->getFunctionById(instr->target);
+          }
+          if(func) {
+            if(!callStack.contains(this)) {
+              if(func->callers == 1) {
+                callStack.push_back(this);
+                func->getMeasurements(core, callStack, measurements);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 

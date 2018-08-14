@@ -349,12 +349,14 @@ public:
   //---------------------------------------------------------------------------
   // profiling data
 
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, QVector<Measurement> *measurements = NULL) {
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
     *runtime = 0;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       energy[i] = 0;
     }
   }
+
+  virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {}
 
   virtual void buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forModel = false) {}
 
