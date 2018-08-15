@@ -36,6 +36,9 @@
 class Profile {
 
 private:
+  double runtime;
+  double energy[Pmu::MAX_SENSORS];
+
   void clear();
   void addMeasurement(Measurement measurement);
 
@@ -51,17 +54,17 @@ public:
   void getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements);
 
   double getRuntime() const {
-    return 0; // FIXME
+    return runtime;
   }
   double getEnergy(unsigned sensor) const {
-    return 0; // FIXME
+    return energy[sensor];
   }
 
   void setRuntime(double runtime) {
-    // FIXME
+    this->runtime = runtime;
   }
   void setEnergy(unsigned sensor, double energy) {
-    // FIXME
+    this->energy[sensor] = energy;
   }
 
   void clean();

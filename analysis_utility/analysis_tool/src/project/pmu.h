@@ -53,7 +53,7 @@ private:
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
   int getArray(uint8_t *bytes, int maxNum, int numBytes);
-  void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower);
+  void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy);
   double currentToPower(unsigned sensor, int16_t current);
 
 public:
@@ -75,8 +75,9 @@ public:
   bool init();
   void release();
 
-  void collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr,
-                      uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower);
+  void collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
+                      uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
+                      double *runtime, double *energy);
 
   unsigned numSensors() { return LYNSYN_SENSORS; }
   unsigned numCores() { return LYNSYN_MAX_CORES; }

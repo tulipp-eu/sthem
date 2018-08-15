@@ -532,12 +532,14 @@ void Project::runProfiler() {
   int64_t maxTime;
   double minPower[LYNSYN_SENSORS];
   double maxPower[LYNSYN_SENSORS];
+  double runtime;
+  double energy[LYNSYN_SENSORS];
 
   // // collect samples
   {
     emit advance(1, "Collecting samples");
     pmu.collectSamples(startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc),
-                       &samples, &minTime, &maxTime, minPower, maxPower);
+                       &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }
 
   {
@@ -706,7 +708,13 @@ void Project::runProfiler() {
 
     printf("storing meta\n");
 
-    query.prepare("INSERT INTO meta (samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,maxPower1,maxPower2,maxPower3,maxPower4,maxPower5,maxPower6,maxPower7) VALUES (:samples,:minTime,:maxTime,:minPower1,:minPower2,:minPower3,:minPower4,:minPower5,:minPower6,:minPower7,:maxPower1,:maxPower2,:maxPower3,:maxPower4,:maxPower5,:maxPower6,:maxPower7)");
+    query.prepare("INSERT INTO meta"
+                  " (samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,"
+                  "maxPower1,maxPower2,maxPower3,maxPower4,maxPower5,maxPower6,maxPower7,"
+                  "runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7)"
+                  " VALUES (:samples,:minTime,:maxTime,:minPower1,:minPower2,:minPower3,:minPower4,:minPower5,:minPower6,:minPower7,"
+                  ":maxPower1,:maxPower2,:maxPower3,:maxPower4,:maxPower5,:maxPower6,:maxPower7,"
+                  ":runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
 
     query.bindValue(":samples", (quint64)samples);
     query.bindValue(":minTime", (qint64)minTime);
@@ -725,6 +733,14 @@ void Project::runProfiler() {
     query.bindValue(":maxPower5", maxPower[4]);
     query.bindValue(":maxPower6", maxPower[5]);
     query.bindValue(":maxPower7", maxPower[6]);
+    query.bindValue(":runtime", runtime);
+    query.bindValue(":energy1", energy[0]);
+    query.bindValue(":energy2", energy[1]);
+    query.bindValue(":energy3", energy[2]);
+    query.bindValue(":energy4", energy[3]);
+    query.bindValue(":energy5", energy[4]);
+    query.bindValue(":energy6", energy[5]);
+    query.bindValue(":energy7", energy[6]);
 
     bool success = query.exec();
     assert(success);

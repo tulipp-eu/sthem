@@ -835,7 +835,7 @@ void MainWindow::showProfileSummary() {
     messageTextStream << "</tr>";
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       messageTextStream << "<tr>";
-      messageTextStream << "<td>Total energy " << QString::number(i) << ":</td><td>" << profile->getEnergy(i) << "J</td>";
+      messageTextStream << "<td>Total energy " << QString::number(i+1) << ":</td><td>" << profile->getEnergy(i) << "J</td>";
       messageTextStream << "</tr>";
     }
     if(project->isSdSocProject()) {

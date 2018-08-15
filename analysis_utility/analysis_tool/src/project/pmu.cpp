@@ -184,7 +184,7 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
   return transfered / numBytes;
 }
 
-void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower) {
+void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy) {
   query.bindValue(":time", (qint64)sample->time);
   query.bindValue(":timeSinceLast", (qint64)timeSinceLast);
   query.bindValue(":pc1", (quint64)sample->pc[0]);
@@ -198,6 +198,7 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
     power[i] = currentToPower(i, sample->current[i]);
     if(power[i] < minPower[i]) minPower[i] = power[i];
     if(power[i] > maxPower[i]) maxPower[i] = power[i];
+    energy[i] += power[i] * cyclesToSeconds(timeSinceLast);
   }
 
   query.bindValue(":power1", power[0]);
@@ -216,8 +217,9 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   }
 }
 
-void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr,
-                         uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower) {
+void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
+                         uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
+                         double *runtime, double *energy) {
   {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
@@ -258,6 +260,7 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
   for(int i = 0; i < LYNSYN_SENSORS; i++) {
     minPower[i] = INT_MAX;
     maxPower[i] = 0;
+    energy[i] = 0;
   }
 
   int counter = 0;
@@ -291,13 +294,14 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
 
     SampleReplyPacket *sample = (SampleReplyPacket*)buf;
 
-    if(*minTime == 0) *minTime = sample->time;
-    if(sample->time > *maxTime) *maxTime = sample->time;
-
     for(int i = 0; i < n; i++) {
+      if(*minTime == 0) *minTime = sample->time;
+      if(sample->time > *maxTime) *maxTime = sample->time;
+
       if(sample->time == -1) {
         printf("Sampling done\n");
         done = true;
+        (*samples)--;
         break;
 
       } else {
@@ -305,12 +309,16 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
         if(lastTime != -1) timeSinceLast = sample->time - lastTime;
         lastTime = sample->time;
 
-        storeRawSample(sample++, timeSinceLast, minPower, maxPower);
+        storeRawSample(sample, timeSinceLast, minPower, maxPower, energy);
       }
+
+      sample++;
     }
   }
 
   QSqlDatabase::database().commit();
+
+  *runtime = cyclesToSeconds(*maxTime - *minTime);
 
   free(buf);
 }
