@@ -78,6 +78,8 @@ public:
   QPlainTextEdit *tcfUploadScriptEdit;
   QCheckBox *customElfCheckBox;
   QLineEdit *customElfEdit;
+  QCheckBox *samplePcCheckBox;
+  QLineEdit *samplePeriodEdit;
 
   ProjectProfPage(Project *project, QWidget *parent = 0);
 };

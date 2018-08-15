@@ -348,11 +348,11 @@ void jtagInit(void) {
 #endif
 }
 
-void jtagInitCores(void) {
+bool jtagInitCores(void) {
   gotoResetThenIdle();
 
   if(!queryChain()) {
-    return;
+    return false;
   }
 
   // test for zynq ultrascale+.  TODO: Bad test, should make this more general
@@ -389,7 +389,10 @@ void jtagInitCores(void) {
         apNum = i;
       }
     }
-    if(!found) panic("AP not found");
+    if(!found) {
+      printf("AP not found");
+      return false;
+    }
     apInit(apNum);
 
     apWrite(ADIV5_AP_CSW, CORTEXA_CSW);
@@ -447,4 +450,6 @@ void jtagInitCores(void) {
       }
     }
   }
+
+  return true;
 }

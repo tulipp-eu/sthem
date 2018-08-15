@@ -52,8 +52,13 @@ protected:
     if(mouseEvent->button() == Qt::LeftButton) {
       QPointF pos = mapToScene(mouseEvent->pos());
       int64_t endTime = scene->posToTime(pos.x());
-      scene->minTime = beginTime;
-      scene->maxTime = endTime;
+      if(beginTime < endTime) {
+        scene->minTime = beginTime;
+        scene->maxTime = endTime;
+      } else {
+        scene->minTime = endTime;
+        scene->maxTime = beginTime;
+      }
       scene->redraw();
       viewport()->update();
     }

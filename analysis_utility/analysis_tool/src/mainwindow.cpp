@@ -831,6 +831,9 @@ void MainWindow::showProfileSummary() {
 
     messageTextStream << "<h4>Summary:</h4><table border=\"1\" cellpadding=\"5\">";
     messageTextStream << "<tr>";
+    messageTextStream << "<td>Total runtime:</td><td>" << profile->getCycles() << " cycles</td>";
+    messageTextStream << "</tr>";
+    messageTextStream << "<tr>";
     messageTextStream << "<td>Total runtime:</td><td>" << profile->getRuntime() << "s</td>";
     messageTextStream << "</tr>";
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {

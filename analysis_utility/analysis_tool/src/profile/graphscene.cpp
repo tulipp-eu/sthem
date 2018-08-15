@@ -74,77 +74,82 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
     query.exec(QString() + "SELECT mintime,maxtime,minpower" + sensorString + ",maxpower" + sensorString + ",samples FROM meta");
 
     if(query.next()) {
-      if(beginTime < 0) minTime = query.value(0).toLongLong();
-      else minTime = beginTime;
-
-      if(endTime < 0) maxTime = query.value(1).toLongLong();
-      else maxTime = endTime;
-
+      uint64_t samples = query.value(4).toDouble();
       minPower = query.value(2).toDouble();
       maxPower = query.value(3).toDouble();
+      int64_t minTimeDb = query.value(0).toLongLong();
+      int64_t maxTimeDb = query.value(1).toLongLong();
 
-      graph = new Graph(font(), minPower, maxPower);
-      graph->setPos(0, GANTT_SIZE-GANTT_SPACING);
-      addItem(graph);
+      if(samples > 1) {
+        if(beginTime < 0) minTime = minTimeDb;
+        else minTime = beginTime;
 
-      unsigned ticksPerSample = (query.value(1).toLongLong() - query.value(0).toLongLong()) / query.value(4).toULongLong();
-      int64_t ticks = maxTime - minTime;
-      uint64_t samples = ticks / ticksPerSample;
-      int stride = samples / scaleFactorTime;
-      if(stride < 1) stride = 1;
+        if(endTime < 0) maxTime = maxTimeDb;
+        else maxTime = endTime;
 
-      QString queryString = QString() +
-        "SELECT time,basicblock" + QString::number(core+1) +
-        ",module" + QString::number(core+1) +
-        ",power" + QString::number(sensor+1) +
-        " FROM measurements" +
-        " WHERE time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime) + 
-        " AND rowid % " + QString::number(stride) + " = 0";
+        graph = new Graph(font(), minPower, maxPower);
+        graph->setPos(0, GANTT_SIZE-GANTT_SPACING);
+        addItem(graph);
 
-      query.exec(queryString);
+        unsigned ticksPerSample = (maxTimeDb - minTimeDb) / samples;
+        int64_t ticks = maxTime - minTime;
+        uint64_t samplesInWindow = ticks / ticksPerSample;
+        int stride = samplesInWindow / scaleFactorTime;
+        if(stride < 1) stride = 1;
 
-      MovingAverage ma(Config::window);
+        QString queryString = QString() +
+          "SELECT time,basicblock" + QString::number(core+1) +
+          ",module" + QString::number(core+1) +
+          ",power" + QString::number(sensor+1) +
+          " FROM measurements" +
+          " WHERE time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime) + 
+          " AND rowid % " + QString::number(stride) + " = 0";
 
-      if(query.next()) {
-        ma.initialize(query.value("power" + QString::number(sensor+1)).toDouble());
+        query.exec(queryString);
+
+        MovingAverage ma(Config::window);
+
+        if(query.next()) {
+          ma.initialize(query.value("power" + QString::number(sensor+1)).toDouble());
         
-        do {
-          int64_t time = query.value("time").toLongLong();
-          double power = query.value("power" + QString::number(sensor+1)).toDouble();
-          QString moduleId = query.value("module" + QString::number(core+1)).toString();
-          QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
+          do {
+            int64_t time = query.value("time").toLongLong();
+            double power = query.value("power" + QString::number(sensor+1)).toDouble();
+            QString moduleId = query.value("module" + QString::number(core+1)).toString();
+            QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
 
-          Module *mod = cfg->getModuleById(moduleId);
-          assert(mod);
-          BasicBlock *bb = mod->getBasicBlockById(bbId);
+            Module *mod = cfg->getModuleById(moduleId);
+            assert(mod);
+            BasicBlock *bb = mod->getBasicBlockById(bbId);
 
-          double avg = ma.next(power);
+            double avg = ma.next(power);
 
-          addPoint(time, avg);
+            addPoint(time, avg);
 
-          measurements->push_back(Measurement(time, core, bb));
+            measurements->push_back(Measurement(time, core, bb));
           
-        } while(query.next());
-      }
+          } while(query.next());
+        }
 
-      profile->setMeasurements(measurements);
+        profile->setMeasurements(measurements);
 
-      std::vector<ProfLine*> table;
-      cfg->buildProfTable(core, table);
-      ProfSort profSort;
-      std::sort(table.begin(), table.end(), profSort);
+        std::vector<ProfLine*> table;
+        cfg->buildProfTable(core, table);
+        ProfSort profSort;
+        std::sort(table.begin(), table.end(), profSort);
 
-      for(auto profLine : table) {
-        if(!profLine->vertex) {
-          int l = addLine("Unknown", Qt::black);
-          addLineSegments(l, profLine->getMeasurements());
-      
-        } else {
-          Vertex *vertex = profLine->vertex;
-
-          if(vertex->isVisibleInGantt() && (profLine->measurements.size() > 0)) {
-            int l = addLine(vertex->getGanttName(), vertex->getColor());
+        for(auto profLine : table) {
+          if(!profLine->vertex) {
+            int l = addLine("Unknown", Qt::black);
             addLineSegments(l, profLine->getMeasurements());
+      
+          } else {
+            Vertex *vertex = profLine->vertex;
+
+            if(vertex->isVisibleInGantt() && (profLine->measurements.size() > 0)) {
+              int l = addLine(vertex->getGanttName(), vertex->getColor());
+              addLineSegments(l, profLine->getMeasurements());
+            }
           }
         }
       }

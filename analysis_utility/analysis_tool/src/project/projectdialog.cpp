@@ -316,6 +316,15 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   startLayout->addWidget(startCoreEdit);
   startLayout->addStretch(1);
 
+  samplePcCheckBox = new QCheckBox("Sample PC");
+  samplePcCheckBox->setCheckState(project->samplePc ? Qt::Checked : Qt::Unchecked);
+
+  QHBoxLayout *samplePeriodLayout = new QHBoxLayout;
+  QLabel *samplePeriodLabel = new QLabel("Sample period:");
+  samplePeriodEdit = new QLineEdit(QString::number(project->samplePeriod));
+  samplePeriodLayout->addWidget(samplePeriodLabel);
+  samplePeriodLayout->addWidget(samplePeriodEdit);
+
   QHBoxLayout *stopLayout = new QHBoxLayout;
   QLabel *stopFuncLabel = new QLabel("Stop at function:");
   stopLayout->addWidget(stopFuncLabel);
@@ -331,6 +340,8 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   QVBoxLayout *breakpointsLayout = new QVBoxLayout;
   breakpointsLayout->addLayout(customElfLayout);
   breakpointsLayout->addLayout(startLayout);
+  breakpointsLayout->addWidget(samplePcCheckBox);
+  breakpointsLayout->addLayout(samplePeriodLayout);
   breakpointsLayout->addLayout(stopLayout);
   breakpointsLayout->addStretch(1);
   breakpointsGroup->setLayout(breakpointsLayout);
@@ -470,6 +481,9 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
 
   project->startFunc = profPage->startFuncEdit->text();
   project->startCore = profPage->startCoreEdit->text().toUInt();
+
+  project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
+  project->samplePeriod = profPage->samplePeriodEdit->text().toLongLong();
 
   project->stopFunc = profPage->stopFuncEdit->text();
   project->stopCore = profPage->stopCoreEdit->text().toUInt();

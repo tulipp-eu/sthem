@@ -40,6 +40,11 @@
 #include "usbprotocol.h"
 
 volatile bool sampleMode;
+volatile bool samplePc;
+volatile int64_t sampleStop;
+
+volatile uint32_t lastLowWord = 0;
+volatile uint32_t highWord = 0;
 
 static struct SampleReplyPacket sampleBuf1[MAX_SAMPLES] __attribute__((__aligned__(4)));
 static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned__(4)));
@@ -122,9 +127,6 @@ int main(void) {
 
   printf("Ready.\n");
 
-  uint32_t lastLowWord = 0;
-  uint32_t highWord = 0;
-
   int samples = 0;
   int64_t startTime = 0;
 
@@ -134,9 +136,7 @@ int main(void) {
 
   // main loop
   while(true) {
-    uint32_t lowWord = DWT->CYCCNT;
-    if(lowWord < lastLowWord) highWord++;
-    lastLowWord = lowWord;
+    int64_t currentTime = calculateTime();
 
     struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
 
@@ -147,15 +147,26 @@ int main(void) {
       bool send = false;
 
       if(!GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
-        halted = coreHalted();
+        if(samplePc) {
+          halted = coreHalted();
+        } else {
+          halted = currentTime >= sampleStop;
+        }
 
       } else
 #endif
       {
-        samplePtr->time = ((uint64_t)highWord << 32) | lowWord;
+        samplePtr->time = currentTime;
 
         adcScan(samplePtr->current);
-        halted = coreReadPcsrFast(samplePtr->pc);
+        if(samplePc) {
+          halted = coreReadPcsrFast(samplePtr->pc);
+        } else {
+          for(int i = 0; i < 4; i++) {
+            samplePtr->pc[i] = 0;
+            halted = currentTime >= sampleStop;
+          }
+        }
         adcScanWait();
 
 #ifdef TRIGGER_INPUT
@@ -174,8 +185,7 @@ int main(void) {
         sampleMode = false;
         jtagExt();
 
-        int64_t stopTime = ((uint64_t)highWord << 32) | lowWord;
-        double totalTime = (stopTime - startTime) / CLOCK_FREQ;
+        double totalTime = (currentTime - startTime) / CLOCK_FREQ;
         printf("Exiting sample mode, %d samples (%d per second)\n", samples, (unsigned)(samples/totalTime));
 
         samples = 0;
@@ -198,8 +208,15 @@ int main(void) {
       }
 
     } else {
-      startTime = ((uint64_t)highWord << 32) | lowWord;
+      startTime = currentTime;
       currentSample = 0;
     }
   }
+}
+
+int64_t calculateTime() {
+  uint32_t lowWord = DWT->CYCCNT;
+  if(lowWord < lastLowWord) highWord++;
+  lastLowWord = lowWord;
+  return ((uint64_t)highWord << 32) | lowWord;
 }

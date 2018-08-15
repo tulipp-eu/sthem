@@ -36,6 +36,7 @@
 class Profile {
 
 private:
+  int64_t cycles;
   double runtime;
   double energy[Pmu::MAX_SENSORS];
 
@@ -53,6 +54,9 @@ public:
   void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy);
   void getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements);
 
+  int64_t getCycles() const {
+    return cycles;
+  }
   double getRuntime() const {
     return runtime;
   }
@@ -60,6 +64,9 @@ public:
     return energy[sensor];
   }
 
+  void setCycles(int64_t cycles) {
+    this->cycles = cycles;
+  }
   void setRuntime(double runtime) {
     this->runtime = runtime;
   }

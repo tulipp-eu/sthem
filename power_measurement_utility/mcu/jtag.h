@@ -61,7 +61,7 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size);
 
 void jtagInit(void);
 
-void jtagInitCores(void); // call this at least every time a new board has been plugged in
+bool jtagInitCores(void); // call this at least every time a new board has been plugged in
 
 void coreReadPcsrInit(void);
 bool coreReadPcsrFast(uint64_t *pcs);

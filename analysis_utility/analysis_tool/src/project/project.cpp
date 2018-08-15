@@ -263,6 +263,8 @@ void Project::loadProjectFile() {
   pmu.rl[5] = settings.value("rl5", 1).toDouble();
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
   useCustomElf = settings.value("useCustomElf", false).toBool();
+  samplePc = settings.value("samplePc", true).toBool();
+  samplePeriod = settings.value("samplePeriod", 0).toLongLong();
   customElfFile = settings.value("customElfFile", "").toString();
   startFunc = settings.value("startFunc", "main").toString();
   startCore = settings.value("startCore", 0).toUInt();
@@ -302,6 +304,8 @@ void Project::saveProjectFile() {
   settings.setValue("tcfUploadScript", tcfUploadScript);
   settings.setValue("useCustomElf", useCustomElf);
   settings.setValue("customElfFile", customElfFile);
+  settings.setValue("samplePc", samplePc);
+  settings.setValue("samplePeriod", (qint64)samplePeriod);
   settings.setValue("startFunc", startFunc);
   settings.setValue("startCore", startCore);
   settings.setValue("stopFunc", stopFunc);
@@ -538,7 +542,7 @@ void Project::runProfiler() {
   // // collect samples
   {
     emit advance(1, "Collecting samples");
-    pmu.collectSamples(startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc),
+    pmu.collectSamples(samplePc, samplePeriod, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc),
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }
 

@@ -217,7 +217,7 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   }
 }
 
-void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
+void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
   {
@@ -246,10 +246,19 @@ void Pmu::collectSamples(unsigned startCore, uint64_t startAddr, unsigned stopCo
     sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
   }
 
-  {
+  if(swVersion <= SW_VERSION_1_1) {
     struct RequestPacket req;
     req.cmd = USB_CMD_START_SAMPLING;
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
+  } else {
+    struct StartSamplingRequestPacket req;
+    req.request.cmd = USB_CMD_START_SAMPLING;
+    if(samplePc) {
+      req.samplePeriod = 0;
+    } else {
+      req.samplePeriod = samplePeriod;
+    }
+    sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacket));
   }
 
   uint8_t *buf = (uint8_t*)malloc(MAX_SAMPLES * sizeof(SampleReplyPacket));

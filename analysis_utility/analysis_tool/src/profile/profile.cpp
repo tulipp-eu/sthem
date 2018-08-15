@@ -42,10 +42,11 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
   assert(success);
 
-  success = query.exec("SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7 FROM meta");
+  success = query.exec("SELECT mintime,maxtime,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7 FROM meta");
   assert(success);
 
   if(query.next()) {
+    cycles = query.value("maxtime").toLongLong() - query.value("mintime").toLongLong();
     runtime = query.value("runtime").toDouble();
     energy[0] = query.value("energy1").toDouble();
     energy[1] = query.value("energy2").toDouble();
@@ -55,6 +56,7 @@ Profile::Profile() {
     energy[5] = query.value("energy6").toDouble();
     energy[6] = query.value("energy7").toDouble();
   } else {
+    cycles = 0;
     runtime = 0;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       energy[i] = 0;
@@ -96,6 +98,7 @@ void Profile::clean() {
   query.exec("DELETE FROM location");
   query.exec("DELETE FROM meta");
 
+  cycles = 0;
   runtime = 0;
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = 0;

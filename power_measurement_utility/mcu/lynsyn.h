@@ -102,8 +102,7 @@
 void setLed(int led);
 void clearLed(int led);
 
-void msleep(uint32_t ms);
-void usleep(uint16_t us);
+int64_t calculateTime();
 
 void panic(const char *fmt, ...);
 
@@ -111,6 +110,8 @@ void panic(const char *fmt, ...);
 // global variables
 
 extern volatile bool sampleMode;
+extern volatile bool samplePc;
+extern volatile int64_t sampleStop;
 extern uint8_t startCore;
 extern uint8_t stopCore;
 

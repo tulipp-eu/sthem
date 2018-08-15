@@ -72,6 +72,8 @@ public:
   unsigned stopCore;
   bool createBbInfo;
   bool useCustomElf;
+  bool samplePc;
+  int64_t samplePeriod;
 
   // settings from either sdsoc project or user
   QStringList sources;

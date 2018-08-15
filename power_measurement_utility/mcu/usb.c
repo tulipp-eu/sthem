@@ -122,7 +122,9 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_JTAG_INIT:
         printf("Init JTAG chain\n");
         jtagInt();
-        jtagInitCores();
+        if(!jtagInitCores()) {
+          panic("Can't init JTAG\n");
+        }
         break;
 
       case USB_CMD_BREAKPOINT: {
@@ -136,21 +138,31 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         break;
       }
 
-      case USB_CMD_START_SAMPLING:
-        printf("Starting sample mode\n");
+      case USB_CMD_START_SAMPLING: {
+        struct StartSamplingRequestPacket *startSamplingReq = (struct StartSamplingRequestPacket *)req;
+
+        samplePc = startSamplingReq->samplePeriod == 0;
+
+        printf("Starting sample mode (%s)\n", samplePc ? "with PC" : "without PC");
 
         setLed(0);
-        sampleMode = true;
 
         // run until first bp
         coresResume();
+
         // wait until we reach bp
         while(!coreHalted());
-        // run until next bp
+
+        // sampling starts here
+        sampleMode = true;
+
         coreClearBp(startCore, START_BP);
         coresResume();
-        
+
+        sampleStop = startSamplingReq->samplePeriod + calculateTime();
+
         break;
+      }
 
       case USB_CMD_CAL: {
         struct CalibrateRequestPacket *cal = (struct CalibrateRequestPacket *)req;
