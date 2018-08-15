@@ -33,10 +33,10 @@ Profile::Profile() {
 
   QSqlQuery query;
 
-  bool success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
+  bool success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT PRIMARY KEY, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS location (id INT NOT NULL PRIMARY KEY, core INT NOT NULL, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS location (core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
   assert(success);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL)");
@@ -182,6 +182,7 @@ void Profile::clear() {
     for(auto const &it : measurementsPerBb[core]) {
       delete it.second;
     }
+    measurementsPerBb[core].clear();
   }
 }
 

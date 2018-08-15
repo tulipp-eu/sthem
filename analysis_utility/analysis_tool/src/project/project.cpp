@@ -677,10 +677,9 @@ void Project::runProfiler() {
       for(auto location : locations[c]) {
         QSqlQuery query;
 
-        query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                      "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+        query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
+                      "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
 
-        query.bindValue(":id", location.second->id);
         query.bindValue(":core", c);
         query.bindValue(":basicblock", location.second->bbId);
         query.bindValue(":function", location.second->funcId);

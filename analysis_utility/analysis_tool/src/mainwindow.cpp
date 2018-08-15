@@ -879,7 +879,7 @@ void MainWindow::changeCore(int core) {
   cfgScene->redraw();
 
   graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
 
   if(profModel) delete profModel;
   profModel = new ProfModel(Config::core, project->getCfg());
@@ -899,7 +899,7 @@ void MainWindow::changeSensor(int sensor) {
   cfgScene->redraw();
 
   graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
 
   tableView->reset();
 }
@@ -907,7 +907,7 @@ void MainWindow::changeSensor(int sensor) {
 void MainWindow::changeWindow(int window) {
   Config::window = windowBox->currentData().toUInt();
   graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile);
+  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
 }
 
 void MainWindow::changeCfgMode(int mode) {
