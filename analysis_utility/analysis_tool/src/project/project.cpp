@@ -730,6 +730,10 @@ void Project::runProfiler() {
     assert(success);
 
     QSqlDatabase::database().commit();
+
+    printf("creating index\n");
+
+    query.exec("CREATE INDEX measurements_time_idx ON measurements(time)");
   }
 
   pmu.release();
