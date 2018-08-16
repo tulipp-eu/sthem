@@ -875,36 +875,40 @@ void MainWindow::showProfileSummary() {
 void MainWindow::changeCore(int core) {
   Config::core = core;
 
-  if(hwGroup) hwGroup->clearCachedProfilingData();
-  if(topGroup) topGroup->clearCachedProfilingData();
-  project->getCfg()->clearCachedProfilingData();
+  if(project) {
+    if(hwGroup) hwGroup->clearCachedProfilingData();
+    if(topGroup) topGroup->clearCachedProfilingData();
+    project->getCfg()->clearCachedProfilingData();
 
-  cfgScene->redraw();
+    cfgScene->redraw();
 
-  graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
+    graphScene->clearScene();
+    graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
 
-  if(profModel) delete profModel;
-  profModel = new ProfModel(Config::core, project->getCfg());
-  tableView->setModel(profModel);
-  tableView->sortByColumn(0, Qt::AscendingOrder);
-  QSettings settings;
-  tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
+    if(profModel) delete profModel;
+    profModel = new ProfModel(Config::core, project->getCfg());
+    tableView->setModel(profModel);
+    tableView->sortByColumn(0, Qt::AscendingOrder);
+    QSettings settings;
+    tableView->horizontalHeader()->restoreState(settings.value("tableViewState").toByteArray());
+  }
 }
 
 void MainWindow::changeSensor(int sensor) {
   Config::sensor = sensor;
 
-  if(hwGroup) hwGroup->clearCachedProfilingData();
-  if(topGroup) topGroup->clearCachedProfilingData();
-  project->getCfg()->clearCachedProfilingData();
+  if(project) {
+    if(hwGroup) hwGroup->clearCachedProfilingData();
+    if(topGroup) topGroup->clearCachedProfilingData();
+    project->getCfg()->clearCachedProfilingData();
 
-  cfgScene->redraw();
+    cfgScene->redraw();
 
-  graphScene->clearScene();
-  graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
+    graphScene->clearScene();
+    graphScene->drawProfile(Config::core, Config::sensor, project->getCfg(), profile, graphScene->minTime, graphScene->maxTime);
 
-  tableView->reset();
+    tableView->reset();
+  }
 }
 
 void MainWindow::changeWindow(int window) {
