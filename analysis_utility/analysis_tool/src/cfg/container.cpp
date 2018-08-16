@@ -640,7 +640,7 @@ void Container::displayEdge(Edge *edge, unsigned edgeNum) {
     for(auto line : lines) {
       QPen pen = line.item->pen();
       if(edge->color == -1) {
-        pen.setColor(Qt::black);
+        pen.setColor(FOREGROUND_COLOR);
       } else {
         pen.setColor(edgeColors[line.edge->color]);
       }

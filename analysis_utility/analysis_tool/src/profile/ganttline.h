@@ -68,7 +68,7 @@ public:
 
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     painter->setFont(font);
-    painter->setPen(QPen(Qt::black));
+    painter->setPen(QPen(FOREGROUND_COLOR));
     painter->setBrush(QBrush(color, Qt::SolidPattern));
 
     painter->drawText((int)(-textWidth-GANT_TEXT_SPACING), 0, id);

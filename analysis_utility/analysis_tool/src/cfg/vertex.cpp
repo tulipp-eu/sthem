@@ -148,7 +148,7 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
       }
       break;
     default:
-      getBaseItem()->setBrush(Qt::white);
+      getBaseItem()->setBrush(BACKGROUND_COLOR);
       break;
   }
     
@@ -198,7 +198,7 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
     innerPoly->setPos(QPointF(LINE_CLEARANCE, yy + LINE_CLEARANCE));
     innerPoly->setData(0, QVariant::fromValue((void*)this));
     innerPoly->setData(1, makeQVariant(callStack));
-    innerPoly->setBrush(Qt::white);
+    innerPoly->setBrush(BACKGROUND_COLOR);
 
     appendLocalItems(LINE_CLEARANCE, yy + LINE_CLEARANCE, visualTop, callStack, scaling);
 

@@ -80,6 +80,9 @@
 #define NTNU_PURPLE       QColor(85,  41,  136)
 #define NTNU_ORANGE       QColor(245, 128, 37)
 
+#define BACKGROUND_COLOR  Qt::white
+#define FOREGROUND_COLOR  Qt::black
+
 #define MODULE_COLOR      NTNU_GREEN
 #define GROUP_COLOR       NTNU_GREEN
 

@@ -89,6 +89,7 @@ protected:
 public:
   GraphView(GraphScene *scene) : QGraphicsView(scene) {
     this->scene = scene;
+    setBackgroundBrush(QBrush(BACKGROUND_COLOR, Qt::SolidPattern));
   }
 
 public slots:

@@ -140,7 +140,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 
         for(auto profLine : table) {
           if(!profLine->vertex) {
-            int l = addLine("Unknown", Qt::black);
+            int l = addLine("Unknown", FOREGROUND_COLOR);
             addLineSegments(l, profLine->getMeasurements());
       
           } else {

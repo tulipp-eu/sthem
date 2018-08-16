@@ -86,7 +86,7 @@ public:
     painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), 0, QString::number(lowValue) + "W");
     painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), -maxPower, QString::number(highValue) + "W");
 
-    painter->setPen(QPen(Qt::black));
+    painter->setPen(QPen(FOREGROUND_COLOR));
     QPoint prevPoint = QPoint(0,0);
     for(auto point : points) {
       painter->drawLine(QPoint(prevPoint.x(), -prevPoint.y()), QPoint(point.x(), -point.y()));

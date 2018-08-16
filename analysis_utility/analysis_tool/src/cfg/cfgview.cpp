@@ -232,6 +232,8 @@ void CfgView::hlsAnalysisEvent() {
 }
 
 CfgView::CfgView(QTreeView *analysisView, QGraphicsScene *scene) : QGraphicsView(scene) {
+  setBackgroundBrush(QBrush(BACKGROUND_COLOR, Qt::SolidPattern));
+
   dse = NULL;
 
   this->analysisView = analysisView;
