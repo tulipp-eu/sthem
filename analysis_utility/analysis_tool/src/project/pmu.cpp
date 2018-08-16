@@ -250,6 +250,7 @@ void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore
     struct RequestPacket req;
     req.cmd = USB_CMD_START_SAMPLING;
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
+    if(!samplePc) printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
   } else {
     struct StartSamplingRequestPacket req;
     req.request.cmd = USB_CMD_START_SAMPLING;
@@ -285,7 +286,7 @@ void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore
 
   while(!done) {
     counter++;
-    if(swVersion == SW_VERSION_1_0) {
+    if(swVersion <= SW_VERSION_1_1) {
       if((counter % 10000) == 0) printf("Got %ld samples...\n", *samples);
     } else {
       if((counter % 313) == 0) printf("Got %ld samples...\n", *samples);
@@ -293,7 +294,7 @@ void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore
 
     int n = 1;
 
-    if(swVersion == SW_VERSION_1_0) {
+    if(swVersion <= SW_VERSION_1_1) {
       getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
     } else {
       n = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
