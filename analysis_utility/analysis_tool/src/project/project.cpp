@@ -546,6 +546,8 @@ void Project::runProfiler() {
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }
 
+  pmu.release();
+
   {
     emit advance(2, "Processing samples");
 
@@ -755,8 +757,6 @@ void Project::runProfiler() {
 
     query.exec("CREATE INDEX measurements_time_idx ON measurements(time)");
   }
-
-  pmu.release();
 
   emit finished(0, "");
 }
