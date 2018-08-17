@@ -119,7 +119,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
             QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
 
             Module *mod = cfg->getModuleById(moduleId);
-            assert(mod);
+            if(!mod) return;
             BasicBlock *bb = mod->getBasicBlockById(bbId);
 
             double avg = ma.next(power);
