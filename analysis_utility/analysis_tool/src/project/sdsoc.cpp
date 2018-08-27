@@ -119,7 +119,7 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
 
   QFileInfo fileInfo(path);
 
-  makefile.write((fileInfo.baseName() + ".o : " + path + "\n").toUtf8());
+  makefile.write((fileInfo.completeBaseName() + ".o : " + path + "\n").toUtf8());
   makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
@@ -594,7 +594,7 @@ bool Sdsoc::createMakefile() {
     QFileInfo info(source);
 
     bool tulippCompile = createBbInfo;
-    Module *mod = cfgModel->getCfg()->getModuleById(info.baseName());
+    Module *mod = cfgModel->getCfg()->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
     if(info.suffix() == "c") {
@@ -603,7 +603,7 @@ bool Sdsoc::createMakefile() {
       } else {
         writeSdsRule("sdscc", makefile, source, cOptions);
       }
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
 
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       if(tulippCompile) {
@@ -611,7 +611,7 @@ bool Sdsoc::createMakefile() {
       } else {
         writeSdsRule("sds++", makefile, source, cppOptions);
       }
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
 
     }
   }
@@ -621,10 +621,10 @@ bool Sdsoc::createMakefile() {
     QFileInfo info(acc.filepath);
     if(info.suffix() == "c") {
       writeSdsRule("sdscc", makefile, acc.filepath, cOptions);
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       writeSdsRule("sds++", makefile, acc.filepath, cppOptions);
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
     }
   }
 

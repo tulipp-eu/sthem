@@ -69,19 +69,19 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     }
     options << clangTarget;
 
-    makefile.write((fileInfo.baseName() + ".ll : " + path + "\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + ".ll : " + path + "\n").toUtf8());
     makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -g -emit-llvm -S $<\n\n").toUtf8());
   }
 
   // .xml
   {
-    makefile.write((fileInfo.baseName() + ".xml : " + fileInfo.baseName() + ".ll\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + ".xml : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
     makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -xml $@\n\n").toUtf8());
   }
 
   // _2.ll
   {
-    makefile.write((fileInfo.baseName() + "_2.ll : " + fileInfo.baseName() + ".ll\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + "_2.ll : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
     makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@\n\n").toUtf8());
   }
 
@@ -95,7 +95,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     }
     options << QString(llcTarget).split(' ');
 
-    makefile.write((fileInfo.baseName() + ".s : " + fileInfo.baseName() + "_2.ll\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
     makefile.write((QString("\t") + Config::llc + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
@@ -103,7 +103,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
   bool buildIt = true;
   for(auto acc : accelerators) {
     QFileInfo info(acc.filepath);
-    if(info.baseName() == fileInfo.baseName()) {
+    if(info.completeBaseName() == fileInfo.completeBaseName()) {
       buildIt = false;
       break;
     }
@@ -112,7 +112,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     QStringList options;
     options << QString(asTarget).split(' ');
 
-    makefile.write((fileInfo.baseName() + ".o : " + fileInfo.baseName() + ".s\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + ".o : " + fileInfo.completeBaseName() + ".s\n").toUtf8());
     makefile.write((QString("\t") + as + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
@@ -152,10 +152,10 @@ bool Project::createXmlMakefile() {
     QFileInfo info(source);
     if(info.suffix() == "c") {
       writeTulippCompileRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
-      xmlFiles << info.baseName() + ".xml";
+      xmlFiles << info.completeBaseName() + ".xml";
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       writeTulippCompileRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
-      xmlFiles << info.baseName() + ".xml";
+      xmlFiles << info.completeBaseName() + ".xml";
     }
   }
 

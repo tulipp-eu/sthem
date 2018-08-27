@@ -35,7 +35,7 @@ void CustomProject::writeCompileRule(QString compiler, QFile &makefile, QString 
   options << opt.split(' ');
   options << clangTarget;
 
-  makefile.write((fileInfo.baseName() + ".o : " + path + "\n").toUtf8());
+  makefile.write((fileInfo.completeBaseName() + ".o : " + path + "\n").toUtf8());
   makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());
 }
 
@@ -44,7 +44,7 @@ bool CustomProject::openProject(QString path) {
 
   this->path = path;
   QFileInfo fileInfo(path);
-  name = fileInfo.baseName();
+  name = fileInfo.completeBaseName();
 
   opened = true;
 
@@ -80,7 +80,7 @@ bool CustomProject::createMakefile() {
     QFileInfo info(source);
 
     bool tulippCompile = createBbInfo;
-    Module *mod = cfgModel->getCfg()->getModuleById(info.baseName());
+    Module *mod = cfgModel->getCfg()->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
     if(info.suffix() == "c") {
@@ -89,7 +89,7 @@ bool CustomProject::createMakefile() {
       } else {
         writeCompileRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
       }
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
 
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       if(tulippCompile) {
@@ -97,7 +97,7 @@ bool CustomProject::createMakefile() {
       } else {
         writeCompileRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
       }
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
 
     }
   }
