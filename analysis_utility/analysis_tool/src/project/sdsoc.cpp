@@ -129,6 +129,9 @@ void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList object
   QStringList options;
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid) << opt.split(' ');
 
+  if(!genbitstream) options << "-mno-bitstream";
+  if(!gensdcard) options << "-mno-boot-files";
+
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
   }
@@ -331,6 +334,8 @@ bool Sdsoc::openProject(QString path, QString configType) {
   parseSynthesisReport();
 
   printf("SDSoC project opened\n");
+
+  print();
 
   return true;
 }
