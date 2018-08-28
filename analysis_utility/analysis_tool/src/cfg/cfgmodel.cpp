@@ -125,7 +125,7 @@ void CfgModel::addModule(const QDomDocument &doc, Project &project) {
 
   for(auto acc : project.accelerators) {
     QFileInfo fileInfo(acc.filepath);
-    if(fileInfo.baseName() == moduleName) {
+    if(fileInfo.completeBaseName() == moduleName) {
       QVector<Function*> functions = module->getFunctionsByName(acc.name);
       assert(functions.size() == 1);
       functions.at(0)->hw = true;

@@ -633,7 +633,7 @@ void MainWindow::hwEvent() {
 
   for(auto acc : project->accelerators) {
     QFileInfo fileInfo(acc.filepath);
-    Module *module = project->getCfg()->getModuleById(fileInfo.baseName());
+    Module *module = project->getCfg()->getModuleById(fileInfo.completeBaseName());
     QVector<Function*> functions = module->getFunctionsByName(acc.name);
     assert(functions.size() == 1);
     hwGroup->appendChild(functions.at(0));

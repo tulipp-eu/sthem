@@ -37,7 +37,7 @@
   "while {[catch {fpga -file $name.elf.bit}] eq 1} {rst -system}\n" \
   "ps7_init\n"                                                      \
   "ps7_post_config\n"                                               \
-  "dow sd_card/$name.elf\n"
+  "dow $name.elf\n"
 
 #define DEFAULT_TCF_UPLOAD_SCRIPT_US                                    \
   "connect\n"                                                           \
@@ -55,7 +55,7 @@
   "psu_ps_pl_reset_config\n"                                            \
   "targets 9\n"                                                         \
   "rst -processor\n"                                                    \
-  "dow sd_card/$name.elf\n"
+  "dow $name.elf\n"
 
 class Config {
 

@@ -119,7 +119,7 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
 
   QFileInfo fileInfo(path);
 
-  makefile.write((fileInfo.baseName() + ".o : " + path + "\n").toUtf8());
+  makefile.write((fileInfo.completeBaseName() + ".o : " + path + "\n").toUtf8());
   makefile.write((QString("\t") + compiler + " " + options.join(' ') + " -c $< -o $@\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
@@ -128,6 +128,9 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
 void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt) {
   QStringList options;
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid) << opt.split(' ');
+
+  if(!genbitstream) options << "-mno-bitstream";
+  if(!gensdcard) options << "-mno-boot-files";
 
   for(auto acc : accelerators) {
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
@@ -331,6 +334,8 @@ bool Sdsoc::openProject(QString path, QString configType) {
   parseSynthesisReport();
 
   printf("SDSoC project opened\n");
+
+  print();
 
   return true;
 }
@@ -594,7 +599,7 @@ bool Sdsoc::createMakefile() {
     QFileInfo info(source);
 
     bool tulippCompile = createBbInfo;
-    Module *mod = cfgModel->getCfg()->getModuleById(info.baseName());
+    Module *mod = cfgModel->getCfg()->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
     if(info.suffix() == "c") {
@@ -603,7 +608,7 @@ bool Sdsoc::createMakefile() {
       } else {
         writeSdsRule("sdscc", makefile, source, cOptions);
       }
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
 
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       if(tulippCompile) {
@@ -611,7 +616,7 @@ bool Sdsoc::createMakefile() {
       } else {
         writeSdsRule("sds++", makefile, source, cppOptions);
       }
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
 
     }
   }
@@ -621,10 +626,10 @@ bool Sdsoc::createMakefile() {
     QFileInfo info(acc.filepath);
     if(info.suffix() == "c") {
       writeSdsRule("sdscc", makefile, acc.filepath, cOptions);
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       writeSdsRule("sds++", makefile, acc.filepath, cppOptions);
-      objects << info.baseName() + ".o";
+      objects << info.completeBaseName() + ".o";
     }
   }
 
