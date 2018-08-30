@@ -26,8 +26,6 @@
 
 class Location {
 public:
-  unsigned id;
-
   QString moduleId;
   QString funcId;
   QString bbId;
@@ -35,8 +33,7 @@ public:
   double runtime;
   double energy[LYNSYN_SENSORS];
 
-  Location(unsigned i, QString mid, QString fid, QString bid) {
-    id = i;
+  Location(QString mid, QString fid, QString bid) {
     moduleId = mid;
     funcId = fid;
     bbId = bid;

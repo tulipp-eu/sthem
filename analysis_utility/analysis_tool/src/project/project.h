@@ -35,6 +35,7 @@
 #include "profile/measurement.h"
 #include "cfg/cfgmodel.h"
 #include "pmu.h"
+#include "location.h"
 
 #define SAMPLEBUF_SIZE (128*1024*1024)
 
@@ -54,6 +55,7 @@ protected:
   virtual bool createMakefile(QFile &makefile);
   virtual bool createMakefile() = 0;
   void copy(Project *p);
+  Location *getLocation(unsigned core, uint64_t pc, ElfSupport *elfSupport, std::map<BasicBlock*,Location*> *locations);
 
 public:
   bool opened;
@@ -114,6 +116,8 @@ public:
     return name + ".elf";
   }
 
+  void parseProfFile(QString fileName, Profile *profile);
+
   void loadFiles();
   void loadXmlFile(const QString &fileName);
   void loadProjectFile();
@@ -122,6 +126,7 @@ public:
   int xmlBuildSteps() { return 1; }
   int binBuildSteps() { return 2; }
   int profileSteps() { return 3; }
+  int runSteps() { return 1; }
 
   virtual bool isSdSocProject() { return false; }
 
@@ -131,6 +136,7 @@ public slots:
   void makeXml();
   virtual void makeBin();
   void runProfiler();
+  void runApp();
 
 signals:
   void advance(int step, QString msg);

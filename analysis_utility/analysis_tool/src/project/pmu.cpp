@@ -220,6 +220,8 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
 void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
+  printf("Setting BP %lx on core %d and BP %lx on core %d\n", startAddr, startCore, stopAddr, stopCore);
+
   {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
@@ -333,7 +335,7 @@ void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore
   free(buf);
 }
 
-double Pmu::currentToPower(unsigned sensor, int16_t current) {
+double Pmu::currentToPower(unsigned sensor, double current) {
   switch(hwVersion) {
     case HW_VERSION_2_0: {
       double vo = (current * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;

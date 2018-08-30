@@ -88,12 +88,14 @@ private:
   QAction *configDialogAct;
   QAction *projectDialogAct;
   QAction *openProjectAct;
+  QAction *openProfileAct;
   QAction *createProjectAct;
   QAction *closeProjectAct;
   QAction *cleanAct;
   QAction *makeXmlAct;
   QAction *makeBinAct;
   QAction *profileAct;
+  QAction *runAct;
   QAction *showProfileAct;
   QAction *showDseAct;
 
@@ -117,6 +119,7 @@ private slots:
   void configDialog();
   void projectDialog();
   void openProjectEvent(QAction *action);
+  void openProfileEvent();
   void openCustomProject();
   void createProject();
   void closeProject();
@@ -124,11 +127,13 @@ private slots:
   void makeXmlEvent();
   void makeBinEvent();
   void profileEvent();
+  void runEvent();
   void showProfileSummary();
   void showDseSummary();
   void finishXml(int error, QString msg);
   void finishBin(int error, QString msg);
   void finishProfile(int error, QString msg);
+  void finishRun(int error, QString msg);
   void advance(int step, QString msg);
   void changeCore(int core);
   void changeSensor(int sensor);

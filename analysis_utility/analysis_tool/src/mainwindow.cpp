@@ -134,6 +134,9 @@ MainWindow::MainWindow() {
   makeBinAct = new QAction("Make bin", this);
   connect(makeBinAct, SIGNAL(triggered()), this, SLOT(makeBinEvent()));
 
+  runAct = new QAction("Run", this);
+  connect(runAct, SIGNAL(triggered()), this, SLOT(runEvent()));
+
   profileAct = new QAction("Profile", this);
   connect(profileAct, SIGNAL(triggered()), this, SLOT(profileEvent()));
 
@@ -168,6 +171,9 @@ MainWindow::MainWindow() {
   openProjectAct = new QAction("Open custom project", this);
   connect(openProjectAct, SIGNAL(triggered()), this, SLOT(openCustomProject()));
 
+  openProfileAct = new QAction("Open profile", this);
+  connect(openProfileAct, SIGNAL(triggered()), this, SLOT(openProfileEvent()));
+
   createProjectAct = new QAction("Create custom project", this);
   connect(createProjectAct, SIGNAL(triggered()), this, SLOT(createProject()));
 
@@ -186,6 +192,7 @@ MainWindow::MainWindow() {
   fileMenu->addAction(openProjectAct);
   fileMenu->addAction(createProjectAct);
   fileMenu->addAction(closeProjectAct);
+  fileMenu->addAction(openProfileAct);
   fileMenu->addAction(projectDialogAct);
   fileMenu->addSeparator();
   fileMenu->addAction(configDialogAct);
@@ -220,6 +227,7 @@ MainWindow::MainWindow() {
   projectToolBar->addAction(cleanAct);
   projectToolBar->addAction(makeXmlAct);
   projectToolBar->addAction(makeBinAct);
+  projectToolBar->addAction(runAct);
   projectToolBar->addAction(profileAct);
   projectToolBar->addAction(showProfileAct);
   projectToolBar->addAction(showDseAct);
@@ -349,6 +357,17 @@ void MainWindow::openCustomProject() {
   }
 }
 
+void MainWindow::openProfileEvent() {
+  QFileDialog dialog(this, "Select profile file");
+  if(dialog.exec()) {
+    if(project) {
+      QString path = dialog.selectedFiles()[0];
+      project->parseProfFile(path, profile);
+      loadFiles();
+    }
+  }
+}
+
 void MainWindow::createProject() {
   QFileDialog dialog(this, "Select project directory");
   dialog.setFileMode(QFileDialog::Directory);
@@ -440,7 +459,7 @@ void MainWindow::loadFiles() {
   // read files from tulipp project dir
   {
     QStringList nameFilter;
-    nameFilter << "*.prof" << "*.elf" << "*.dse";
+    nameFilter << "*.elf" << "*.dse";
     dir.setNameFilters(nameFilter);
 
     QFileInfoList list = dir.entryInfoList();
@@ -464,7 +483,7 @@ void MainWindow::loadFile(const QString &fileName) {
     project->loadXmlFile(fileName);
   } else if(suffix == "dse") {
     loadDseFile(fileName);
-  } else {
+  } else if(suffix == "elf") {
     project->elfFile = fileName;
   }
 }
@@ -755,6 +774,47 @@ void MainWindow::finishBin(int error, QString msg) {
 
     QMessageBox msgBox;
     msgBox.setText("Binary build completed");
+    msgBox.exec();
+  }
+
+  disconnect(&thread, SIGNAL (started()), 0, 0);
+  disconnect(project, SIGNAL(finished(int, QString)), 0, 0);
+
+  thread.quit();
+}
+
+void MainWindow::runEvent() {
+  if(project) {
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    progDialog = new QProgressDialog("Running...", QString(), 0, project->runSteps(), this);
+    progDialog->setWindowModality(Qt::WindowModal);
+    progDialog->setMinimumDuration(0);
+    progDialog->setValue(0);
+
+    thread.wait();
+    project->moveToThread(&thread);
+    connect(&thread, SIGNAL (started()), project, SLOT (runApp()));
+    connect(project, SIGNAL(finished(int, QString)), this, SLOT(finishRun(int, QString)));
+    thread.start();
+  }
+}
+
+void MainWindow::finishRun(int error, QString msg) {
+  delete progDialog;
+  progDialog = NULL;
+
+  QApplication::restoreOverrideCursor();
+
+  if(error) {
+    loadFiles();
+    QMessageBox msgBox;
+    msgBox.setText(msg);
+    msgBox.exec();
+
+  } else {
+    QMessageBox msgBox;
+    msgBox.setText("Now running");
     msgBox.exec();
   }
 

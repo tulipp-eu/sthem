@@ -127,6 +127,9 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
 
 void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt) {
   QStringList options;
+
+  options << "-lm";
+
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid) << opt.split(' ');
 
   if(!genbitstream) options << "-mno-bitstream";
@@ -334,8 +337,6 @@ bool Sdsoc::openProject(QString path, QString configType) {
   parseSynthesisReport();
 
   printf("SDSoC project opened\n");
-
-  print();
 
   return true;
 }
