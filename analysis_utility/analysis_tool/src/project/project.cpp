@@ -144,7 +144,7 @@ bool Project::createXmlMakefile() {
 
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
-  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof __tulipp_test__.* .Xil\n\n").toUtf8());
+  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* __tulipp_test__.* .Xil\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -161,7 +161,6 @@ bool Project::createXmlMakefile() {
 
   makefile.write(QString(".PHONY : xml\n").toUtf8());
   makefile.write((QString("xml : ") + xmlFiles.join(' ') + "\n").toUtf8());
-  makefile.write(QString("\trm -rf profile.prof\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -173,7 +172,7 @@ bool Project::createXmlMakefile() {
 void Project::writeCleanRule(QFile &makefile) {
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
-  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof __tulipp_test__.* .Xil\n\n").toUtf8());
+  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* __tulipp_test__.* .Xil\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 }

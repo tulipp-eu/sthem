@@ -697,6 +697,8 @@ void MainWindow::makeXmlEvent() {
   if(project) {
     treeView->setModel(NULL);
 
+    if(profile) profile->clean();
+
     QApplication::setOverrideCursor(Qt::WaitCursor);
 
     progDialog = new QProgressDialog("Making XML files...", QString(), 0, project->xmlBuildSteps(), this);
@@ -740,6 +742,8 @@ void MainWindow::finishXml(int error, QString msg) {
 void MainWindow::makeBinEvent() {
   if(project) {
     treeView->setModel(NULL);
+
+    if(profile) profile->clean();
 
     QApplication::setOverrideCursor(Qt::WaitCursor);
 
