@@ -75,6 +75,7 @@ public:
   bool createBbInfo;
   bool useCustomElf;
   bool samplePc;
+  bool samplingModeGpio;
   int64_t samplePeriod;
 
   // settings from either sdsoc project or user

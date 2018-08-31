@@ -325,6 +325,9 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   samplePeriodLayout->addWidget(samplePeriodLabel);
   samplePeriodLayout->addWidget(samplePeriodEdit);
 
+  samplingModeGpioCheckBox = new QCheckBox("GPIO controlled sampling");
+  samplingModeGpioCheckBox->setCheckState(project->samplingModeGpio ? Qt::Checked : Qt::Unchecked);
+
   QHBoxLayout *stopLayout = new QHBoxLayout;
   QLabel *stopFuncLabel = new QLabel("Stop at function:");
   stopLayout->addWidget(stopFuncLabel);
@@ -342,6 +345,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   breakpointsLayout->addLayout(startLayout);
   breakpointsLayout->addWidget(samplePcCheckBox);
   breakpointsLayout->addLayout(samplePeriodLayout);
+  breakpointsLayout->addWidget(samplingModeGpioCheckBox);
   breakpointsLayout->addLayout(stopLayout);
   breakpointsLayout->addStretch(1);
   breakpointsGroup->setLayout(breakpointsLayout);
@@ -484,6 +488,8 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
 
   project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
   project->samplePeriod = profPage->samplePeriodEdit->text().toLongLong();
+
+  project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
 
   project->stopFunc = profPage->stopFuncEdit->text();
   project->stopCore = profPage->stopCoreEdit->text().toUInt();

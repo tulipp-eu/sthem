@@ -79,6 +79,7 @@ public:
   QCheckBox *customElfCheckBox;
   QLineEdit *customElfEdit;
   QCheckBox *samplePcCheckBox;
+  QCheckBox *samplingModeGpioCheckBox;
   QLineEdit *samplePeriodEdit;
 
   ProjectProfPage(Project *project, QWidget *parent = 0);
