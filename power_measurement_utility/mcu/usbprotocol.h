@@ -61,6 +61,9 @@
 #define FPGA_CONFIGURE_FAILED 1
 #define FPGA_SPI_FAILED       2
 
+#define SAMPLING_MODE_NORMAL  0
+#define SAMPLING_MODE_GPIO    1
+
 ///////////////////////////////////////////////////////////////////////////////
 
 #define MAX_PACKET_SIZE (sizeof(struct BreakpointRequestPacket))
@@ -70,9 +73,15 @@ struct __attribute__((__packed__)) RequestPacket {
   uint8_t cmd;
 };
 
+struct __attribute__((__packed__)) StartSamplingRequestPacketV1_1 {
+  struct RequestPacket request;
+  int64_t samplePeriod; // set to 0 for PC sampling, any other number for current sampling only
+};
+
 struct __attribute__((__packed__)) StartSamplingRequestPacket {
   struct RequestPacket request;
   int64_t samplePeriod; // set to 0 for PC sampling, any other number for current sampling only
+  uint64_t flags;
 };
 
 struct __attribute__((__packed__)) BreakpointRequestPacket {

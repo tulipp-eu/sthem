@@ -39,8 +39,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 
-//#define TRIGGER_INPUT
-#define I2C_OUTPUT
+//#define SWO
 
 #define CAL_AVERAGE_SAMPLES 100
 
@@ -121,6 +120,7 @@ void panic(const char *fmt, ...);
 
 extern volatile bool sampleMode;
 extern volatile bool samplePc;
+extern volatile bool gpioMode;
 extern volatile int64_t sampleStop;
 extern uint8_t startCore;
 extern uint8_t stopCore;

@@ -145,6 +145,8 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
         printf("Starting sample mode (%s)\n", samplePc ? "with PC" : "without PC");
 
+        gpioMode = startSamplingReq->flags & SAMPLING_MODE_GPIO;
+
         setLed(0);
 
         // run until first bp

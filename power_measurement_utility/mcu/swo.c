@@ -30,7 +30,7 @@
 #include "em_chip.h"
 
 int _write(int fd, char *str, int len) {
-#if (!defined TRIGGER_ON) || (!defined I2C_OUTPUT)
+#ifdef SWO
   for (int i = 0; i < len; i++) {
     ITM_SendChar(str[i]);
   }

@@ -42,6 +42,7 @@
 
 volatile bool sampleMode;
 volatile bool samplePc;
+volatile bool gpioMode;
 volatile int64_t sampleStop;
 
 volatile uint32_t lastLowWord = 0;
@@ -50,7 +51,7 @@ volatile uint32_t highWord = 0;
 static struct SampleReplyPacket sampleBuf1[MAX_SAMPLES] __attribute__((__aligned__(4)));
 static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned__(4)));
 
-#ifdef I2C_OUTPUT
+#ifndef SWO
 
 #define I2C_NO_CMD       0
 #define I2C_MAGIC        1
@@ -67,6 +68,7 @@ static int i2cIdx;
 
 static int i2cSamplesSinceLast[7];
 static uint64_t i2cCurrentAcc[7];
+
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -104,7 +106,7 @@ void panic(const char *fmt, ...) {
   while(true);
 }
 
-#ifdef I2C_OUTPUT
+#ifndef SWO
 
 void i2cInit(void) {
   CMU_ClockEnable(cmuClock_I2C0, true);  
@@ -243,7 +245,7 @@ int main(void) {
   GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
   GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
 
-#if (!defined TRIGGER_ON) || (!defined I2C_OUTPUT)
+#ifdef SWO
   swoInit();
 #endif
 
@@ -260,13 +262,10 @@ int main(void) {
   usbInit();
   jtagInit();
 
-#ifdef TRIGGER_INPUT
+#ifndef SWO
   GPIO_PinModeSet(TRIGGER_IN_PORT, TRIGGER_IN_BIT, gpioModeInput, 0);
-#else
-#ifdef I2C_OUTPUT
   while(DWT->CYCCNT < BOOT_DELAY);
   i2cInit();
-#endif
 #endif
 
   clearLed(0);
@@ -290,10 +289,10 @@ int main(void) {
     if(sampleMode) {
       bool halted = false;
 
-#ifdef TRIGGER_INPUT
-      bool send = false;
+#ifndef SWO
+      bool send = !gpioMode;
 
-      if(!GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
+      if(gpioMode && !GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
         if(samplePc) {
           halted = coreHalted();
         } else {
@@ -316,7 +315,7 @@ int main(void) {
         }
         adcScanWait();
 
-#ifdef TRIGGER_INPUT
+#ifndef SWO
         if(GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
           send = true;
         }
@@ -324,7 +323,7 @@ int main(void) {
       }
 
       if(halted) {
-#ifdef TRIGGER_INPUT
+#ifndef SWO
         send = true;
 #endif
         samplePtr->time = -1;
@@ -339,7 +338,7 @@ int main(void) {
         samples = 0;
       }
 
-#ifdef TRIGGER_INPUT
+#ifndef SWO
       if(send) {
 #else
       {
@@ -354,7 +353,7 @@ int main(void) {
           currentSample = 0;
         }
       }
-#ifdef I2C_OUTPUT
+#ifndef SWO
     } else {
       adcScan(i2cCurrent);
       adcScanWait();
