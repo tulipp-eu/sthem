@@ -9,10 +9,13 @@
 #include <xttcps.h>
 #include <xscugic.h>
 #include <xiicps.h>
+#include <xgpiops.h>
 
 #include <compatibility_layer.h>
 
 #include "profiler.h"
+
+static XGpioPs Gpio;
 
 extern char __rodata_start;
 
@@ -26,7 +29,11 @@ extern char __rodata_start;
 
 #define IIC_DEVICE_ID   XPAR_XIICPS_1_DEVICE_ID
 #define IIC_SLAVE_ADDR     0x55
-#define IIC_SCLK_RATE    200000
+#define IIC_SCLK_RATE    100000
+
+#define GPIO_DEVICE_ID XPAR_XGPIOPS_0_DEVICE_ID
+
+#define OUTPUT_PIN 78
 
 static XIicPs Iic;
 static XScuGic interruptController;
@@ -189,58 +196,65 @@ static bool setupInterrupts(void) {
 }
 
 bool startProfiler(double period) {
-  pcSamplerPeriod = period;
+  XGpioPs_Config *ConfigPtr = XGpioPs_LookupConfig(GPIO_DEVICE_ID);
 
-  uint64_t textStart = 0;
-  uint64_t textSize = (uint64_t)&__rodata_start;
+	int status = XGpioPs_CfgInitialize(&Gpio, ConfigPtr, ConfigPtr->BaseAddr);
+	if(status != XST_SUCCESS) {
+    printf("Can't initialize GPIO\n");
+		return false;
+	}
 
-  if(setupInterrupts()) {
-    if(setupIic()) {
+  XGpioPs_SetDirection(&Gpio, XGPIOPS_BANK3, 1);
+  XGpioPs_Write(&Gpio, XGPIOPS_BANK3, 0x0);
+	XGpioPs_SetOutputEnable(&Gpio, XGPIOPS_BANK3, 1);
 
-      uint8_t magic;
-      iicSetCommand(I2C_MAGIC, 0);
-      iicReadData(&magic, 1);
-      if(magic == 0xad) {
-        bufSize = textSize/4;
-        currentBuf = calloc(bufSize, sizeof(uint64_t));
+  if(period > 0) {
+    pcSamplerPeriod = period;
 
-        if(currentBuf) {
-          ticksBuf = calloc(bufSize, sizeof(uint64_t));
+    uint64_t textStart = 0;
+    uint64_t textSize = (uint64_t)&__rodata_start;
 
-          if(ticksBuf) {
-            pcStart = textStart;
-            unknownCurrent = 0;
-            unknownTicks = 0;
+    if(setupInterrupts()) {
+      if(setupIic()) {
 
-            /* printf("Magic: %x\n", magic); */
-            /* for(int i = 0; i < 65536; i++) { */
-            /*   iicReadData(&magic, 1); */
-            /*   if(magic != 0xad) { */
-            /*     printf("I2C ERROR\n"); */
-            /*     return 1; */
-            /*   } */
-            /* } */
-            /* printf("IIC OK\n"); */
+        uint8_t magic;
+        iicSetCommand(I2C_MAGIC, 0);
+        iicReadData(&magic, 1);
 
-            iicSetCommand(I2C_READ_CURRENT, 0x2);
-            {
-              int16_t current;
-              iicReadData((uint8_t*)&current, 2);
-            }
+        if(magic == 0xad) {
+          bufSize = textSize/4;
+          currentBuf = calloc(bufSize, sizeof(uint64_t));
 
-            if(setupTimer()) {
-              printf("PROFILER: Started, profiling between %p and %p\n", (void*)pcStart, (void*)textSize);
-              profilerActive = true;
-              return true;
-            } else printf("PROFILER: Can't init timer\n");
-          } else printf("PROFILER: Can't allocate ticksBuffer\n");
-        } else printf("PROFILER: Can't allocate currentBuffer\n");
-      } else printf("PROFILER: Can't read I2C\n");
-    } else printf("PROFILER: Can't setup I2C\n");
-  } else printf("PROFILER: Can't setup interrupts\n");
+          if(currentBuf) {
+            ticksBuf = calloc(bufSize, sizeof(uint64_t));
 
-  profilerActive = false;
-  return false;
+            if(ticksBuf) {
+              pcStart = textStart;
+              unknownCurrent = 0;
+              unknownTicks = 0;
+
+              iicSetCommand(I2C_READ_CURRENT, 0x2);
+              {
+                int16_t current;
+                iicReadData((uint8_t*)&current, 2);
+              }
+
+              if(setupTimer()) {
+                printf("PROFILER: Started, profiling between %p and %p\n", (void*)pcStart, (void*)textSize);
+                profilerActive = true;
+                return true;
+              } else printf("PROFILER: Can't init timer\n");
+            } else printf("PROFILER: Can't allocate ticksBuffer\n");
+          } else printf("PROFILER: Can't allocate currentBuffer\n");
+        } else printf("PROFILER: Can't read I2C\n");
+      } else printf("PROFILER: Can't setup I2C\n");
+    } else printf("PROFILER: Can't setup interrupts\n");
+
+    profilerActive = false;
+    return false;
+  }
+
+  return true;
 }
 
 void stopProfiler(void) {
@@ -281,4 +295,12 @@ void stopProfiler(void) {
 
     printf("PROFILER: Done\n");
   }
+}
+
+void profilerOn(void) {
+  XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x1);
+}
+
+void profilerOff(void) {
+  XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
 }

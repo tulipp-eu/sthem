@@ -4,4 +4,7 @@
 bool startProfiler(double period);
 void stopProfiler(void);
 
+void profilerOn(void);
+void profilerOff(void);
+
 #endif
