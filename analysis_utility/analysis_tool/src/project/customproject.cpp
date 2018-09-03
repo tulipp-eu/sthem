@@ -80,7 +80,7 @@ bool CustomProject::createMakefile() {
     QFileInfo info(source);
 
     bool tulippCompile = createBbInfo;
-    Module *mod = cfgModel->getCfg()->getModuleById(info.completeBaseName());
+    Module *mod = cfg->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
     if(info.suffix() == "c") {

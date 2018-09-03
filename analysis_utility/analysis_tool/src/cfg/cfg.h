@@ -59,6 +59,10 @@ public:
     return NULL;
   }
 
+  Function *getMain() {
+    return getFunctionById("main");
+  }
+
   virtual Function *getFunctionById(QString id) {
     for(auto child : children) {
       if(child != externalMod) {

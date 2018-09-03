@@ -33,13 +33,11 @@
 #include "projectacc.h"
 #include "config/config.h"
 #include "profile/measurement.h"
-#include "cfg/cfgmodel.h"
+#include "cfg/cfg.h"
 #include "pmu.h"
 #include "location.h"
 
 #define SAMPLEBUF_SIZE (128*1024*1024)
-
-class CfgModel;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -97,7 +95,7 @@ public:
   QString customElfFile;
   QString elfFile;
 
-  CfgModel *cfgModel;
+  Cfg *cfg;
 
   int errorCode;
 
@@ -130,8 +128,6 @@ public:
   int runSteps() { return 1; }
 
   virtual bool isSdSocProject() { return false; }
-
-  Cfg *getCfg();
 
 public slots:
   void makeXml();

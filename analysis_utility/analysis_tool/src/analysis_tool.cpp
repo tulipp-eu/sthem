@@ -22,6 +22,7 @@
 #include <QApplication>
 
 #include "mainwindow.h"
+#include "analysis.h"
 #include "cfg/loop.h"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,14 +31,14 @@ int main(int argc, char *argv[]) {
   Q_INIT_RESOURCE(application);
 
   QApplication app(argc, argv);
-
   app.setOrganizationName(ORG_NAME);
   app.setOrganizationDomain(ORG_DOMAIN);
   app.setApplicationName(APP_NAME);
 
+  Analysis analysis;
   MainWindow *mainWin;
 
-  mainWin = new MainWindow();
+  mainWin = new MainWindow(&analysis);
   mainWin->show();
 
   return app.exec();

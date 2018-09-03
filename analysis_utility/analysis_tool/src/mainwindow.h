@@ -31,6 +31,7 @@
 
 #include "analysis_tool.h"
 
+#include "analysis.h"
 #include "project/project.h"
 #include "project/customproject.h"
 #include "project/sdsoc.h"
@@ -43,15 +44,14 @@
 #include "textview.h"
 #include "dse/dse.h"
 #include "cfg/group.h"
+#include "cfg/cfgmodel.h"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
 private:
-  Project *project;
-  Dse *dse;
-  Profile *profile;
-  QString elfFile;
+  Analysis *analysis;
+
   QTreeView *treeView;
   QTreeView *analysisView;
   TextView *textView;
@@ -65,6 +65,7 @@ private:
   QComboBox *sensorBox;
   QComboBox *cfgModeBox;
   ProfModel *profModel;
+  CfgModel *cfgModel;
   QTableView *tableView;
   QSplitter *cfgSplitter;
   QSplitter *cfgSplitter2;
@@ -103,8 +104,6 @@ private:
   QProgressDialog *progDialog;
 
   void loadFiles();
-  void loadFile(const QString &fileName);
-  void loadDseFile(const QString &fileName);
   void buildProjectMenu();
   bool openProject(QString path, QString buildConfig);
   void clearGui();
@@ -145,7 +144,7 @@ protected:
   void closeEvent(QCloseEvent *event) Q_DECL_OVERRIDE;
 
 public:
-  MainWindow();
+  MainWindow(Analysis *analysis);
   ~MainWindow();
 
   void resizeEvent(QResizeEvent* event) {

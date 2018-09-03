@@ -34,6 +34,7 @@
 #include <QModelIndex>
 #include <QGraphicsPolygonItem>
 
+#include "analysis_tool.h"
 #include "config/config.h"
 #include "edge.h"
 #include "linesegment.h"

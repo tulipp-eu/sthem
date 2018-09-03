@@ -351,8 +351,8 @@ int Project::runSourceTool(QString inputFilename, QString outputFilename, QStrin
 // project files
 
 void Project::loadFiles() {
-  if(cfgModel) delete cfgModel;
-  cfgModel = new CfgModel();
+  if(cfg) delete cfg;
+  cfg = new Cfg();
 
   QDir dir(".");
   dir.setFilter(QDir::Files);
@@ -394,7 +394,36 @@ void Project::loadXmlFile(const QString &fileName) {
   file.close();
 
   try {
-    cfgModel->addModule(doc, *this);
+    QDomElement element = doc.documentElement();
+    QString moduleName = element.attribute(ATTR_ID, "");
+    QString fileName = element.attribute(ATTR_FILE, "");
+
+    Module *module = new Module(moduleName, cfg, fileName);
+
+    module->constructFromXml(element, 0, this);
+    module->buildEdgeList();
+    module->buildExitNodes();
+    module->buildEntryNodes();
+
+    for(auto acc : accelerators) {
+      QFileInfo fileInfo(acc.filepath);
+      if(fileInfo.completeBaseName() == moduleName) {
+        QVector<Function*> functions = module->getFunctionsByName(acc.name);
+        assert(functions.size() == 1);
+        functions.at(0)->hw = true;
+      }
+    }
+
+    for(auto func : module->children) {
+      Function *f = static_cast<Function*>(func);
+      f->cycleRemoval();
+    }
+
+    cfg->appendChild(module);
+
+    cfg->clearCallers();
+    cfg->calculateCallers();
+
   } catch (std::exception &e) {
     QMessageBox msgBox;
     msgBox.setText("Invalid CFG file");
@@ -407,7 +436,7 @@ void Project::loadXmlFile(const QString &fileName) {
 // object construction, destruction and management
 
 Project::Project() {
-  cfgModel = NULL;
+  cfg = NULL;
   close();
 }
 
@@ -447,7 +476,7 @@ void Project::copy(Project *p) {
   QString customElfFile;
   elfFile = p->elfFile;
 
-  cfgModel = NULL;
+  cfg = NULL;
 }
 
 Project::Project(Project *p) {
@@ -455,7 +484,7 @@ Project::Project(Project *p) {
 }
 
 Project::~Project() {
-  delete cfgModel;
+  delete cfg;
 }
 
 void Project::close() {
@@ -468,8 +497,9 @@ void Project::close() {
 void Project::clear() {
   sources.clear();
   accelerators.clear();
-  if(cfgModel) delete cfgModel;
-  cfgModel = new CfgModel();
+
+  if(cfg) delete cfg;
+  cfg = new Cfg();
 }
 
 void Project::print() {
@@ -503,11 +533,11 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   Function *func = NULL;
 
   if(!useCustomElf && elfSupport->isBb(pc)) {
-    Module *mod = cfgModel->getCfg()->getModuleById(elfSupport->getModuleId(pc));
+    Module *mod = cfg->getModuleById(elfSupport->getModuleId(pc));
     if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport->getLineNumber(pc)));
 
   } else {
-    func = cfgModel->getCfg()->getFunctionById(elfSupport->getFunction(pc));
+    func = cfg->getFunctionById(elfSupport->getFunction(pc));
 
     if(func) {
       // we don't know the BB, but the function exists in the CFG: add to first BB
@@ -516,7 +546,7 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 
     } else {
       // the function does not exist in the CFG
-      Module *mod = cfgModel->getCfg()->externalMod;
+      Module *mod = cfg->externalMod;
       func = mod->getFunctionById(elfSupport->getFunction(pc));
 
       if(func) {
@@ -617,7 +647,7 @@ void Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":core", core);
     query.bindValue(":basicblock", "uknown-bb");
     query.bindValue(":function", "Unknown");
-    query.bindValue(":module", cfgModel->getCfg()->externalMod->id);
+    query.bindValue(":module", cfg->externalMod->id);
     query.bindValue(":runtime", unknownRuntime);
     query.bindValue(":energy1", energy[0]);
     query.bindValue(":energy2", energy[1]);
@@ -965,8 +995,4 @@ void Project::runApp() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-Cfg *Project::getCfg() {
-  return cfgModel->getCfg();
-}
 

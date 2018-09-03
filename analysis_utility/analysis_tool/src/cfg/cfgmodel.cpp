@@ -107,40 +107,8 @@ Qt::ItemFlags CfgModel::flags(const QModelIndex &index) const {
   return QAbstractItemModel::flags(index);
 }
 
-CfgModel::CfgModel(QObject *parent) : QAbstractItemModel(parent) {
-  top = new Cfg();
-}
-
-void CfgModel::addModule(const QDomDocument &doc, Project &project) {
-  QDomElement element = doc.documentElement();
-  QString moduleName = element.attribute(ATTR_ID, "");
-  QString fileName = element.attribute(ATTR_FILE, "");
-
-  Module *module = new Module(moduleName, top, fileName);
-
-  module->constructFromXml(element, 0, &project);
-  module->buildEdgeList();
-  module->buildExitNodes();
-  module->buildEntryNodes();
-
-  for(auto acc : project.accelerators) {
-    QFileInfo fileInfo(acc.filepath);
-    if(fileInfo.completeBaseName() == moduleName) {
-      QVector<Function*> functions = module->getFunctionsByName(acc.name);
-      assert(functions.size() == 1);
-      functions.at(0)->hw = true;
-    }
-  }
-
-  for(auto func : module->children) {
-    Function *f = static_cast<Function*>(func);
-    f->cycleRemoval();
-  }
-
-  top->appendChild(module);
-
-  top->clearCallers();
-  top->calculateCallers();
+CfgModel::CfgModel(Cfg *top, QObject *parent) : QAbstractItemModel(parent) {
+  this->top = top;
 }
 
 void CfgModel::clearColors() {
@@ -151,6 +119,3 @@ void CfgModel::collapseAll() {
   top->collapse();
 }
 
-Container *CfgModel::getMain() {
-  return top->getFunctionById("main");
-}

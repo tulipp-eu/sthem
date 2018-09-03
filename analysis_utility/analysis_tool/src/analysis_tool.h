@@ -19,8 +19,8 @@
  *
  *****************************************************************************/
 
-#ifndef ANALYSIS_H
-#define ANALYSIS_H
+#ifndef ANALYSIS_TOOL_H
+#define ANALYSIS_TOOL_H
 
 #include <QVariant>
 #include <QVector>

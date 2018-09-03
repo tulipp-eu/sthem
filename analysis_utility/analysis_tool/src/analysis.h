@@ -19,43 +19,47 @@
  *
  *****************************************************************************/
 
-#ifndef CFGMODEL_H
-#define CFGMODEL_H
+#ifndef ANALYSIS_H
+#define ANALYSIS_H
 
 #include <map>
-#include <vector>
-#include <string>
-#include <QDomDocument>
-#include <QAbstractItemModel>
-#include <QModelIndex>
-#include <QGraphicsPolygonItem>
+#include <fstream>
 
-#include "container.h"
-#include "cfg.h"
-#include "module.h"
+#include <QtWidgets>
+#include <QTreeView>
+
+#include "analysis_tool.h"
+
 #include "project/project.h"
+#include "project/customproject.h"
+#include "project/sdsoc.h"
+#include "cfg/cfgscene.h"
+#include "profile/graphscene.h"
+#include "cfg/vertex.h"
+#include "profile/profmodel.h"
+#include "cfg/cfgview.h"
+#include "profile/graphview.h"
+#include "textview.h"
+#include "dse/dse.h"
+#include "cfg/group.h"
 
-class Project;
-
-class CfgModel : public QAbstractItemModel {
+class Analysis : public QObject {
   Q_OBJECT
 
-  Cfg *top;
+public:
+  Project *project;
+  Profile *profile;
+  Dse *dse;
 
-public:  
-  CfgModel(Cfg *top, QObject *parent = 0);
-  ~CfgModel() {}
+  Analysis();
+  ~Analysis();
 
-  QModelIndex index(int treeviewRow, int column, const QModelIndex &parent) const;
-  QModelIndex parent(const QModelIndex &index) const;
-  int rowCount(const QModelIndex &parent) const;
-  int columnCount(const QModelIndex &parent) const;
-  QVariant data(const QModelIndex &index, int role) const;
-  QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-  Qt::ItemFlags flags(const QModelIndex &index) const;
-
-  void clearColors();
-  void collapseAll();
+  bool openProject(QString path, QString buildConfig);
+  bool createProject(QString path);
+  void closeProject();
+  void loadProfFile(QString path);
+  void load();
+  void clean();
 };
 
 #endif
