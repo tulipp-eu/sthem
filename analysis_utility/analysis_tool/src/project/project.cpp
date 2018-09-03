@@ -195,7 +195,7 @@ bool Project::createMakefile(QFile &makefile) {
 ///////////////////////////////////////////////////////////////////////////////
 // make
 
-void Project::makeXml() {
+bool Project::makeXml() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
@@ -207,9 +207,11 @@ void Project::makeXml() {
   } else {
     emit finished(errorCode, "");
   }
+
+  return errorCode == 0;
 }
 
-void Project::makeBin() {
+bool Project::makeBin() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
@@ -218,7 +220,7 @@ void Project::makeBin() {
 
   if(!created || errorCode) {
     emit finished(errorCode, "Can't make XML");
-    return;
+    return false;
   }
 
   loadFiles();
@@ -234,13 +236,16 @@ void Project::makeBin() {
   } else {
     emit finished(errorCode, "");
   }
+
+  return errorCode == 0;
 }
 
-void Project::clean() {
+bool Project::clean() {
   if(opened) {
     createXmlMakefile();
     errorCode = system("make clean");
   }
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -591,7 +596,7 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   return location;
 }
 
-void Project::parseProfFile(QString fileName, Profile *profile) {
+bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlQuery query;
 
   ElfSupport elfSupport(elfFile);
@@ -604,7 +609,7 @@ void Project::parseProfFile(QString fileName, Profile *profile) {
     QMessageBox msgBox;
     msgBox.setText("Can't init PMU");
     msgBox.exec();
-    return;
+    return false;
   }
 
   QFile file(fileName);
@@ -612,7 +617,7 @@ void Project::parseProfFile(QString fileName, Profile *profile) {
     QMessageBox msgBox;
     msgBox.setText("File not found");
     msgBox.exec();
-    return;
+    return false;
   }
 
   profile->clean();
@@ -752,9 +757,11 @@ void Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlDatabase::database().commit();
 
   pmu.release();
+
+  return true;
 }
 
-void Project::runProfiler() {
+bool Project::runProfiler() {
 
   ElfSupport elfSupport(elfFile);
   if(useCustomElf) {
@@ -764,7 +771,7 @@ void Project::runProfiler() {
   bool pmuInited = pmu.init();
   if(!pmuInited) {
     emit finished(1, "Can't connect to PMU");
-    return;
+    return false;
   }
 
   emit advance(0, "Uploading binary");
@@ -785,7 +792,7 @@ void Project::runProfiler() {
   if(ret) {
     emit finished(1, "Can't upload binaries");
     pmu.release();
-    return;
+    return false;
   }
 
   uint64_t samples;
@@ -967,9 +974,11 @@ void Project::runProfiler() {
   }
 
   emit finished(0, "");
+
+  return true;
 }
 
-void Project::runApp() {
+bool Project::runApp() {
 
   emit advance(0, "Uploading binary");
 
@@ -988,10 +997,12 @@ void Project::runApp() {
   int ret = system("xsct temp-pmu-prof.tcl");
   if(ret) {
     emit finished(1, "Can't upload binaries");
-    return;
+    return false;
   }
 
   emit finished(0, "");
+
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

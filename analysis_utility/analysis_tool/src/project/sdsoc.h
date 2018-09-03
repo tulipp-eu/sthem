@@ -66,9 +66,10 @@ public:
 
   bool openProject(QString path, QString configType);
 
-  void makeBin() {
-    Project::makeBin();
-    parseSynthesisReport();
+  bool makeBin() {
+    bool ret = Project::makeBin();
+    if(ret) parseSynthesisReport();
+    return ret;
   }
 
   bool getTimingOk() const { return timingOk; }

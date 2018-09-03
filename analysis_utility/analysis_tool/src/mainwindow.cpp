@@ -268,13 +268,6 @@ MainWindow::MainWindow(Analysis *analysis) {
   closeProjectAct->setEnabled(false);
 
   Config::colorMode = Config::STRUCT;
-
-  // open previous project
-  QString prevProject = settings.value("currentProject", "").toString();
-  QString prevBuildConfig = settings.value("currentBuildConfig", "").toString();
-  if(prevProject != "") {
-    openProject(prevProject, prevBuildConfig);
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

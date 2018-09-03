@@ -105,7 +105,6 @@ private:
 
   void loadFiles();
   void buildProjectMenu();
-  bool openProject(QString path, QString buildConfig);
   void clearGui();
 
 private slots:
@@ -146,6 +145,8 @@ protected:
 public:
   MainWindow(Analysis *analysis);
   ~MainWindow();
+
+  bool openProject(QString path, QString buildConfig);
 
   void resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);

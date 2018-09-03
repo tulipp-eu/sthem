@@ -57,9 +57,9 @@ public:
   bool openProject(QString path, QString buildConfig);
   bool createProject(QString path);
   void closeProject();
-  void loadProfFile(QString path);
+  bool loadProfFile(QString path);
   void load();
-  void clean();
+  bool clean();
 };
 
 #endif

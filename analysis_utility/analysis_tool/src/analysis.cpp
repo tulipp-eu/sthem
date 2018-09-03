@@ -167,13 +167,14 @@ void Analysis::closeProject() {
   profile = NULL;
 }
 
-void Analysis::loadProfFile(QString path) {
-  project->parseProfFile(path, profile);
+bool Analysis::loadProfFile(QString path) {
+  return project->parseProfFile(path, profile);
 }
 
-void Analysis::clean() {
-  project->clean();
+bool Analysis::clean() {
+  if(!project->clean()) return false;
   if(dse) dse->clear();
   if(profile) profile->clean();
+  return true;
 }
 

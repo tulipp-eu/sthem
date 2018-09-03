@@ -106,7 +106,7 @@ public:
   void close();
   void clear();
 
-  void clean();
+  bool clean();
 
   virtual void print();
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
@@ -115,7 +115,7 @@ public:
     return name + ".elf";
   }
 
-  void parseProfFile(QString fileName, Profile *profile);
+  bool parseProfFile(QString fileName, Profile *profile);
 
   void loadFiles();
   void loadXmlFile(const QString &fileName);
@@ -130,10 +130,10 @@ public:
   virtual bool isSdSocProject() { return false; }
 
 public slots:
-  void makeXml();
-  virtual void makeBin();
-  void runProfiler();
-  void runApp();
+  bool makeXml();
+  virtual bool makeBin();
+  bool runProfiler();
+  bool runApp();
 
 signals:
   void advance(int step, QString msg);

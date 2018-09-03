@@ -35,13 +35,107 @@ int main(int argc, char *argv[]) {
   app.setOrganizationDomain(ORG_DOMAIN);
   app.setApplicationName(APP_NAME);
 
+  QCommandLineParser parser;
+  parser.setApplicationDescription("Analysis Tool");
+  parser.addHelpOption();
+  parser.addVersionOption();
+
+  QCommandLineOption batchOption("batch", QCoreApplication::translate("main", "Batch mode"));
+  parser.addOption(batchOption);
+  QCommandLineOption runOption("run", QCoreApplication::translate("main", "Run Application"));
+  parser.addOption(runOption);
+  QCommandLineOption profileOption("profile", QCoreApplication::translate("main", "Profile Application"));
+  parser.addOption(profileOption);
+  QCommandLineOption buildOption("build", QCoreApplication::translate("main", "Build Application"));
+  parser.addOption(buildOption);
+  QCommandLineOption cleanOption("clean", QCoreApplication::translate("main", "Clean Application"));
+  parser.addOption(cleanOption);
+
+  QCommandLineOption projectOption(QStringList() << "project",
+                                   QCoreApplication::translate("main", "Open project"),
+                                   QCoreApplication::translate("main", "project"));
+  parser.addOption(projectOption);
+
+  QCommandLineOption buildConfigOption(QStringList() << "build-option",
+                                   QCoreApplication::translate("main", "Build Option"),
+                                   QCoreApplication::translate("main", "build-option"));
+  parser.addOption(buildConfigOption);
+
+  QCommandLineOption loadProfileOption(QStringList() << "load-profile",
+                                   QCoreApplication::translate("main", "Load profile"),
+                                   QCoreApplication::translate("main", "file"));
+  parser.addOption(loadProfileOption);
+
+  parser.process(app);
+
+  QSettings settings;
+  QString project = settings.value("currentProject", "").toString();
+  QString buildConfig = settings.value("currentBuildConfig", "").toString();
+
   Analysis analysis;
-  MainWindow *mainWin;
 
-  mainWin = new MainWindow(&analysis);
-  mainWin->show();
+  if(parser.isSet(projectOption)) {
+    project = parser.value(projectOption);
+  }
 
-  return app.exec();
+  if(parser.isSet(buildConfigOption)) {
+    buildConfig = parser.value(buildConfigOption);
+  }
+
+  if(parser.isSet(batchOption)) {
+    if(!analysis.openProject(project, buildConfig)) {
+      printf("Can't open project\n");
+      return -1;
+    }
+
+    if(parser.isSet(cleanOption)) {
+      printf("Cleaning application\n");
+      if(!analysis.clean()) {
+        printf("Can't clean project\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(buildOption)) {
+      printf("Building application\n");
+      if(!analysis.project->makeBin()) {
+        printf("Can't build project\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(loadProfileOption)) {
+      printf("Loading profile\n");
+      if(!analysis.loadProfFile(parser.value(loadProfileOption))) {
+        printf("Can't load profile\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(runOption)) {
+      printf("Running application\n");
+      if(!analysis.project->runApp()) {
+        printf("Can't run application\n");
+        return -1;
+      }
+    } else if(parser.isSet(profileOption)) {
+      printf("Profiling application\n");
+      if(!analysis.project->runProfiler()) {
+        printf("Can't run profiler\n");
+      }
+    }
+
+  } else {
+    MainWindow *mainWin = new MainWindow(&analysis);
+    mainWin->show();
+
+    // open project
+    if(project != "") {
+      mainWin->openProject(project, buildConfig);
+    }
+
+    return app.exec();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
