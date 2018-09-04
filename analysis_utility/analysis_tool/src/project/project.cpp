@@ -269,6 +269,7 @@ void Project::loadProjectFile() {
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
   useCustomElf = settings.value("useCustomElf", false).toBool();
   samplePc = settings.value("samplePc", true).toBool();
+  useBp = settings.value("useBp", true).toBool();
   samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
   samplePeriod = settings.value("samplePeriod", 0).toLongLong();
   customElfFile = settings.value("customElfFile", "").toString();
@@ -311,6 +312,7 @@ void Project::saveProjectFile() {
   settings.setValue("useCustomElf", useCustomElf);
   settings.setValue("customElfFile", customElfFile);
   settings.setValue("samplePc", samplePc);
+  settings.setValue("useBp", useBp);
   settings.setValue("samplingModeGpio", samplingModeGpio);
   settings.setValue("samplePeriod", (qint64)samplePeriod);
   settings.setValue("startFunc", startFunc);
@@ -775,25 +777,30 @@ bool Project::runProfiler() {
     return false;
   }
 
-  emit advance(0, "Uploading binary");
+  if(!useBp) {
+    emit advance(0, "Skipping upload");
 
-  // upload binaries
-  QFile tclFile("temp-pmu-prof.tcl");
-  bool success = tclFile.open(QIODevice::WriteOnly);
-  Q_UNUSED(success);
-  assert(success);
+  } else {
+    emit advance(0, "Uploading binary");
 
-  QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
+    // upload binaries
+    QFile tclFile("temp-pmu-prof.tcl");
+    bool success = tclFile.open(QIODevice::WriteOnly);
+    Q_UNUSED(success);
+    assert(success);
+
+    QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
       
-  tclFile.write(tcl.toUtf8());
+    tclFile.write(tcl.toUtf8());
 
-  tclFile.close();
+    tclFile.close();
 
-  int ret = system("xsct temp-pmu-prof.tcl");
-  if(ret) {
-    emit finished(1, "Can't upload binaries");
-    pmu.release();
-    return false;
+    int ret = system("xsct temp-pmu-prof.tcl");
+    if(ret) {
+      emit finished(1, "Can't upload binaries");
+      pmu.release();
+      return false;
+    }
   }
 
   uint64_t samples;
@@ -807,8 +814,17 @@ bool Project::runProfiler() {
   // // collect samples
   {
     emit advance(1, "Collecting samples");
-    pmu.collectSamples(samplePc, samplingModeGpio,
-                       samplePeriod, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc),
+
+    uint64_t startAddr = 0;
+    uint64_t stopAddr = 0;
+
+    if(useBp) {
+      startAddr = elfSupport.lookupSymbol(startFunc);
+      stopAddr = elfSupport.lookupSymbol(stopFunc);
+    }
+
+    pmu.collectSamples(useBp, samplePc, samplingModeGpio,
+                       samplePeriod, startCore, startAddr, stopCore, stopAddr,
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }
 

@@ -43,6 +43,7 @@
 volatile bool sampleMode;
 volatile bool samplePc;
 volatile bool gpioMode;
+volatile bool useBp;
 volatile int64_t sampleStop;
 
 volatile uint32_t lastLowWord = 0;
@@ -293,7 +294,7 @@ int main(void) {
       bool send = !gpioMode;
 
       if(gpioMode && !GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
-        if(samplePc) {
+        if(samplePc && useBp) {
           halted = coreHalted();
         } else {
           halted = currentTime >= sampleStop;
@@ -307,6 +308,9 @@ int main(void) {
         adcScan(samplePtr->current);
         if(samplePc) {
           halted = coreReadPcsrFast(samplePtr->pc);
+          if(!useBp) {
+            halted = currentTime >= sampleStop;
+          }
         } else {
           for(int i = 0; i < 4; i++) {
             samplePtr->pc[i] = 0;

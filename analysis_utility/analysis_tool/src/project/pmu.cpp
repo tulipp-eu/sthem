@@ -217,43 +217,50 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   }
 }
 
-void Pmu::collectSamples(bool samplePc, bool samplingModeGpio,
+void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
                          int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
-  printf("Setting BP %lx on core %d and BP %lx on core %d\n", startAddr, startCore, stopAddr, stopCore);
-
   {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
   }
 
-  {
-    struct BreakpointRequestPacket req;
-    req.request.cmd = USB_CMD_BREAKPOINT;
-    req.core = startCore;
-    req.bpType = BP_TYPE_START;
-    req.addr = startAddr;
+  if(useBp) {
+    printf("Setting BP %lx on core %d and BP %lx on core %d\n", startAddr, startCore, stopAddr, stopCore);
 
-    sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
-  }
+    {
+      struct BreakpointRequestPacket req;
+      req.request.cmd = USB_CMD_BREAKPOINT;
+      req.core = startCore;
+      req.bpType = BP_TYPE_START;
+      req.addr = startAddr;
 
-  {
-    struct BreakpointRequestPacket req;
-    req.request.cmd = USB_CMD_BREAKPOINT;
-    req.core = stopCore;
-    req.bpType = BP_TYPE_STOP;
-    req.addr = stopAddr;
+      sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+    }
 
-    sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+    {
+      struct BreakpointRequestPacket req;
+      req.request.cmd = USB_CMD_BREAKPOINT;
+      req.core = stopCore;
+      req.bpType = BP_TYPE_STOP;
+      req.addr = stopAddr;
+
+      sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+    }
   }
 
   if(swVersion <= SW_VERSION_1_1) {
     struct RequestPacket req;
     req.cmd = USB_CMD_START_SAMPLING;
-    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
     if(!samplePc) printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
+    if(!useBp) {
+      printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      return;
+    }
+    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
+
   } else if(swVersion == SW_VERSION_1_1) {
     struct StartSamplingRequestPacketV1_1 req;
     req.request.cmd = USB_CMD_START_SAMPLING;
@@ -262,16 +269,20 @@ void Pmu::collectSamples(bool samplePc, bool samplingModeGpio,
     } else {
       req.samplePeriod = samplePeriod;
     }
+    if(samplingModeGpio) {
+      printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
+    }
+    if(!useBp) {
+      printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      return;
+    }
     sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacketV1_1));
+
   } else {
     struct StartSamplingRequestPacket req;
     req.request.cmd = USB_CMD_START_SAMPLING;
-    if(samplePc) {
-      req.samplePeriod = 0;
-    } else {
-      req.samplePeriod = samplePeriod;
-    }
-    req.flags = samplingModeGpio;
+    req.samplePeriod = samplePeriod;
+    req.flags = (samplePc ? SAMPLING_FLAG_SAMPLE_PC : 0) | (samplingModeGpio ? SAMPLING_FLAG_GPIO : 0) | (useBp ? SAMPLING_FLAG_BP : 0);
     sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacket));
   }
 

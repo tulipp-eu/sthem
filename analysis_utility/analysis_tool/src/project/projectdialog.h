@@ -79,6 +79,7 @@ public:
   QCheckBox *customElfCheckBox;
   QLineEdit *customElfEdit;
   QCheckBox *samplePcCheckBox;
+  QCheckBox *useBpCheckBox;
   QCheckBox *samplingModeGpioCheckBox;
   QLineEdit *samplePeriodEdit;
 

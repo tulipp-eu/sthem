@@ -73,6 +73,7 @@ public:
   bool createBbInfo;
   bool useCustomElf;
   bool samplePc;
+  bool useBp;
   bool samplingModeGpio;
   int64_t samplePeriod;
 

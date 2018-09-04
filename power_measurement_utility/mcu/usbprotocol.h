@@ -61,8 +61,9 @@
 #define FPGA_CONFIGURE_FAILED 1
 #define FPGA_SPI_FAILED       2
 
-#define SAMPLING_MODE_NORMAL  0
-#define SAMPLING_MODE_GPIO    1
+#define SAMPLING_FLAG_SAMPLE_PC 1
+#define SAMPLING_FLAG_BP        2
+#define SAMPLING_FLAG_GPIO      4
 
 ///////////////////////////////////////////////////////////////////////////////
 
