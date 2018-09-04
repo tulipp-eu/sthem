@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
   app.setOrganizationName(ORG_NAME);
   app.setOrganizationDomain(ORG_DOMAIN);
   app.setApplicationName(APP_NAME);
+  app.setApplicationVersion(QString("V") + QString::number(VERSION));
 
   QCommandLineParser parser;
   parser.setApplicationDescription("Analysis Tool");

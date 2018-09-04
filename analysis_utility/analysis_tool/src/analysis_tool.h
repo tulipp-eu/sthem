@@ -29,7 +29,7 @@
 #define APP_NAME   "Analysis Tool"
 #define ORG_NAME   "TULIPP"
 #define ORG_DOMAIN "ntnu.no"
-#define VERSION    1
+#define VERSION    1.2
 
 ///////////////////////////////////////////////////////////////////////////////
 // XML defines
