@@ -40,8 +40,6 @@ int main(int argc, char *argv[]) {
   parser.addHelpOption();
   parser.addVersionOption();
 
-  QCommandLineOption batchOption("batch", QCoreApplication::translate("main", "Batch mode"));
-  parser.addOption(batchOption);
   QCommandLineOption runOption("run", QCoreApplication::translate("main", "Run Application"));
   parser.addOption(runOption);
   QCommandLineOption profileOption("profile", QCoreApplication::translate("main", "Profile Application"));
@@ -56,9 +54,9 @@ int main(int argc, char *argv[]) {
                                    QCoreApplication::translate("main", "project"));
   parser.addOption(projectOption);
 
-  QCommandLineOption buildConfigOption(QStringList() << "build-option",
-                                   QCoreApplication::translate("main", "Build Option"),
-                                   QCoreApplication::translate("main", "build-option"));
+  QCommandLineOption buildConfigOption(QStringList() << "build-config",
+                                   QCoreApplication::translate("main", "Build config"),
+                                   QCoreApplication::translate("main", "config"));
   parser.addOption(buildConfigOption);
 
   QCommandLineOption loadProfileOption(QStringList() << "load-profile",
@@ -82,7 +80,14 @@ int main(int argc, char *argv[]) {
     buildConfig = parser.value(buildConfigOption);
   }
 
-  if(parser.isSet(batchOption)) {
+  bool batch =
+    parser.isSet(cleanOption) || 
+    parser.isSet(buildOption) || 
+    parser.isSet(loadProfileOption) || 
+    parser.isSet(runOption) || 
+    parser.isSet(profileOption);
+
+  if(batch) {
     if(!analysis.openProject(project, buildConfig)) {
       printf("Can't open project\n");
       return -1;
