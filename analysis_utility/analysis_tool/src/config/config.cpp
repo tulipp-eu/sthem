@@ -41,3 +41,4 @@ unsigned Config::core;
 unsigned Config::sensor;
 unsigned Config::window;
 unsigned Config::sdsocVersion;
+QString Config::extraCompileOptions;

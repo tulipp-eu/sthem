@@ -64,6 +64,11 @@ int main(int argc, char *argv[]) {
                                    QCoreApplication::translate("main", "file"));
   parser.addOption(loadProfileOption);
 
+  QCommandLineOption cflagsOption(QStringList() << "compile-flags",
+                                   QCoreApplication::translate("main", "Extra compile flags"),
+                                   QCoreApplication::translate("main", "flags"));
+  parser.addOption(cflagsOption);
+
   parser.process(app);
 
   QSettings settings;
@@ -78,6 +83,10 @@ int main(int argc, char *argv[]) {
 
   if(parser.isSet(buildConfigOption)) {
     buildConfig = parser.value(buildConfigOption);
+  }
+
+  if(parser.isSet(cflagsOption)) {
+    Config::extraCompileOptions = parser.value(cflagsOption);
   }
 
   bool batch =
@@ -132,12 +141,13 @@ int main(int argc, char *argv[]) {
 
   } else {
     MainWindow *mainWin = new MainWindow(&analysis);
-    mainWin->show();
 
     // open project
     if(project != "") {
       mainWin->openProject(project, buildConfig);
     }
+
+    mainWin->show();
 
     return app.exec();
   }

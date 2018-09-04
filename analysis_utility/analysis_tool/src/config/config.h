@@ -88,6 +88,7 @@ public:
   static unsigned sensor;
   static unsigned window;
   static unsigned sdsocVersion;
+  static QString extraCompileOptions;
 };
 
 #endif

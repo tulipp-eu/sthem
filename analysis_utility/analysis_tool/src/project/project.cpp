@@ -61,6 +61,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     options << QString("-I") + this->path + "/src";
 
     options << opt.split(' ');
+    options << Config::extraCompileOptions.split(' ');
 
     if(cfgOptLevel >= 0) {
       options << QString("-O") + QString::number(cfgOptLevel);

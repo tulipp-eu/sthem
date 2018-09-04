@@ -110,6 +110,7 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
   options << QString("-I") + this->path + "/src";
 
   options << opt.split(' ');
+  options << Config::extraCompileOptions.split(' ');
 
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
 

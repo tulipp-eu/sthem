@@ -33,6 +33,7 @@ void CustomProject::writeCompileRule(QString compiler, QFile &makefile, QString 
   options << QString("-I") + this->path + "/src";
 
   options << opt.split(' ');
+  options << Config::extraCompileOptions.split(' ');
   options << clangTarget;
 
   makefile.write((fileInfo.completeBaseName() + ".o : " + path + "\n").toUtf8());
