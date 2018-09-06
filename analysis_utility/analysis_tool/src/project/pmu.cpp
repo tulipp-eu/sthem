@@ -221,7 +221,7 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
                          int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
-  {
+  if(useBp || samplePc) {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));

@@ -602,6 +602,8 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlQuery query;
 
+  printf("elfFile: %s\n", elfFile.toUtf8().constData());
+
   ElfSupport elfSupport(elfFile);
   if(useCustomElf) {
     elfSupport = ElfSupport(customElfFile);
