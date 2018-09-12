@@ -139,6 +139,10 @@ bool Analysis::openProject(QString path, QString configType) {
     }
   }
 
+  if(project != NULL) {
+    load();
+  }
+
   return project != NULL;
 }
 
