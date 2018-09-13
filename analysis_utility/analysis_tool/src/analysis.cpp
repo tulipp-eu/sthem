@@ -182,3 +182,13 @@ bool Analysis::clean() {
   return true;
 }
 
+bool Analysis::runApp() {
+  return project->runApp();  
+}
+
+bool Analysis::profileApp() {
+  assert(profile);
+  profile->clean();
+  
+  return project->runProfiler();  
+}

@@ -129,13 +129,13 @@ int main(int argc, char *argv[]) {
 
     if(parser.isSet(runOption)) {
       printf("Running application\n");
-      if(!analysis.project->runApp()) {
+      if(!analysis.runApp()) {
         printf("Can't run application\n");
         return -1;
       }
     } else if(parser.isSet(profileOption)) {
       printf("Profiling application\n");
-      if(!analysis.project->runProfiler()) {
+      if(!analysis.profileApp()) {
         printf("Can't run profiler\n");
       }
     }

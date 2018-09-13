@@ -856,7 +856,8 @@ bool Project::runProfiler() {
                         " WHERE rowid = :rowid");
 
     while(query.next()) {
-      if((counter++ % 10000) == 0) printf("Processed %d samples...\n", counter);
+      if(counter && ((counter % 10000) == 0)) printf("Processed %d samples...\n", counter);
+      counter++;
 
       unsigned rowId = query.value("rowid").toUInt();
 
@@ -908,6 +909,8 @@ bool Project::runProfiler() {
       bool success = updateQuery.exec();
       assert(success);
     }
+
+    printf("Processed %d samples...\n", counter);
 
     QSqlDatabase::database().commit();
 

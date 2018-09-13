@@ -60,6 +60,8 @@ public:
   bool loadProfFile(QString path);
   void load();
   bool clean();
+  bool runApp();
+  bool profileApp();
 };
 
 #endif

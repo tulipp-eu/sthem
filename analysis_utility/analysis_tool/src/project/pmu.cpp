@@ -333,9 +333,10 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
       if(sample->time > *maxTime) *maxTime = sample->time;
 
       if(sample->time == -1) {
+        (*samples)--;
+        printf("Got %ld samples...\n", *samples);
         printf("Sampling done\n");
         done = true;
-        (*samples)--;
         break;
 
       } else {
