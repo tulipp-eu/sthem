@@ -10,10 +10,23 @@
 #include <xscugic.h>
 #include <xiicps.h>
 #include <xgpiops.h>
+#include <xil_cache.h>
+
+#include <sds_lib.h>
 
 #include <compatibility_layer.h>
 
 #include "profiler.h"
+
+#define ARMV8_PMCR_E            (1 << 0) /* Enable all counters */
+#define ARMV8_PMCR_P            (1 << 1) /* Reset all counters */
+#define ARMV8_PMCR_C            (1 << 2) /* Cycle counter reset */
+
+#define ARMV8_PMUSERENR_EN      (1 << 0) /* EL0 access enable */
+#define ARMV8_PMUSERENR_CR      (1 << 2) /* Cycle counter read enable */
+#define ARMV8_PMUSERENR_ER      (1 << 3) /* Event counter read enable */
+
+#define ARMV8_PMCNTENSET_EL0_EN (1 << 31) /* Performance Monitors Count Enable Set register */
 
 static XGpioPs Gpio;
 
@@ -50,6 +63,8 @@ static int bufSize;
 
 static volatile bool profilerActive;
 
+static unsigned numberOfInterrupts;
+
 static double pcSamplerPeriod;
 
 static bool iicReadData(uint8_t *recBuf, int size);
@@ -74,6 +89,8 @@ static void timerInterruptHandler(void *CallBackRef) {
         unknownCurrent += current;
         unknownTicks++;
       }
+
+      numberOfInterrupts++;
     }
   }
 }
@@ -195,19 +212,74 @@ static bool setupInterrupts(void) {
   return true;
 }
 
+uint64_t getCycleCounter(void) {
+  uint64_t result = 0;
+  asm volatile("mrs %0, pmccntr_el0" : "=r" (result));
+  return result;
+}
+
+uint64_t getCounter(unsigned i) {
+  uint64_t result = 0;
+  switch(i) {
+    case 0: asm volatile("mrs %0, pmevcntr0_el0" : "=r" (result)); break;
+    case 1: asm volatile("mrs %0, pmevcntr1_el0" : "=r" (result)); break;
+    case 2: asm volatile("mrs %0, pmevcntr2_el0" : "=r" (result)); break;
+    case 3: asm volatile("mrs %0, pmevcntr3_el0" : "=r" (result)); break;
+    case 4: asm volatile("mrs %0, pmevcntr4_el0" : "=r" (result)); break;
+    case 5: asm volatile("mrs %0, pmevcntr5_el0" : "=r" (result)); break;
+    default: result = -1; break;
+  }
+  return result;
+}
+
+void initPerfCounters(uint32_t pmuEvent0, uint32_t pmuEvent1, uint32_t pmuEvent2, uint32_t pmuEvent3, uint32_t pmuEvent4, uint32_t pmuEvent5) {
+  // setup performance counters
+  uint32_t value = 0;
+
+  /* Enable Performance Counter */
+  asm volatile("mrs %0, pmcr_el0" : "=r" (value));
+  value |= ARMV8_PMCR_E; /* Enable */
+  value |= ARMV8_PMCR_C; /* Cycle counter reset */
+  value |= ARMV8_PMCR_P; /* Reset all counters */
+  asm volatile("MSR PMCR_EL0, %0" : : "r" (value));
+
+  /* Enable cycle counter register */
+  asm volatile("mrs %0, pmcntenset_el0" : "=r" (value));
+  value |= ARMV8_PMCNTENSET_EL0_EN;
+  asm volatile("msr pmcntenset_el0, %0" : : "r" (value));
+
+  /* Enable event counter register */
+  asm volatile("isb");
+
+  asm volatile("msr pmevtyper0_el0, %0" : : "r" (pmuEvent0));
+  asm volatile("msr pmevtyper1_el0, %0" : : "r" (pmuEvent1));
+  asm volatile("msr pmevtyper2_el0, %0" : : "r" (pmuEvent2));
+  asm volatile("msr pmevtyper3_el0, %0" : : "r" (pmuEvent3));
+  asm volatile("msr pmevtyper4_el0, %0" : : "r" (pmuEvent4));
+  asm volatile("msr pmevtyper5_el0, %0" : : "r" (pmuEvent5));
+
+  /* enable counters */
+  uint32_t r = 0;
+  asm volatile("mrs %0, pmcntenset_el0" : "=r" (r));
+  asm volatile("msr pmcntenset_el0, %0" : : "r" (r|0x3f));
+}
+
 bool startProfiler(double period) {
-  XGpioPs_Config *ConfigPtr = XGpioPs_LookupConfig(GPIO_DEVICE_ID);
+  { // setup gpio
+    XGpioPs_Config *ConfigPtr = XGpioPs_LookupConfig(GPIO_DEVICE_ID);
 
-	int status = XGpioPs_CfgInitialize(&Gpio, ConfigPtr, ConfigPtr->BaseAddr);
-	if(status != XST_SUCCESS) {
-    printf("Can't initialize GPIO\n");
-		return false;
-	}
+    int status = XGpioPs_CfgInitialize(&Gpio, ConfigPtr, ConfigPtr->BaseAddr);
+    if(status != XST_SUCCESS) {
+      printf("Can't initialize GPIO\n");
+      return false;
+    }
 
-  XGpioPs_SetDirection(&Gpio, XGPIOPS_BANK3, 1);
-  XGpioPs_Write(&Gpio, XGPIOPS_BANK3, 0x0);
-	XGpioPs_SetOutputEnable(&Gpio, XGPIOPS_BANK3, 1);
+    XGpioPs_SetDirection(&Gpio, XGPIOPS_BANK3, 1);
+    XGpioPs_Write(&Gpio, XGPIOPS_BANK3, 0x0);
+    XGpioPs_SetOutputEnable(&Gpio, XGPIOPS_BANK3, 1);
+  }
 
+  // setup timer interrupt
   if(period > 0) {
     pcSamplerPeriod = period;
 
@@ -223,10 +295,12 @@ bool startProfiler(double period) {
 
         if(magic == 0xad) {
           bufSize = textSize/4;
-          currentBuf = calloc(bufSize, sizeof(uint64_t));
+          currentBuf = sds_alloc(bufSize * sizeof(uint64_t));
+          memset(currentBuf, 0, bufSize * sizeof(uint64_t));
 
           if(currentBuf) {
-            ticksBuf = calloc(bufSize, sizeof(uint64_t));
+            ticksBuf = sds_alloc(bufSize * sizeof(uint64_t));
+            memset(ticksBuf, 0, bufSize * sizeof(uint64_t));
 
             if(ticksBuf) {
               pcStart = textStart;
@@ -239,10 +313,13 @@ bool startProfiler(double period) {
                 iicReadData((uint8_t*)&current, 2);
               }
 
+              numberOfInterrupts = 0;
+
               if(setupTimer()) {
                 printf("PROFILER: Started, profiling between %p and %p\n", (void*)pcStart, (void*)textSize);
                 profilerActive = true;
                 return true;
+                
               } else printf("PROFILER: Can't init timer\n");
             } else printf("PROFILER: Can't allocate ticksBuffer\n");
           } else printf("PROFILER: Can't allocate currentBuffer\n");
@@ -257,15 +334,36 @@ bool startProfiler(double period) {
   return true;
 }
 
-void stopProfiler(void) {
+void disablePerfCounters(void) {
+  uint32_t value = 0;
+  uint32_t mask = 0;
+
+  /* Disable Performance Counter */
+  asm volatile("mrs %0, pmcr_el0" : "=r" (value));
+  mask = 0;
+  mask |= ARMV8_PMCR_E; /* Enable */
+  mask |= ARMV8_PMCR_C; /* Cycle counter reset */
+  mask |= ARMV8_PMCR_P; /* Reset all counters */
+  asm volatile("msr pmcr_el0, %0" : : "r" (value & ~mask));
+
+  /* Disable cycle counter register */
+  asm volatile("mrs %0, pmcntenset_el0" : "=r" (value));
+  mask = 0;
+  mask |= ARMV8_PMCNTENSET_EL0_EN;
+  asm volatile("msr pmcntenset_el0, %0" : : "r" (value & ~mask));
+}
+
+void stopProfiler(char *filename) {
   if(profilerActive) {
     Xil_ExceptionDisable();
 
-    FILE *fp = fopen("profile.pro", "w");
+    FILE *fp = fopen(filename, "w");
     if(fp == NULL) {
       printf("PROFILER: Can't open file\n");
       return;
     }
+
+    printf("PROFILER: Writing to file %s\n", filename);
 
     uint8_t core = 0;
     uint8_t sensor = 1;
