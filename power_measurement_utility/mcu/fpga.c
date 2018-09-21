@@ -334,9 +334,7 @@ bool fpgaInit(void) {
   // read magic
 
   uint8_t magic = readMagic();
-  if(magic == MAGIC) {
-    printf("Got FPGA magic number %x\n", magic);
-  } else {
+  if(magic != MAGIC) {
     printf("Got incorrect FPGA magic number '%x'\n", magic);
     initOk = FPGA_SPI_FAILED;
     return false;

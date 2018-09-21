@@ -43,7 +43,8 @@
 volatile bool sampleMode;
 volatile bool samplePc;
 volatile bool gpioMode;
-volatile bool useBp;
+volatile bool useStartBp;
+volatile bool useStopBp;
 volatile int64_t sampleStop;
 
 volatile uint32_t lastLowWord = 0;
@@ -239,8 +240,10 @@ int main(void) {
   CMU_ClockEnable(cmuClock_HFPER, true);
   CMU_ClockEnable(cmuClock_USB, true);
   CMU_ClockEnable(cmuClock_ADC0, true);
+#ifndef SWO
   CMU_ClockEnable(cmuClock_I2C0, true);
   CMU_ClockEnable(cmuClock_CORELE, true);
+#endif
 
   // setup LEDs
   GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
@@ -275,7 +278,6 @@ int main(void) {
   printf("Ready.\n");
 
   int samples = 0;
-  int64_t startTime = 0;
 
   unsigned currentSample = 0;
 
@@ -294,7 +296,7 @@ int main(void) {
       bool send = !gpioMode;
 
       if(gpioMode && !GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
-        if(samplePc && useBp) {
+        if(useStopBp) {
           halted = coreHalted();
         } else {
           halted = currentTime >= sampleStop;
@@ -308,15 +310,16 @@ int main(void) {
         adcScan(samplePtr->current);
         if(samplePc) {
           halted = coreReadPcsrFast(samplePtr->pc);
-          if(!useBp) {
-            halted = currentTime >= sampleStop;
-          }
         } else {
           for(int i = 0; i < 4; i++) {
             samplePtr->pc[i] = 0;
-            halted = currentTime >= sampleStop;
           }
         }
+
+        if(!useStopBp) {
+          halted = currentTime >= sampleStop;
+        }
+
         adcScanWait();
 
 #ifndef SWO
@@ -332,12 +335,17 @@ int main(void) {
 #endif
         samplePtr->time = -1;
         sampleMode = false;
+
+        if(useStopBp) {
+          coreClearBp(stopCore, STOP_BP);
+          coresResume();
+        }
+
         jtagExt();
 
         clearLed(0);
 
-        double totalTime = (currentTime - startTime) / CLOCK_FREQ;
-        printf("Exiting sample mode, %d samples (%d per second)\n", samples, (unsigned)(samples/totalTime));
+        printf("Exiting sample mode, %d samples\n", samples);
 
         samples = 0;
       }
@@ -375,7 +383,9 @@ int main(void) {
 
 int64_t calculateTime() {
   uint32_t lowWord = DWT->CYCCNT;
+  __disable_irq();
   if(lowWord < lastLowWord) highWord++;
   lastLowWord = lowWord;
+  __enable_irq();
   return ((uint64_t)highWord << 32) | lowWord;
 }

@@ -33,9 +33,6 @@
 #include "fpga.h"
 #include "usbprotocol.h"
 
-#define START_BP 0
-#define STOP_BP  1
-
 ///////////////////////////////////////////////////////////////////////////////
 
 uint8_t startCore;
@@ -143,13 +140,14 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
         samplePc = startSamplingReq->flags & SAMPLING_FLAG_SAMPLE_PC;
         gpioMode = startSamplingReq->flags & SAMPLING_FLAG_GPIO;
-        useBp = startSamplingReq->flags & SAMPLING_FLAG_BP;
+        useStartBp = startSamplingReq->flags & SAMPLING_FLAG_BP;
+        useStopBp = !(startSamplingReq->flags & SAMPLING_FLAG_PERIOD);
 
         printf("Starting sample mode (%llx)\n", startSamplingReq->flags);
 
         setLed(0);
 
-        if(useBp) {
+        if(useStartBp) {
           // run until first bp
           coresResume();
 

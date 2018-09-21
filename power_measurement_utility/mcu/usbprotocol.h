@@ -64,6 +64,7 @@
 #define SAMPLING_FLAG_SAMPLE_PC 1
 #define SAMPLING_FLAG_BP        2
 #define SAMPLING_FLAG_GPIO      4
+#define SAMPLING_FLAG_PERIOD    8
 
 ///////////////////////////////////////////////////////////////////////////////
 
