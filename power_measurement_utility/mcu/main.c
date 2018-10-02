@@ -285,11 +285,10 @@ int main(void) {
 
   // main loop
   while(true) {
-    int64_t currentTime = calculateTime();
-
-    struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
-
     if(sampleMode) {
+      int64_t currentTime = calculateTime();
+      struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
+
       bool halted = false;
 
 #ifndef SWO
@@ -297,7 +296,7 @@ int main(void) {
 
       if(gpioMode && !GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
         if(useStopBp) {
-          halted = coreHalted();
+          halted = coreHalted(stopCore);
         } else {
           halted = currentTime >= sampleStop;
         }

@@ -374,7 +374,7 @@ bool coreReadPcsrFast(uint64_t *pcs) {
   }
 
   if(zynqUltrascale) {
-    return coreHalted();
+    return coreHalted(stopCore);
   } else {
     return pcs[0] == 0xffffffff;
   }

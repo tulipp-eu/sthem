@@ -148,11 +148,11 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         setLed(0);
 
         if(useStartBp) {
-          // run until first bp
+          // run until start bp
           coresResume();
 
-          // wait until we reach bp
-          while(!coreHalted());
+          // wait until we reach start bp
+          while(!coreHalted(startCore));
 
           // sampling starts here
           sampleMode = true;

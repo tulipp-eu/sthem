@@ -600,7 +600,7 @@ bool coreReadPcsrFast(uint64_t *pcs) {
   }
 
   if(zynqUltrascale) {
-    return coreHalted();
+    return coreHalted(stopCore);
   } else {
     return pcs[0] == 0xffffffff;
   }
@@ -665,6 +665,9 @@ bool coreReadPcsrFast(uint64_t *pcs) {
         } else {
           pcs[i] = calcOffset(dbgpcsr);
         }
+
+        core++;
+
       } else {
         pcs[i] = 0;
       }
