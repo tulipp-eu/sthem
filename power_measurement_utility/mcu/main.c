@@ -55,15 +55,19 @@ static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned
 
 #ifndef SWO
 
-#define I2C_NO_CMD       0
-#define I2C_MAGIC        1
-#define I2C_READ_CURRENT 2
+#define I2C_NO_CMD               0
+#define I2C_MAGIC                1
+#define I2C_READ_CURRENT_AVG     2
+#define I2C_READ_CURRENT_INSTANT 3
+#define I2C_GET_CAL              4
 
 static uint8_t i2cCommand;
 static uint8_t i2cSensors;
 
 static int16_t i2cCurrent[7];
 static int16_t i2cCurrentAvg[7];
+static int16_t i2cCurrentInstant[7];
+static double i2cCalData[7];
 static uint8_t *i2cSendBufPtr;
 
 static int i2cIdx;
@@ -147,7 +151,8 @@ void i2cInit(void) {
 void i2cSendData(void) {
   switch(i2cCommand) {
 
-    case I2C_READ_CURRENT:
+    case I2C_READ_CURRENT_AVG:
+    case I2C_READ_CURRENT_INSTANT:
       while(!(i2cSensors & (1 << (i2cIdx/2))) && (i2cIdx < 14)) {
         i2cIdx += 2;
       }
@@ -161,6 +166,11 @@ void i2cSendData(void) {
 
     case I2C_MAGIC:
       I2C0->TXDATA = 0xad;
+      break;
+
+    case I2C_GET_CAL:
+      I2C0->TXDATA = i2cSendBufPtr[i2cIdx++];
+      break;
 
     default:
     case I2C_NO_CMD:
@@ -182,7 +192,8 @@ void I2C0_IRQHandler(void) {
     i2cIdx = 0;
 
     if(addr & 1) {
-      if(i2cCommand == I2C_READ_CURRENT) {
+
+      if(i2cCommand == I2C_READ_CURRENT_AVG) {
         for(int i = 0; i < 7; i++) {
           i2cCurrentAvg[i] = i2cCurrentAcc[i] / i2cSamplesSinceLast[i];
           i2cCurrentAcc[i] = 0;
@@ -190,7 +201,14 @@ void I2C0_IRQHandler(void) {
         }
 
         i2cSendBufPtr = (uint8_t*)i2cCurrentAvg;
+
+      } else if(i2cCommand == I2C_READ_CURRENT_INSTANT) {
+        i2cSendBufPtr = (uint8_t*)i2cCurrentInstant;
+
+      } else if(i2cCommand == I2C_GET_CAL) {
+        i2cSendBufPtr = (uint8_t*)i2cCalData;
       }
+
       i2cSendData();
     }
 
@@ -203,7 +221,8 @@ void I2C0_IRQHandler(void) {
         i2cCommand = I2C0->RXDATA;
         break;
       case 1:
-        if(i2cCommand == I2C_READ_CURRENT) i2cSensors = I2C0->RXDATA;
+        if(i2cCommand == I2C_READ_CURRENT_AVG) i2cSensors = I2C0->RXDATA;
+        if(i2cCommand == I2C_READ_CURRENT_INSTANT) i2cSensors = I2C0->RXDATA;
         break;
       default:
         I2C0->RXDATA;
@@ -270,6 +289,14 @@ int main(void) {
   GPIO_PinModeSet(TRIGGER_IN_PORT, TRIGGER_IN_BIT, gpioModeInput, 0);
   while(DWT->CYCCNT < BOOT_DELAY);
   i2cInit();
+
+  i2cCalData[0] = getDouble("cal0");
+  i2cCalData[1] = getDouble("cal1");
+  i2cCalData[2] = getDouble("cal2");
+  i2cCalData[3] = getDouble("cal3");
+  i2cCalData[4] = getDouble("cal4");
+  i2cCalData[5] = getDouble("cal5");
+  i2cCalData[6] = getDouble("cal6");
 #endif
 
   clearLed(0);
@@ -373,6 +400,7 @@ int main(void) {
       for(int i = 0; i < 7; i++) {
         i2cCurrentAcc[i] += i2cCurrent[i];
         i2cSamplesSinceLast[i]++;
+        i2cCurrentInstant[i] = i2cCurrent[i];
       }
       __enable_irq();
 #endif      
