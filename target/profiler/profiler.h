@@ -1,6 +1,9 @@
 #ifndef PROFILER_H
 #define PROFILER_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 // PMU events that can be counted by the Cortex A53 core
 
 #define PMU_EVENT_EXT_MEM_REQ 0xc0
@@ -67,7 +70,7 @@
 #define PMU_EVENT_SW_INCR 0x00 
 
 /** Start timer interrupt based profiler */
-bool startProfiler(double period);
+bool startProfiler(uint64_t textStart, uint64_t textSize, double period, bool dualCore);
 /** Stop timer interrupt based profiler and save profile to disk */
 void stopProfiler(char *filename);
 
