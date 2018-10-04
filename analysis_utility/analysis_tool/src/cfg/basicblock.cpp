@@ -104,12 +104,12 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
   height = yy;
 }
 
-void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
+void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count) {
   if(cachedRuntime == INT_MAX) {
     Profile *profile = getTop()->getProfile();
 
     if(profile) {
-      profile->getProfData(core, this, &cachedRuntime, cachedEnergy);
+      profile->getProfData(core, this, &cachedRuntime, cachedEnergy, &cachedCount);
 
       for(auto child : children) {
         Instruction *instr = dynamic_cast<Instruction*>(child);
@@ -124,8 +124,9 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
                 if(func->callers == 1) {
                   double runtimeChild;
                   double energyChild[Pmu::MAX_SENSORS];
+                  uint64_t countChild;
                   callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild);
+                  func->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
                   cachedRuntime += runtimeChild;
                   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
                     cachedEnergy[i] += energyChild[i];
@@ -148,6 +149,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] = 0;
       }
+      cachedCount = 0;
     }
   }
 
@@ -155,6 +157,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
   }
+  *count = cachedCount;
 }
 
 void BasicBlock::getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {

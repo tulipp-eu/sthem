@@ -101,7 +101,7 @@ void Analysis::load() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-bool Analysis::openProject(QString path, QString configType) {
+bool Analysis::openProject(QString path, QString configType, bool fast) {
   if(configType == "") {
     CustomProject *customProject = new CustomProject;
 
@@ -128,7 +128,7 @@ bool Analysis::openProject(QString path, QString configType) {
       return false;
     }
 
-    if(sdsocProject->openProject(path, configType)) {
+    if(sdsocProject->openProject(path, configType, fast)) {
       project = sdsocProject;
 
       dse = new Dse(sdsocProject);

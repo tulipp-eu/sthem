@@ -88,17 +88,19 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
 
   double runtimeTop;
   double powerTop[Pmu::MAX_SENSORS], energyTop[Pmu::MAX_SENSORS];
+  uint64_t countTop;
 
   double runtime;
   double power[Pmu::MAX_SENSORS], energy[Pmu::MAX_SENSORS];
+  uint64_t count;
 
-  visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop);
+  visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop, &countTop);
   if(runtimeTop) {
     powerTop[Config::sensor] = energyTop[Config::sensor] / runtimeTop;
   }
   else powerTop[Config::sensor] = 0;
 
-  getProfData(Config::core, callStack, &runtime, energy);
+  getProfData(Config::core, callStack, &runtime, energy, &count);
   runtime *= scaling;
   energy[Config::sensor] *= scaling;
   if(runtime) power[Config::sensor] = energy[Config::sensor] / runtime;
@@ -182,7 +184,11 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
     // create prof data text
     xx = TEXT_CLEARANCE;
     yy += TEXT_CLEARANCE;
-    text = new TextItem("Profile: " + QString::number(profData), getBaseItem());
+    if(isFunction()) {
+      text = new TextItem("Profile: " + QString::number(profData) + " Count: " + QString::number(count), getBaseItem());
+    } else {
+      text = new TextItem("Profile: " + QString::number(profData), getBaseItem());
+    }
     text->setPos(QPointF(xx, yy));
     text->setData(0, QVariant::fromValue((void*)this));
     text->setData(1, makeQVariant(callStack));

@@ -29,15 +29,19 @@ public:
   QString moduleId;
   QString funcId;
   QString bbId;
+  BasicBlock *bb;
+  uint64_t count;
 
   double runtime;
   double energy[LYNSYN_SENSORS];
 
-  Location(QString mid, QString fid, QString bid) {
+  Location(QString mid, QString fid, QString bid, BasicBlock *b) {
     moduleId = mid;
     funcId = fid;
     bbId = bid;
     runtime = 0;
+    bb = b;
+    count = 0;
     for(int i = 0; i < LYNSYN_SENSORS; i++) {
       energy[i] = 0;
     }

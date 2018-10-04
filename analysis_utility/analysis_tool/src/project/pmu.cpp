@@ -166,7 +166,7 @@ void Pmu::getBytes(uint8_t *bytes, int numBytes) {
   return;
 }
 
-int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
+bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived) {
   int transfered = 0;
   int ret = LIBUSB_ERROR_TIMEOUT;
 
@@ -178,10 +178,14 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
     }
   }
 
-  assert((transfered % numBytes) == 0);
-  assert(transfered);
+  *elementsReceived = transfered / numBytes;
 
-  return transfered / numBytes;
+  if(transfered % numBytes) {
+    printf("Warning: Incomplete USB transfer\n");
+    return false;
+  }
+
+  return true;
 }
 
 void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy) {
@@ -217,7 +221,7 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   }
 }
 
-void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
+void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio, bool usePeriod,
                          int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
@@ -228,8 +232,6 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
   }
 
   if(useBp) {
-    printf("Setting BP %lx on core %d and BP %lx on core %d\n", startAddr, startCore, stopAddr, stopCore);
-
     {
       struct BreakpointRequestPacket req;
       req.request.cmd = USB_CMD_BREAKPOINT;
@@ -240,7 +242,7 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
       sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
     }
 
-    {
+    if(!usePeriod) {
       struct BreakpointRequestPacket req;
       req.request.cmd = USB_CMD_BREAKPOINT;
       req.core = stopCore;
@@ -264,11 +266,7 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
   } else if(swVersion == SW_VERSION_1_1) {
     struct StartSamplingRequestPacketV1_1 req;
     req.request.cmd = USB_CMD_START_SAMPLING;
-    if(samplePc) {
-      req.samplePeriod = 0;
-    } else {
-      req.samplePeriod = samplePeriod;
-    }
+    req.samplePeriod = samplePeriod;
     if(samplingModeGpio) {
       printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
     }
@@ -282,7 +280,11 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
     struct StartSamplingRequestPacket req;
     req.request.cmd = USB_CMD_START_SAMPLING;
     req.samplePeriod = samplePeriod;
-    req.flags = (samplePc ? SAMPLING_FLAG_SAMPLE_PC : 0) | (samplingModeGpio ? SAMPLING_FLAG_GPIO : 0) | (useBp ? SAMPLING_FLAG_BP : 0);
+    req.flags =
+      (usePeriod ? SAMPLING_FLAG_PERIOD : 0) |
+      (samplePc ? SAMPLING_FLAG_SAMPLE_PC : 0) |
+      (samplingModeGpio ? SAMPLING_FLAG_GPIO : 0) |
+      (useBp ? SAMPLING_FLAG_BP : 0);
     sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacket));
   }
 
@@ -316,19 +318,26 @@ void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
       if((counter % 313) == 0) printf("Got %ld samples...\n", *samples);
     }
 
-    int n = 1;
+    unsigned n = 1;
 
     if(swVersion <= SW_VERSION_1_1) {
       getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
     } else {
-      n = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
+      bool transferOk = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket), &n);
+      if(!transferOk) {
+        printf("Warning: Incomplete USB transfer, stopping\n");
+        printf("Got %ld samples...\n", *samples);
+        printf("Sampling done\n");
+        done = true;
+        break;
+      }
     }
 
     *samples += n;
 
     SampleReplyPacket *sample = (SampleReplyPacket*)buf;
 
-    for(int i = 0; i < n; i++) {
+    for(unsigned i = 0; i < n; i++) {
       if(*minTime == 0) *minTime = sample->time;
       if(sample->time > *maxTime) *maxTime = sample->time;
 
@@ -373,4 +382,11 @@ double Pmu::currentToPower(unsigned sensor, double current) {
     }
   }
   return 0;
+}
+
+double Pmu::currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorCalibration) {
+  double v = (current * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
+  double vs = v / 20;
+  double i = vs / rl[sensor];
+  return i * supplyVoltage[sensor];
 }

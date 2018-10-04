@@ -52,7 +52,7 @@ private:
 
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
-  int getArray(uint8_t *bytes, int maxNum, int numBytes);
+  bool getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived);
   void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy);
 
 public:
@@ -75,8 +75,9 @@ public:
   void release();
 
   double currentToPower(unsigned sensor, double current);
+  static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorCalibration);
 
-  void collectSamples(bool useBp, bool samplePc, bool samplingModeGpio,
+  void collectSamples(bool useBp, bool samplePc, bool samplingModeGpio, bool usePeriod, 
                       int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                       uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                       double *runtime, double *energy);

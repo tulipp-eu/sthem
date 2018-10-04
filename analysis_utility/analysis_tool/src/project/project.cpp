@@ -295,6 +295,10 @@ void Project::loadProjectFile() {
       tcfUploadScript = settings.value("tcfUploadScript", DEFAULT_TCF_UPLOAD_SCRIPT).toString();
     }
   }
+
+  if(Config::overrideSamplePc) samplePc = true;
+  if(Config::overrideNoSamplePc) samplePc = false;
+  if(Config::overrideSamplePeriod) samplePeriod = Config::overrideSamplePeriod;
 }
 
 void Project::saveProjectFile() {
@@ -545,7 +549,15 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
     if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport->getLineNumber(pc)));
 
   } else {
-    func = cfg->getFunctionById(elfSupport->getFunction(pc));
+    QString functionId;
+
+    if(core != 0) {
+      functionId = QString("CPU") + QString::number(core) + "_" + elfSupport->getFunction(pc);
+    } else {
+      functionId = elfSupport->getFunction(pc);
+    }
+
+    func = cfg->getFunctionById(functionId);
 
     if(func) {
       // we don't know the BB, but the function exists in the CFG: add to first BB
@@ -555,12 +567,12 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
     } else {
       // the function does not exist in the CFG
       Module *mod = cfg->externalMod;
-      func = mod->getFunctionById(elfSupport->getFunction(pc));
+      func = mod->getFunctionById(functionId);
 
       if(func) {
         bb = static_cast<BasicBlock*>(func->children[0]);
       } else {
-        func = new Function(elfSupport->getFunction(pc), mod, mod->children.size());
+        func = new Function(functionId, mod, mod->children.size());
         mod->appendChild(func);
 
         bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
@@ -589,11 +601,11 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
     if(it != locations->end()) {
       location = it->second;
     } else {
-      location = new Location(modText, funcText, bbText);
+      location = new Location(modText, funcText, bbText, bb);
       (*locations)[bb] = location;
     }
   } else {
-    location = new Location(modText, funcText, bbText);
+    location = new Location(modText, funcText, bbText, bb);
   }
 
   return location;
@@ -602,19 +614,10 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlQuery query;
 
-  printf("elfFile: %s\n", elfFile.toUtf8().constData());
-
-  ElfSupport elfSupport(elfFile);
-  if(useCustomElf) {
-    elfSupport = ElfSupport(customElfFile);
-  }
-
-  bool pmuInited = pmu.init();
-  if(!pmuInited) {
-    QMessageBox msgBox;
-    msgBox.setText("Can't init PMU");
-    msgBox.exec();
-    return false;
+  ElfSupport elfSupport;
+  if(!useCustomElf) elfSupport.addElf(elfFile);
+  for(auto ef : customElfFile.split(',')) {
+    elfSupport.addElf(ef);
   }
 
   QFile file(fileName);
@@ -631,28 +634,34 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   unsigned core = 0;
   unsigned sensor = 0;
+  double calData[7];
   double period = 0;
   double unknownPower = 0;
   double unknownRuntime = 0;
+  uint64_t unknownCount = 0;
 
   file.read((char*)&core, sizeof(uint8_t));
   file.read((char*)&sensor, sizeof(uint8_t));
+  for(int i = 0; i < 7; i++) {
+    file.read((char*)&calData[i], sizeof(double));
+  }
   file.read((char*)&period, sizeof(double));
   file.read((char*)&unknownPower, sizeof(double));
   file.read((char*)&unknownRuntime, sizeof(double));
+  file.read((char*)&unknownCount, sizeof(uint64_t));
 
-  unknownPower = pmu.currentToPower(sensor, unknownPower);
-
-  printf("Core: %d Sensor: %d\n", core, sensor);
+  unknownPower = Pmu::currentToPower(sensor, unknownPower, pmu.rl, pmu.supplyVoltage, calData);
 
   QSqlDatabase::database().transaction();
 
   if((unknownPower != 0) || (unknownRuntime != 0)) {
     double energy[7] = {0, 0, 0, 0, 0, 0, 0};
-    energy[sensor] = unknownPower * unknownRuntime;
+    if(unknownRuntime) {
+      energy[sensor] = unknownPower * unknownRuntime;
+    }
 
-    query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                  "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+    query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count) "
+                  "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:count)");
 
     query.bindValue(":core", core);
     query.bindValue(":basicblock", "uknown-bb");
@@ -666,6 +675,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":energy5", energy[4]);
     query.bindValue(":energy6", energy[5]);
     query.bindValue(":energy7", energy[6]);
+    query.bindValue(":count", (qulonglong)unknownCount);
 
     bool success = query.exec();
     assert(success);
@@ -678,26 +688,33 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     uint64_t pc;
     double power;
     double runtime;
+    uint64_t count;
 
     file.read((char*)&pc, sizeof(uint64_t));
     file.read((char*)&power, sizeof(double));
     file.read((char*)&runtime, sizeof(double));
-
-    power = pmu.currentToPower(sensor, power);
+    file.read((char*)&count, sizeof(uint64_t));
 
     Location *location = getLocation(core, pc, &elfSupport, &locations);
-    location->energy[sensor] += power * runtime;
-    location->runtime += runtime;
 
-    totalEnergy[sensor] += power * runtime;
-    totalRuntime += runtime;
+    power = Pmu::currentToPower(sensor, power, pmu.rl, pmu.supplyVoltage, calData);
+
+    if(runtime) {
+      location->energy[sensor] += power * runtime;
+      location->runtime += runtime;
+
+      totalEnergy[sensor] += power * runtime;
+      totalRuntime += runtime;
+    }
+
+    location->count += count;
   }
 
   for(auto location : locations) {
     QSqlQuery query;
 
-    query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                  "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+    query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count) "
+                  "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:count)");
 
     query.bindValue(":core", core);
     query.bindValue(":basicblock", location.second->bbId);
@@ -711,6 +728,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":energy5", location.second->energy[4]);
     query.bindValue(":energy6", location.second->energy[5]);
     query.bindValue(":energy7", location.second->energy[6]);
+    query.bindValue(":count", (qulonglong)location.second->count);
 
     bool success = query.exec();
     assert(success);
@@ -761,16 +779,15 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   QSqlDatabase::database().commit();
 
-  pmu.release();
-
   return true;
 }
 
 bool Project::runProfiler() {
 
-  ElfSupport elfSupport(elfFile);
-  if(useCustomElf) {
-    elfSupport = ElfSupport(customElfFile);
+  ElfSupport elfSupport;
+  if(!useCustomElf) elfSupport.addElf(elfFile);
+  for(auto ef : customElfFile.split(',')) {
+    elfSupport.addElf(ef);
   }
 
   bool pmuInited = pmu.init();
@@ -825,7 +842,9 @@ bool Project::runProfiler() {
       stopAddr = elfSupport.lookupSymbol(stopFunc);
     }
 
-    pmu.collectSamples(useBp, samplePc, samplingModeGpio,
+    bool usePeriod = samplePeriod != 0;
+
+    pmu.collectSamples(useBp, samplePc, samplingModeGpio, usePeriod, 
                        samplePeriod, startCore, startAddr, stopCore, stopAddr,
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }

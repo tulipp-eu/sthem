@@ -350,7 +350,7 @@ public:
   //---------------------------------------------------------------------------
   // profiling data
 
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count) {
     *runtime = 0;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       energy[i] = 0;

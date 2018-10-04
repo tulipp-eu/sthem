@@ -43,7 +43,7 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS location (core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS location (core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL, count INT)");
   assert(success);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
@@ -122,14 +122,14 @@ void Profile::setMeasurements(QVector<Measurement> *measurements) {
   }
 }
 
-void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy) {
+void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, uint64_t *count) {
   QSqlQuery query;
   QString queryString;
 
   if(bb->getTop()->externalMod == bb->getModule()) {
     queryString =
       QString() +
-      "SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7" +
+      "SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getTop()->externalMod->id +
@@ -138,7 +138,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   } else {
     queryString =
       QString() +
-      "SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7" +
+      "SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getModule()->id +
@@ -156,6 +156,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
     energy[4] = query.value("energy5").toDouble();
     energy[5] = query.value("energy6").toDouble();
     energy[6] = query.value("energy7").toDouble();
+    *count = query.value("count").toULongLong();
 
   } else {
     *runtime = 0;
@@ -166,6 +167,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
     energy[4] = 0;
     energy[5] = 0;
     energy[6] = 0;
+    *count = 0;
   }
 }
 

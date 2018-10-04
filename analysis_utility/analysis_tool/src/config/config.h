@@ -89,6 +89,10 @@ public:
   static unsigned window;
   static unsigned sdsocVersion;
   static QString extraCompileOptions;
+  static QString projectDir;
+  static int64_t overrideSamplePeriod;
+  static bool overrideSamplePc;
+  static bool overrideNoSamplePc;
 };
 
 #endif

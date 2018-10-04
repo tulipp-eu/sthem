@@ -103,7 +103,7 @@ public:
     Vertex::clearColors();
   }
 
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy);
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count);
 
   virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements);
 

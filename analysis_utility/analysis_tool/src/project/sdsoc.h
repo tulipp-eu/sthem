@@ -64,7 +64,7 @@ public:
   Sdsoc() {}
   Sdsoc(Sdsoc *p);
 
-  bool openProject(QString path, QString configType);
+  bool openProject(QString path, QString configType, bool fast = false);
 
   bool makeBin() {
     bool ret = Project::makeBin();

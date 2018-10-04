@@ -51,7 +51,7 @@ public:
   virtual ~Profile();
 
   void setMeasurements(QVector<Measurement> *measurements);
-  void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy);
+  void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, uint64_t *count);
   void getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements);
 
   int64_t getCycles() const {
