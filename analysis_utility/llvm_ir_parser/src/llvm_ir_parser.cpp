@@ -109,9 +109,19 @@ void recreateDbInfo(Module *mod) {
   }
 }
 
+void instrumentFunctions(Module *mod) {
+  std::string moduleName = removeExtension(mod->getName().str());
+
+  for(auto &func : mod->functions()) {
+    if(!func.isIntrinsic() && func.getBasicBlockList().size() > 0) {
+      func.addFnAttr("instrument-function-entry-inlined", "__cyg_profile_func_enter");
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
   if (argc < 4) {
-    fprintf(stderr, "Usage: %s <input ir file> <-xml|-ll> <output file>\n", argv[0]);
+    fprintf(stderr, "Usage: %s <input ir file> <-xml|-ll> <output file> [--instrument]\n", argv[0]);
     exit(1);
   }
 
@@ -130,6 +140,7 @@ int main(int argc, char* argv[]) {
 
   } else if(!strncmp("-ll", argv[2], 3)) {
     recreateDbInfo(mod.get());
+    if(argc >= 5) instrumentFunctions(mod.get());
     printIR(mod.get(), argv[3]);
 
   } else {

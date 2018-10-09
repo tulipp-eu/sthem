@@ -25,25 +25,52 @@
 #include "pmu.h"
 
 class Location {
-public:
-  QString moduleId;
-  QString funcId;
-  QString bbId;
-  BasicBlock *bb;
-  uint64_t count;
 
-  double runtime;
-  double energy[LYNSYN_SENSORS];
-
-  Location(QString mid, QString fid, QString bid, BasicBlock *b) {
+private:
+  void init(QString mid, QString fid, QString bid, BasicBlock *b) {
     moduleId = mid;
     funcId = fid;
     bbId = bid;
     runtime = 0;
     bb = b;
-    count = 0;
     for(int i = 0; i < LYNSYN_SENSORS; i++) {
       energy[i] = 0;
+    }
+  }
+
+public:
+  static int idCounter;
+  int id;
+
+  QString moduleId;
+  QString funcId;
+  QString bbId;
+  BasicBlock *bb;
+
+  std::map<int,int> callers;
+
+  double runtime;
+  double energy[LYNSYN_SENSORS];
+
+  bool inDb;
+
+  Location(int id, QString mid, QString fid, QString bid, BasicBlock *b) {
+    this->id = id;
+    inDb = true;
+    init(mid, fid, bid, b);
+  }
+
+  Location(QString mid, QString fid, QString bid, BasicBlock *b) {
+    id = idCounter++;
+    inDb = false;
+    init(mid, fid, bid, b);
+  }
+
+  void addCaller(int caller, int count) {
+    if(callers.find(caller) != callers.end()) {
+      callers[caller] = callers[caller] + count;
+    } else {
+      callers[caller] = count;
     }
   }
 };

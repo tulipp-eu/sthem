@@ -42,6 +42,7 @@ private:
 
   void clear();
   void addMeasurement(Measurement measurement);
+  int getId(unsigned core, BasicBlock *bb);
 
 public:
   std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[Pmu::MAX_CORES];
@@ -53,6 +54,8 @@ public:
   void setMeasurements(QVector<Measurement> *measurements);
   void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, uint64_t *count);
   void getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements);
+
+  double getArcRatio(unsigned core, BasicBlock *bb, Function *func);
 
   int64_t getCycles() const {
     return cycles;

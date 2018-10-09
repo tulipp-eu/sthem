@@ -34,6 +34,22 @@
 #include "project.h"
 #include "location.h"
 
+struct gmonhdr {
+ uint64_t lpc; /* base pc address of sample buffer */
+ uint64_t hpc; /* max pc address of sampled buffer */
+ int32_t ncnt; /* size of sample buffer (plus this header) */
+ int32_t version; /* version number */
+ int32_t profrate; /* profiling clock rate */
+ int32_t core;
+ int32_t spare[2]; /* reserved */
+};
+
+struct rawarc {
+ uint64_t raw_frompc;
+ uint64_t raw_selfpc;
+ int64_t raw_count;
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // makefile creation
 
@@ -83,7 +99,25 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
   // _2.ll
   {
     makefile.write((fileInfo.completeBaseName() + "_2.ll : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
-    makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@\n\n").toUtf8());
+    if(instrument) {
+      makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@ --instrument\n\n").toUtf8());
+    } else {
+      makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@\n\n").toUtf8());
+    }
+  }
+
+  // _3.ll
+  {
+    QStringList options;
+    if(cppOptLevel >= 0) {
+      options << QString("-O") + QString::number(cppOptLevel);
+    } else {
+      options << QString("-Os");
+    }
+    if(instrument) options << QString("-post-inline-ee-instrument");
+
+    makefile.write((fileInfo.completeBaseName() + "_3.ll : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
+    makefile.write((QString("\t") + Config::opt + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
   // .s
@@ -96,7 +130,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     }
     options << QString(llcTarget).split(' ');
 
-    makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_3.ll\n").toUtf8());
     makefile.write((QString("\t") + Config::llc + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
@@ -146,6 +180,10 @@ bool Project::createXmlMakefile() {
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
   makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* __tulipp_test__.* .Xil\n\n").toUtf8());
+
+  makefile.write(QString(".PHONY : cleanbin\n").toUtf8());
+  makefile.write(QString("cleanbin :\n").toUtf8());
+  makefile.write(QString("\trm -rf *_2.ll *_3.ll *.s *.o *.elf __tulipp__.* __tulipp_test__.*\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -249,6 +287,14 @@ bool Project::clean() {
   return true;
 }
 
+bool Project::cleanBin() {
+  if(opened) {
+    createXmlMakefile();
+    errorCode = system("make cleanbin");
+  }
+  return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void Project::loadProjectFile() {
@@ -277,6 +323,7 @@ void Project::loadProjectFile() {
   startCore = settings.value("startCore", 0).toUInt();
   stopFunc = settings.value("stopFunc", "_exit").toString();
   stopCore = settings.value("stopCore", 0).toUInt();
+  instrument = settings.value("instrument", false).toBool();
 
   if(!isSdSocProject()) {
     ultrascale = settings.value("ultrascale", true).toBool();
@@ -323,6 +370,7 @@ void Project::saveProjectFile() {
   settings.setValue("startCore", startCore);
   settings.setValue("stopFunc", stopFunc);
   settings.setValue("stopCore", stopCore);
+  settings.setValue("instrument", instrument);
 
   settings.setValue("sources", sources);
   settings.setValue("cOptLevel", cOptLevel);
@@ -611,6 +659,112 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   return location;
 }
 
+void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations) {
+  QSqlQuery query;
+  query.exec("SELECT * FROM location WHERE core = " + QString::number(core));
+
+  while(query.next()) {
+    int id = query.value("id").toInt();
+    if(id >= Location::idCounter) Location::idCounter = id + 1;
+    QString modId = query.value("module").toString();
+    QString funcId = query.value("function").toString();
+    QString bbId = query.value("basicblock").toString();
+
+    Module *mod = cfg->getModuleById(modId);
+    assert(mod);
+    BasicBlock *bb = mod->getBasicBlockById(bbId);
+    assert(bb);
+
+    Location *location = new Location(id, modId, funcId, bbId, bb);
+    (*locations)[bb] = location;
+  }
+}
+
+bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile *profile) {
+  QSqlQuery query;
+
+  ElfSupport elfSupport;
+  elfSupport.addElf(elfFileName);
+
+  QFile file(gprofFileName);
+  if(!file.open(QIODevice::ReadOnly)) {
+    QMessageBox msgBox;
+    msgBox.setText("File not found");
+    msgBox.exec();
+    return false;
+  }
+
+  query.exec("DELETE FROM arc");
+
+  std::map<BasicBlock*,Location*> locations;
+
+  QSqlDatabase::database().transaction();
+
+  struct gmonhdr hdr;
+  file.read((char*)&hdr, sizeof(struct gmonhdr));
+
+  unsigned core = hdr.core;
+
+  getLocations(core, &locations);
+
+  while(!file.atEnd()) {
+    struct rawarc arc;
+    file.read((char*)&arc, sizeof(struct rawarc));
+
+    Location *from = getLocation(core, arc.raw_frompc-4, &elfSupport, &locations);
+    Location *self = getLocation(core, arc.raw_selfpc, &elfSupport, &locations);
+
+    self->addCaller(from->id, arc.raw_count);
+  }
+
+  for(auto location : locations) {
+    if(!location.second->inDb) {
+      QSqlQuery query;
+
+      query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
+                    "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+
+      query.bindValue(":id", location.second->id);
+      query.bindValue(":core", core);
+      query.bindValue(":basicblock", location.second->bbId);
+      query.bindValue(":function", location.second->funcId);
+      query.bindValue(":module", location.second->moduleId);
+      query.bindValue(":runtime", location.second->runtime);
+      query.bindValue(":energy1", location.second->energy[0]);
+      query.bindValue(":energy2", location.second->energy[1]);
+      query.bindValue(":energy3", location.second->energy[2]);
+      query.bindValue(":energy4", location.second->energy[3]);
+      query.bindValue(":energy5", location.second->energy[4]);
+      query.bindValue(":energy6", location.second->energy[5]);
+      query.bindValue(":energy7", location.second->energy[6]);
+
+      bool success = query.exec();
+      assert(success);
+    }
+
+    for(auto it : location.second->callers) {
+      QSqlQuery arcQuery;
+      int caller = it.first;
+      int count =  it.second;
+
+      arcQuery.prepare("INSERT INTO arc (fromid,selfid,num) VALUES (:fromid,:selfid,:num)");
+
+      arcQuery.bindValue(":fromid", caller);
+      arcQuery.bindValue(":selfid", location.second->id);
+      arcQuery.bindValue(":num", count);
+
+      bool success = arcQuery.exec();
+      assert(success);
+    }
+
+    delete location.second;
+  }
+
+  QSqlDatabase::database().commit();
+
+  return true;
+}
+
 bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlQuery query;
 
@@ -638,7 +792,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   double period = 0;
   double unknownPower = 0;
   double unknownRuntime = 0;
-  uint64_t unknownCount = 0;
+  uint32_t count = 0;
 
   file.read((char*)&core, sizeof(uint8_t));
   file.read((char*)&sensor, sizeof(uint8_t));
@@ -648,7 +802,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   file.read((char*)&period, sizeof(double));
   file.read((char*)&unknownPower, sizeof(double));
   file.read((char*)&unknownRuntime, sizeof(double));
-  file.read((char*)&unknownCount, sizeof(uint64_t));
+  file.read((char*)&count, sizeof(uint32_t));
 
   unknownPower = Pmu::currentToPower(sensor, unknownPower, pmu.rl, pmu.supplyVoltage, calData);
 
@@ -660,9 +814,10 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
       energy[sensor] = unknownPower * unknownRuntime;
     }
 
-    query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count) "
-                  "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:count)");
+    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
+                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
 
+    query.bindValue(":id", 0);
     query.bindValue(":core", core);
     query.bindValue(":basicblock", "uknown-bb");
     query.bindValue(":function", "Unknown");
@@ -675,7 +830,6 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":energy5", energy[4]);
     query.bindValue(":energy6", energy[5]);
     query.bindValue(":energy7", energy[6]);
-    query.bindValue(":count", (qulonglong)unknownCount);
 
     bool success = query.exec();
     assert(success);
@@ -684,16 +838,14 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   double totalRuntime = 0;
   double totalEnergy[7] = {0, 0, 0, 0, 0, 0, 0};
 
-  while(!file.atEnd()) {
+  for(uint32_t i = 0; i < count; i++) {
     uint64_t pc;
     double power;
     double runtime;
-    uint64_t count;
 
     file.read((char*)&pc, sizeof(uint64_t));
     file.read((char*)&power, sizeof(double));
     file.read((char*)&runtime, sizeof(double));
-    file.read((char*)&count, sizeof(uint64_t));
 
     Location *location = getLocation(core, pc, &elfSupport, &locations);
 
@@ -706,16 +858,15 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
       totalEnergy[sensor] += power * runtime;
       totalRuntime += runtime;
     }
-
-    location->count += count;
   }
 
   for(auto location : locations) {
     QSqlQuery query;
 
-    query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count) "
-                  "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:count)");
+    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
+                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
 
+    query.bindValue(":id", location.second->id);
     query.bindValue(":core", core);
     query.bindValue(":basicblock", location.second->bbId);
     query.bindValue(":function", location.second->funcId);
@@ -728,7 +879,6 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":energy5", location.second->energy[4]);
     query.bindValue(":energy6", location.second->energy[5]);
     query.bindValue(":energy7", location.second->energy[6]);
-    query.bindValue(":count", (qulonglong)location.second->count);
 
     bool success = query.exec();
     assert(success);

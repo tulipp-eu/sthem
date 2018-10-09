@@ -55,6 +55,7 @@ public:
   QComboBox *cppOptCombo;
   QLineEdit *cppOptionsEdit;
   QLineEdit *linkerOptionsEdit;
+  QCheckBox *instrumentCheckBox;
 
   ProjectBuildPage(Project *project, QWidget *parent = 0);
 };

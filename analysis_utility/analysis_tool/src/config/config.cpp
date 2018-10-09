@@ -28,6 +28,7 @@ bool Config::includeProfData;
 bool Config::includeId;
 QString Config::clang;
 QString Config::clangpp;
+QString Config::opt;
 QString Config::llc;
 QString Config::llvm_ir_parser;
 QString Config::tulipp_source_tool;

@@ -54,6 +54,7 @@ protected:
   virtual bool createMakefile() = 0;
   void copy(Project *p);
   Location *getLocation(unsigned core, uint64_t pc, ElfSupport *elfSupport, std::map<BasicBlock*,Location*> *locations);
+  void getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations);
 
 public:
   bool opened;
@@ -76,6 +77,7 @@ public:
   bool useBp;
   bool samplingModeGpio;
   int64_t samplePeriod;
+  bool instrument;
 
   // settings from either sdsoc project or user
   QStringList sources;
@@ -108,6 +110,7 @@ public:
   void clear();
 
   bool clean();
+  bool cleanBin();
 
   virtual void print();
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
@@ -117,6 +120,7 @@ public:
   }
 
   bool parseProfFile(QString fileName, Profile *profile);
+  bool parseGProfFile(QString gprofFileName, QString elfFileName, Profile *profile);
 
   void loadFiles();
   void loadXmlFile(const QString &fileName);

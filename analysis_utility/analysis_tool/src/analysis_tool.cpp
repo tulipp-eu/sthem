@@ -109,6 +109,11 @@ int main(int argc, char *argv[]) {
                                   QCoreApplication::translate("main", "cycles"));
   parser.addOption(periodOption);
 
+  QCommandLineOption dumpRoiOption(QStringList() << "dump-roi",
+                                  QCoreApplication::translate("main", "Dump ROI data"),
+                                  QCoreApplication::translate("main", "core,sensor"));
+  parser.addOption(dumpRoiOption);
+
   parser.process(app);
 
   QSettings settings;
@@ -156,6 +161,7 @@ int main(int argc, char *argv[]) {
     parser.isSet(buildOption) || 
     parser.isSet(loadProfileOption) || 
     parser.isSet(runOption) || 
+    parser.isSet(dumpRoiOption) || 
     parser.isSet(profileOption);
 
   bool compile =
@@ -204,6 +210,13 @@ int main(int argc, char *argv[]) {
         printf("Can't run profiler\n");
         return -1;
       }
+    }
+
+    if(parser.isSet(dumpRoiOption)) {
+      QStringList arg = parser.value(dumpRoiOption).split(',');
+      unsigned core = arg[0].toUInt();
+      unsigned sensor = arg[1].toUInt();
+      analysis.dump(core, sensor);
     }
 
     if(parser.isSet(getRuntimeOption)) {

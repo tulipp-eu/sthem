@@ -23,10 +23,12 @@
 #include "basicblock.h"
 
 BasicBlock *Function::getFirstBb() {
-  for(auto child : children) {
-    BasicBlock *bb = dynamic_cast<BasicBlock*>(child);
-    if(bb) return bb;
+  Vertex *vertex = entryNode->getEdge(0)->target;
+  BasicBlock *bb = dynamic_cast<BasicBlock*>(vertex);
+  while(!bb) {
+    vertex = vertex->getEdge(0)->target;
+    bb = dynamic_cast<BasicBlock*>(vertex);
   }
-  return NULL;
+  return bb;
 }
 

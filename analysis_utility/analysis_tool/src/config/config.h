@@ -75,6 +75,7 @@ public:
   static bool includeId;
   static QString clang;
   static QString clangpp;
+  static QString opt;
   static QString llc;
   static QString llvm_ir_parser;
   static QString tulipp_source_tool;

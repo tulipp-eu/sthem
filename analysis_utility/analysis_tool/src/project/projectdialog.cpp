@@ -79,6 +79,9 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
 
   QGroupBox *compGroup = new QGroupBox("Compiler Options");
 
+  instrumentCheckBox = new QCheckBox("Instrument");
+  instrumentCheckBox->setCheckState(project->instrument ? Qt::Checked : Qt::Unchecked);
+
   QLabel *optLabel = new QLabel("CFG view optimization level:");
 
   optCombo = new QComboBox;
@@ -102,6 +105,7 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
   createBbInfoCheckBox->setCheckState(project->createBbInfo ? Qt::Checked : Qt::Unchecked);
 
   QVBoxLayout *compLayout = new QVBoxLayout;
+  compLayout->addWidget(instrumentCheckBox);
   compLayout->addLayout(optLayout);
   compLayout->addWidget(createBbInfoCheckBox);
 
@@ -449,6 +453,8 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   } else {
     project->cfgOptLevel = buildPage->optCombo->currentIndex();
   }
+
+  project->instrument = buildPage->instrumentCheckBox->checkState() == Qt::Checked;
 
   project->createBbInfo = buildPage->createBbInfoCheckBox->checkState() == Qt::Checked;
 

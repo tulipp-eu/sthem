@@ -43,7 +43,10 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS location (core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL, count INT)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS location (id INTEGER PRIMARY KEY, core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
+  assert(success);
+
+  success = query.exec("CREATE TABLE IF NOT EXISTS arc (fromid INT, selfid INT, num INT)");
   assert(success);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
@@ -103,6 +106,7 @@ void Profile::clean() {
   QSqlQuery query = QSqlQuery(db);
   query.exec("DELETE FROM measurements");
   query.exec("DELETE FROM location");
+  query.exec("DELETE FROM arc");
   query.exec("DELETE FROM meta");
 
   cycles = 0;
@@ -129,7 +133,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   if(bb->getTop()->externalMod == bb->getModule()) {
     queryString =
       QString() +
-      "SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count" +
+      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getTop()->externalMod->id +
@@ -138,7 +142,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   } else {
     queryString =
       QString() +
-      "SELECT runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,count" +
+      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getModule()->id +
@@ -156,7 +160,16 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
     energy[4] = query.value("energy5").toDouble();
     energy[5] = query.value("energy6").toDouble();
     energy[6] = query.value("energy7").toDouble();
-    *count = query.value("count").toULongLong();
+
+    int id = query.value("id").toInt();
+
+    QSqlQuery countQuery;
+    countQuery.exec("SELECT sum(num) FROM arc WHERE selfid = " + QString::number(id));
+    if(countQuery.next()) {
+      *count = countQuery.value(0).toInt();
+    } else {
+      *count = 0; // todo
+    }
 
   } else {
     *runtime = 0;
@@ -169,6 +182,60 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
     energy[6] = 0;
     *count = 0;
   }
+}
+
+int Profile::getId(unsigned core, BasicBlock *bb) {
+  QSqlQuery query;
+  QString queryString;
+
+  if(bb->getTop()->externalMod == bb->getModule()) {
+    queryString =
+      QString() +
+      "SELECT id FROM location" +
+      " WHERE core = " + QString::number(core) +
+      " AND module = \"" + bb->getTop()->externalMod->id +
+      "\" AND function = \"" + bb->getFunction()->id + "\"";
+
+  } else {
+    queryString =
+      QString() +
+      "SELECT id FROM location" +
+      " WHERE core = " + QString::number(core) +
+      " AND module = \"" + bb->getModule()->id +
+      "\" AND basicblock = \"" + bb->id + "\"";
+  }
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toInt();
+  } else {
+    return 0;
+  }
+}
+
+double Profile::getArcRatio(unsigned core, BasicBlock *bb, Function *func) {
+  int fromid = getId(core, bb);
+  int selfid = getId(core, func->getFirstBb());
+
+  QSqlQuery query;
+  query.exec("SELECT sum(num) FROM arc WHERE selfid = " + QString::number(selfid));
+
+  int totalCalls = 0;
+  if(query.next()) {
+    totalCalls = query.value(0).toInt();
+  }
+
+  if(!totalCalls) return 0;
+
+  query.exec("SELECT sum(num) FROM arc WHERE fromid = " + QString::number(fromid) + " AND selfid = " + QString::number(selfid));
+
+  int calls = 0;
+  if(query.next()) {
+    calls = query.value(0).toInt();
+  }
+
+  return (double)calls / (double)totalCalls;
 }
 
 void Profile::getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements) {

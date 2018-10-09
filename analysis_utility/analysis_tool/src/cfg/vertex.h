@@ -207,7 +207,7 @@ public:
 
   virtual bool isHw(QVector<BasicBlock*> callStack);
 
-  virtual void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack) {}
+  virtual void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive = true) {}
 
   virtual bool hasHwCalls() { return false; }
 

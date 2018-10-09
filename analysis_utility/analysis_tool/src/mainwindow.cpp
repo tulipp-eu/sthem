@@ -126,6 +126,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   cleanAct = new QAction("Clean", this);
   connect(cleanAct, SIGNAL(triggered()), this, SLOT(cleanEvent()));
 
+  cleanBinAct = new QAction("Clean Bin", this);
+  connect(cleanBinAct, SIGNAL(triggered()), this, SLOT(cleanBinEvent()));
+
   makeXmlAct = new QAction("Make CFG", this);
   connect(makeXmlAct, SIGNAL(triggered()), this, SLOT(makeXmlEvent()));
 
@@ -172,6 +175,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   openProfileAct = new QAction("Open profile", this);
   connect(openProfileAct, SIGNAL(triggered()), this, SLOT(openProfileEvent()));
 
+  openGProfAct = new QAction("Open GProf", this);
+  connect(openGProfAct, SIGNAL(triggered()), this, SLOT(openGProfEvent()));
+
   createProjectAct = new QAction("Create custom project", this);
   connect(createProjectAct, SIGNAL(triggered()), this, SLOT(createProject()));
 
@@ -190,6 +196,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   fileMenu->addAction(createProjectAct);
   fileMenu->addAction(closeProjectAct);
   fileMenu->addAction(openProfileAct);
+  fileMenu->addAction(openGProfAct);
   fileMenu->addAction(projectDialogAct);
   fileMenu->addSeparator();
   fileMenu->addAction(configDialogAct);
@@ -222,6 +229,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   projectToolBar = addToolBar("ProjectTB");
   projectToolBar->setObjectName("ProjectTB");
   projectToolBar->addAction(cleanAct);
+  projectToolBar->addAction(cleanBinAct);
   projectToolBar->addAction(makeXmlAct);
   projectToolBar->addAction(makeBinAct);
   projectToolBar->addAction(runAct);
@@ -330,6 +338,21 @@ void MainWindow::openProfileEvent() {
       QString path = dialog.selectedFiles()[0];
       analysis->loadProfFile(path);
       loadFiles();
+    }
+  }
+}
+
+void MainWindow::openGProfEvent() {
+  QFileDialog gprofDialog(this, "Select GProf file");
+  if(gprofDialog.exec()) {
+    QFileDialog elfDialog(this, "Select instrumented elf file");
+    if(elfDialog.exec()) {
+      if(analysis->project) {
+        QString gprofPath = gprofDialog.selectedFiles()[0];
+        QString elfPath = elfDialog.selectedFiles()[0];
+        analysis->loadGProfFile(gprofPath, elfPath);
+        loadFiles();
+      }
     }
   }
 }
@@ -463,6 +486,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   }
   settings.setValue("clang", Config::clang);
   settings.setValue("clangpp", Config::clangpp);
+  settings.setValue("opt", Config::opt);
   settings.setValue("llc", Config::llc);
   settings.setValue("llvm_ir_parserPath", Config::llvm_ir_parser);
   settings.setValue("tulipp_source_toolPath", Config::tulipp_source_tool);
@@ -565,6 +589,13 @@ void MainWindow::projectDialog() {
 void MainWindow::cleanEvent() {
   if(analysis->project) {
     analysis->clean();
+    loadFiles();
+  }
+}
+
+void MainWindow::cleanBinEvent() {
+  if(analysis->project) {
+    analysis->cleanBin();
     loadFiles();
   }
 }

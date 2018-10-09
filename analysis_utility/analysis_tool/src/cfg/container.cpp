@@ -827,7 +827,7 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
   }
 }
 
-void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack) {
+void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive) {
   for(auto child : children) {
     if(child->isLoop()) {
       if(!isSystemFile(child->getSourceFilename())) {
@@ -837,7 +837,7 @@ void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStac
         }
       }
     } else {
-      child->getAllLoops(loops, callStack);
+      child->getAllLoops(loops, callStack, recursive);
     }
   }
 }

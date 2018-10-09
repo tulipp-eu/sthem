@@ -51,6 +51,10 @@ public:
     return true;
   }
 
+  virtual QString getTableName() {
+    return getTypeName() + " " + getFunction()->id + ":" + name;
+  }
+
   virtual QString getCfgName() {
     return "Loop";
   }

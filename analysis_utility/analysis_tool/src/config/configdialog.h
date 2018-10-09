@@ -44,6 +44,7 @@ class BuildPage : public QWidget {
 public:
   QLineEdit *clangEdit;
   QLineEdit *clangppEdit;
+  QLineEdit *optEdit;
   QLineEdit *llcEdit;
   QLineEdit *llvm_ir_parserEdit;
   QLineEdit *tulipp_source_toolEdit;

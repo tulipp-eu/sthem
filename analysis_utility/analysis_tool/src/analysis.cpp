@@ -21,6 +21,9 @@
 
 #include "analysis.h"
 
+#include "cfg/container.h"
+#include "cfg/loop.h"
+
 Analysis::Analysis() {
   project = NULL;
   profile = NULL;
@@ -37,6 +40,7 @@ Analysis::Analysis() {
   Config::includeId = settings.value("includeId", false).toBool();
   Config::clang = settings.value("clang", "clang").toString();
   Config::clangpp = settings.value("clangpp", "clang++").toString();
+  Config::opt = settings.value("opt", "opt").toString();
   Config::llc = settings.value("llc", "llc").toString();
   Config::llvm_ir_parser = settings.value("llvm_ir_parserPath", "llvm_ir_parser").toString();
   Config::tulipp_source_tool = settings.value("tulipp_source_toolPath", "tulipp_source_tool").toString();
@@ -175,8 +179,19 @@ bool Analysis::loadProfFile(QString path) {
   return project->parseProfFile(path, profile);
 }
 
+bool Analysis::loadGProfFile(QString gprofPath, QString elfPath) {
+  return project->parseGProfFile(gprofPath, elfPath, profile);
+}
+
 bool Analysis::clean() {
   if(!project->clean()) return false;
+  if(dse) dse->clear();
+  if(profile) profile->clean();
+  return true;
+}
+
+bool Analysis::cleanBin() {
+  if(!project->cleanBin()) return false;
   if(dse) dse->clear();
   if(profile) profile->clean();
   return true;
@@ -191,4 +206,52 @@ bool Analysis::profileApp() {
   profile->clean();
   
   return project->runProfiler();  
+}
+
+void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop, uint64_t count) {
+  double runtime;
+  double energy[7];
+  uint64_t loopCount;
+
+  loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &loopCount);
+  if(runtime > 0) {
+    printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
+           (function->id + "-" + loop->id).toUtf8().constData(),
+           count, runtime, energy[sensor],
+           runtime / count, energy[sensor] / count, energy[sensor] / runtime);
+  }
+
+  QVector<Loop*> loops;
+  loop->getAllLoops(loops, QVector<BasicBlock*>(), false);
+  for(auto childLoop : loops) {
+    dumpLoop(core, sensor, function, childLoop, count);
+  }
+}
+
+void Analysis::dump(unsigned core, unsigned sensor) {
+  Cfg *cfg = project->cfg;
+
+  for(auto cfgChild : cfg->children) {
+    Module *module = static_cast<Module*>(cfgChild);
+    for(auto modChild : module->children) {
+      Function *function = static_cast<Function*>(modChild);
+
+      double runtime;
+      double energy[7];
+      uint64_t count;
+
+      function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      if(runtime > 0) { // && (count > 0)) {
+        printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
+               function->id.toUtf8().constData(), count, runtime,
+               energy[sensor], runtime / count, energy[sensor] / count, energy[sensor] / runtime);
+
+        QVector<Loop*> loops;
+        function->getAllLoops(loops, QVector<BasicBlock*>(), false);
+        for(auto loop : loops) {
+          dumpLoop(core, sensor, function, loop, count);
+        }
+      }
+    }
+  }
 }

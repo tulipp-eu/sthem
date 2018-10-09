@@ -117,7 +117,7 @@ public:
 
   virtual bool hasComplexPtrCast(QVector<BasicBlock*> callStack);
 
-  void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack);
+  void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive = true);
 
 };
 

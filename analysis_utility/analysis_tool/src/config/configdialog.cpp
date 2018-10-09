@@ -62,6 +62,12 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
   clangppLayout->addWidget(clangppLabel);
   clangppLayout->addWidget(clangppEdit);
 
+  QLabel *optLabel = new QLabel("opt:");
+  optEdit = new QLineEdit(Config::opt);
+  QHBoxLayout *optLayout = new QHBoxLayout;
+  optLayout->addWidget(optLabel);
+  optLayout->addWidget(optEdit);
+
   QLabel *llcLabel = new QLabel("llc:");
   llcEdit = new QLineEdit(Config::llc);
   QHBoxLayout *llcLayout = new QHBoxLayout;
@@ -119,6 +125,7 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
   QVBoxLayout *toolLayout = new QVBoxLayout;
   toolLayout->addLayout(clangLayout);
   toolLayout->addLayout(clangppLayout);
+  toolLayout->addLayout(optLayout);
   toolLayout->addLayout(llcLayout);
   toolLayout->addLayout(llvm_ir_parserLayout);
   toolLayout->addLayout(tulipp_source_toolLayout);
@@ -244,6 +251,7 @@ void ConfigDialog::closeEvent(QCloseEvent *e) {
   Config::includeId = cfgPage->idCheckBox->checkState() == Qt::Checked;
   Config::clang = buildPage->clangEdit->text();
   Config::clangpp = buildPage->clangppEdit->text();
+  Config::opt = buildPage->optEdit->text();
   Config::llc = buildPage->llcEdit->text();
   Config::llvm_ir_parser = buildPage->llvm_ir_parserEdit->text();
   Config::tulipp_source_tool = buildPage->tulipp_source_toolEdit->text();

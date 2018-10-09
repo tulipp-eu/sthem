@@ -423,7 +423,9 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
           }
         }
 
-        if(grandChildElement.attribute("name", "") == "Optimization Level") {
+        if((grandChildElement.attribute("name", "") == "Optimization Level") ||
+           (grandChildElement.attribute("superClass", "") == "com.xilinx.sdsoc.managedbuild.project.release.sdscc.option.optimization") ||
+           (grandChildElement.attribute("superClass", "") == "com.xilinx.sdsoc.managedbuild.project.release.sdspp.option.optimization")) {
           if(grandChildElement.attribute("value", "") == "gnu.c.optimization.level.none") {
             *optLevel = 0;
           } else if(grandChildElement.attribute("value", "") == "gnu.c.optimization.level.optimize") {
@@ -436,6 +438,10 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
             *optLevel = -1;
           }
           hasOpt = true;
+        }
+
+        if(grandChildElement.attribute("superClass", "") == "xilinx.gnu.compiler.misc.other") {
+          options += grandChildElement.attribute("value", "") + " ";
         }
 
         if(grandChildElement.attribute("superClass", "") == "xilinx.gnu.compiler.misc.ansi") {

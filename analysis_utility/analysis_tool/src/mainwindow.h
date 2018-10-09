@@ -90,9 +90,11 @@ private:
   QAction *projectDialogAct;
   QAction *openProjectAct;
   QAction *openProfileAct;
+  QAction *openGProfAct;
   QAction *createProjectAct;
   QAction *closeProjectAct;
   QAction *cleanAct;
+  QAction *cleanBinAct;
   QAction *makeXmlAct;
   QAction *makeBinAct;
   QAction *profileAct;
@@ -118,10 +120,12 @@ private slots:
   void projectDialog();
   void openProjectEvent(QAction *action);
   void openProfileEvent();
+  void openGProfEvent();
   void openCustomProject();
   void createProject();
   void closeProject();
   void cleanEvent();
+  void cleanBinEvent();
   void makeXmlEvent();
   void makeBinEvent();
   void profileEvent();

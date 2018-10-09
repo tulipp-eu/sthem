@@ -58,10 +58,13 @@ public:
   bool createProject(QString path);
   void closeProject();
   bool loadProfFile(QString path);
+  bool loadGProfFile(QString gprofPath, QString elfPath);
   void load();
   bool clean();
+  bool cleanBin();
   bool runApp();
   bool profileApp();
+  void dump(unsigned core, unsigned sensor);
 };
 
 #endif
