@@ -15,6 +15,7 @@
 #include <sds_lib.h>
 
 #include <compatibility_layer.h>
+#include <gmon.h>
 
 #include "interruptWrapper.h"
 #define MYSELF 	CPU1
@@ -61,14 +62,12 @@ static XTtcPs timer;
 
 static uint64_t *currentBuf;
 static uint64_t *ticksBuf;
-static uint64_t *countBuf;
 
 static uint64_t unknownCurrent;
 static uint64_t unknownTicks;
-static uint64_t unknownCount;
 
 static uint64_t pcStart;
-static int bufSize;
+static uint32_t bufSize;
 
 static volatile bool profilerActive;
 
@@ -329,40 +328,34 @@ bool startProfiler(uint64_t textStart, uint64_t textSize, double period, bool du
 
           if(ticksBuf) {
             memset(ticksBuf, 0, bufSize * sizeof(uint64_t));
-            countBuf = malloc(bufSize * sizeof(uint64_t));
 
-            if(countBuf) {
-              memset(countBuf, 0, bufSize * sizeof(uint64_t));
+            pcStart = textStart;
+            unknownCurrent = 0;
+            unknownTicks = 0;
 
-              pcStart = textStart;
-              unknownCurrent = 0;
-              unknownTicks = 0;
-              unknownCount = 0;
-
-              if(dualCore) {
-                iicSetCommand(I2C_READ_CURRENT_INSTANT, 0x2);
-              } else {
-                iicSetCommand(I2C_READ_CURRENT_AVG, 0x2);
-                {
-                  int16_t current;
-                  iicReadData((uint8_t*)&current, 2);
-                }
+            if(dualCore) {
+              iicSetCommand(I2C_READ_CURRENT_INSTANT, 0x2);
+            } else {
+              iicSetCommand(I2C_READ_CURRENT_AVG, 0x2);
+              {
+                int16_t current;
+                iicReadData((uint8_t*)&current, 2);
               }
+            }
 
-              if(dualCore) {
-                if(setupTimerInterrupts(period, timerInterruptHandler)) {
-                  printf("PROFILER: Started, profiling between %p and %p at %f Hz\n", (void*)pcStart, (void*)pcStart+textSize, 1/period);
-                  profilerActive = true;
-                  return true;
-                } else printf("PROFILER: Can't init timer\n");
-              } else {
-                if(setupTimerInterruptsSingleCore(period, timerInterruptHandlerSingleCore)) {
-                  printf("PROFILER: Started, profiling between %p and %p at %f Hz\n", (void*)pcStart, (void*)pcStart+textSize, 1/period);
-                  profilerActive = true;
-                  return true;
-                } else printf("PROFILER: Can't init timer\n");
-              }
-            } else printf("PROFILER: Can't allocate countBuf\n");
+            if(dualCore) {
+              if(setupTimerInterrupts(period, timerInterruptHandler)) {
+                printf("PROFILER: Started, profiling between %p and %p at %f Hz\n", (void*)pcStart, (void*)pcStart+textSize, 1/period);
+                profilerActive = true;
+                return true;
+              } else printf("PROFILER: Can't init timer\n");
+            } else {
+              if(setupTimerInterruptsSingleCore(period, timerInterruptHandlerSingleCore)) {
+                printf("PROFILER: Started, profiling between %p and %p at %f Hz\n", (void*)pcStart, (void*)pcStart+textSize, 1/period);
+                profilerActive = true;
+                return true;
+              } else printf("PROFILER: Can't init timer\n");
+            }
           } else printf("PROFILER: Can't allocate ticksBuf\n");
         } else printf("PROFILER: Can't allocate currentBuf\n");
       } else printf("PROFILER: Can't read I2C\n");
@@ -397,53 +390,62 @@ void disablePerfCounters(void) {
 void stopProfiler(char *filename) {
   if(profilerActive) {
     Xil_ExceptionDisable();
-
-    FILE *fp = fopen(filename, "w");
-    if(fp == NULL) {
-      printf("PROFILER: Can't open file\n");
-      return;
-    }
-
-    printf("PROFILER: Writing to file %s\n", filename);
-
-    iicSetCommand(I2C_GET_CAL, 0);
-    double calData[7];
-    iicReadData((uint8_t*)&calData, 7 * sizeof(double));
-
-    uint8_t core = 0;
-    uint8_t sensor = 1;
-
-    double unknownCurrentAvg = unknownCurrent / (double)unknownTicks;
-    double unknownRuntime = unknownTicks * pcSamplerPeriod;
-
-    fwrite(&core, sizeof(uint8_t), 1, fp);
-    fwrite(&sensor, sizeof(uint8_t), 1, fp);
-    for(int i = 0; i < 7; i++) {
-      fwrite(&(calData[i]), sizeof(double), 1, fp);
-    }
-    fwrite(&pcSamplerPeriod, sizeof(double), 1, fp);
-
-    fwrite(&unknownCurrentAvg, sizeof(double), 1, fp);
-    fwrite(&unknownRuntime, sizeof(double), 1, fp);
-    fwrite(&unknownCount, sizeof(uint64_t), 1, fp);
-
-    for(int i = 0; i < bufSize; i++) {
-      if((currentBuf[i] != 0) || (ticksBuf[i] != 0) || (countBuf[i] != 0)) {
-        uint64_t pc = (uint64_t)i * (uint64_t)4 + pcStart;
-        double current = currentBuf[i] / (double)ticksBuf[i];
-        double runtime = ticksBuf[i] * pcSamplerPeriod;
-
-        fwrite(&pc, sizeof(uint64_t), 1, fp);
-        fwrite(&current, sizeof(double), 1, fp);
-        fwrite(&runtime, sizeof(double), 1, fp);
-        fwrite(&countBuf[i], sizeof(uint64_t), 1, fp);
-      }
-    }
-
-    fclose(fp);
-
-    printf("PROFILER: Done\n");
   }
+
+  FILE *fp = fopen(filename, "w");
+  if(fp == NULL) {
+    printf("PROFILER: Can't open file\n");
+    return;
+  }
+
+  printf("PROFILER: Writing to file %s\n", filename);
+
+  iicSetCommand(I2C_GET_CAL, 0);
+  double calData[7];
+  iicReadData((uint8_t*)&calData, 7 * sizeof(double));
+
+  uint8_t core = 0;
+  uint8_t sensor = 1;
+
+  double unknownCurrentAvg = unknownCurrent / (double)unknownTicks;
+  double unknownRuntime = unknownTicks * pcSamplerPeriod;
+
+  fwrite(&core, sizeof(uint8_t), 1, fp);
+  fwrite(&sensor, sizeof(uint8_t), 1, fp);
+  for(int i = 0; i < 7; i++) {
+    fwrite(&(calData[i]), sizeof(double), 1, fp);
+  }
+  fwrite(&pcSamplerPeriod, sizeof(double), 1, fp);
+
+  fwrite(&unknownCurrentAvg, sizeof(double), 1, fp);
+  fwrite(&unknownRuntime, sizeof(double), 1, fp);
+
+  uint32_t count = 0;
+  for(int i = 0; i < bufSize; i++) {
+    if((currentBuf[i] != 0) || (ticksBuf[i] != 0)) {
+      count++;
+    }
+  }
+
+  fwrite(&count, sizeof(uint32_t), 1, fp);
+
+  for(int i = 0; i < bufSize; i++) {
+    if((currentBuf[i] != 0) || (ticksBuf[i] != 0)) {
+      uint64_t pc = (uint64_t)i * (uint64_t)4 + pcStart;
+      double current = currentBuf[i] / (double)ticksBuf[i];
+      double runtime = ticksBuf[i] * pcSamplerPeriod;
+
+      fwrite(&pc, sizeof(uint64_t), 1, fp);
+      fwrite(&current, sizeof(double), 1, fp);
+      fwrite(&runtime, sizeof(double), 1, fp);
+    }
+  }
+
+  fclose(fp);
+
+  _mcleanup(0);
+
+  printf("PROFILER: Done\n");
 }
 
 void profilerOn(void) {
@@ -452,14 +454,4 @@ void profilerOn(void) {
 
 void profilerOff(void) {
   XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
-}
-
-void _mcount(void) {
-  uint64_t pc = (uint64_t)__builtin_return_address(0);
-  int index = pc/4 - pcStart;
-  if((index >= 0) && (index < bufSize)) {
-    countBuf[index]++;
-  } else {
-    unknownCount++;
-  }
 }

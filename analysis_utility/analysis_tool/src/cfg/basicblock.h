@@ -119,6 +119,8 @@ public:
 
   void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive = true);
 
+  bool containsFunctionCall(Function *func);
+
 };
 
 #endif

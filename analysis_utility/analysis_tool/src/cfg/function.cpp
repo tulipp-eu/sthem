@@ -21,6 +21,7 @@
 
 #include "function.h"
 #include "basicblock.h"
+#include "module.h"
 
 BasicBlock *Function::getFirstBb() {
   Vertex *vertex = entryNode->getEdge(0)->target;
@@ -32,3 +33,6 @@ BasicBlock *Function::getFirstBb() {
   return bb;
 }
 
+QString Function::getTableName() {
+  return getModule()->id + ":" + name + "()";
+}

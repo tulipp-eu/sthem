@@ -133,14 +133,13 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  top = new ModuleNode(mod.get());
+  top = new ModuleNode(mod.get(), argc >= 5);
 
   if(!strncmp("-xml", argv[2], 4)) {
     printXML(argv[3]);
 
   } else if(!strncmp("-ll", argv[2], 3)) {
     recreateDbInfo(mod.get());
-    if(argc >= 5) instrumentFunctions(mod.get());
     printIR(mod.get(), argv[3]);
 
   } else {

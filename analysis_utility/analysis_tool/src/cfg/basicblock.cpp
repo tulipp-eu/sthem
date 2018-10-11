@@ -369,3 +369,22 @@ QString BasicBlock::getCfgName() {
   }
   return "BasicBlock";
 }
+
+bool BasicBlock::containsFunctionCall(Function *func) {
+  for(auto child : children) {
+    Instruction *instr = dynamic_cast<Instruction*>(child);
+    if(instr) {
+      if(instr->name == INSTR_ID_CALL) {
+        if(instr->target == "<indirect>") return true;
+        Function *called = getModule()->getFunctionById(instr->target);
+        if(!called) {
+          called = getTop()->getFunctionById(instr->target);
+        }
+        if(called) {
+          if(func == called) return true;
+        }
+      }
+    }
+  }
+  return false;
+}

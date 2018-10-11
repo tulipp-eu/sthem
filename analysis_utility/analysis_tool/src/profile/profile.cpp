@@ -289,3 +289,26 @@ void Profile::clear() {
   }
 }
 
+double Profile::getMinPower(unsigned sensor) {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT minpower" + QString::number(sensor+1) + " FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getMaxPower(unsigned sensor) {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT maxpower" + QString::number(sensor+1) + " FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}

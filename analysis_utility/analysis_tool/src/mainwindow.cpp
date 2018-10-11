@@ -539,7 +539,7 @@ void MainWindow::topEvent() {
   cfgModel->clearColors();
 
   if(topGroup) delete topGroup;
-  topGroup = new Group("Overview");
+  topGroup = new Group("Overview", analysis->project->cfg);
   Vertex *main = analysis->project->cfg->getMain();
   if(main) topGroup->appendChild(main);
   topGroup->appendChild(analysis->project->cfg->externalMod);
@@ -557,7 +557,7 @@ void MainWindow::hwEvent() {
   cfgModel->clearColors();
 
   if(hwGroup) delete hwGroup;
-  hwGroup = new Group("HW functions");
+  hwGroup = new Group("HW functions", analysis->project->cfg);
 
   for(auto acc : analysis->project->accelerators) {
     QFileInfo fileInfo(acc.filepath);

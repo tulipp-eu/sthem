@@ -42,6 +42,7 @@
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/DominanceFrontier.h"
+#include "llvm/IR/Constants.h"
 
 using namespace llvm;
 
@@ -121,7 +122,7 @@ class ModuleNode : public Node {
   Module *mod;
 
 public:
-  ModuleNode(Module *mod);
+  ModuleNode(Module *mod, bool instrument);
   void printXML(FILE *fp);
   void print() {
     printf("Module %s\n", mod->getName().str().c_str());
@@ -134,7 +135,7 @@ class FunctionNode : public Node {
   Function *func;
 
 public:
-  FunctionNode(Function *func, Node *parent);
+  FunctionNode(Function *func, ModuleNode *parent, bool instrument);
   void printXML(FILE *fp);
   bool containsLoop(Loop *loop) {
     return true;

@@ -714,6 +714,14 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
     Location *from = getLocation(core, arc.raw_frompc-4, &elfSupport, &locations);
     Location *self = getLocation(core, arc.raw_selfpc, &elfSupport, &locations);
 
+    if(!from->bb->containsFunctionCall(self->bb->getFunction())) {
+      printf("Warning: Can't find arc %s:%s:%s - %s\n",
+             from->bb->getModule()->id.toUtf8().constData(),
+             from->bb->getFunction()->id.toUtf8().constData(),
+             from->bb->id.toUtf8().constData(),
+             self->bb->getFunction()->id.toUtf8().constData());
+    }
+
     self->addCaller(from->id, arc.raw_count);
   }
 

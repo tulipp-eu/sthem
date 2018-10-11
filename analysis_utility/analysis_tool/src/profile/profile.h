@@ -67,6 +67,9 @@ public:
     return energy[sensor];
   }
 
+  double getMinPower(unsigned sensor);
+  double getMaxPower(unsigned sensor);
+
   void setCycles(int64_t cycles) {
     this->cycles = cycles;
   }

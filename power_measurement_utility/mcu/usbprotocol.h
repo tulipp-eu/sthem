@@ -29,6 +29,7 @@
 
 #define HW_VERSION_2_0 0x20
 #define HW_VERSION_2_1 0x21
+#define HW_VERSION_2_2 0x22
 
 #define SW_VERSION_1_0 1
 #define SW_VERSION_1_1 0x11

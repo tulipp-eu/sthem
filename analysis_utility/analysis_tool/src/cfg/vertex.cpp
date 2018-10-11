@@ -87,7 +87,7 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
   double profData = 0;
 
   double runtimeTop;
-  double powerTop[Pmu::MAX_SENSORS], energyTop[Pmu::MAX_SENSORS];
+  double energyTop[Pmu::MAX_SENSORS];
   uint64_t countTop;
 
   double runtime;
@@ -95,10 +95,9 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
   uint64_t count;
 
   visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop, &countTop);
-  if(runtimeTop) {
-    powerTop[Config::sensor] = energyTop[Config::sensor] / runtimeTop;
-  }
-  else powerTop[Config::sensor] = 0;
+
+  double powerMin = getTop()->getProfile()->getMinPower(Config::sensor);
+  double powerMax = getTop()->getProfile()->getMaxPower(Config::sensor);
 
   getProfData(Config::core, callStack, &runtime, energy, &count);
   runtime *= scaling;
@@ -107,19 +106,19 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
   else power[Config::sensor] = 0;
   count *= scaling;
 
-  // assert(runtimeTop >= runtime);
-  // assert(energyTop[0] >= energy[0]);
-  // assert(energyTop[1] >= energy[1]);
-  // assert(energyTop[2] >= energy[2]);
-  // assert(energyTop[3] >= energy[3]);
-  // assert(energyTop[4] >= energy[4]);
-  // assert(energyTop[5] >= energy[5]);
-  // assert(energyTop[6] >= energy[6]);
+  assert(runtimeTop >= runtime);
+  assert(energyTop[0] >= energy[0]);
+  assert(energyTop[1] >= energy[1]);
+  assert(energyTop[2] >= energy[2]);
+  assert(energyTop[3] >= energy[3]);
+  assert(energyTop[4] >= energy[4]);
+  assert(energyTop[5] >= energy[5]);
+  assert(energyTop[6] >= energy[6]);
 
-  if(runtimeTop < runtime) runtimeTop = runtime;
-  for(int i = 0; i < 7; i++) {
-    if(energyTop[i] < energy[i]) energyTop[i] = energy[i];
-  }
+  // if(runtimeTop < runtime) runtimeTop = runtime;
+  // for(int i = 0; i < 7; i++) {
+  //   if(energyTop[i] < energy[i]) energyTop[i] = energy[i];
+  // }
 
   switch(Config::colorMode) {
     case Config::STRUCT:
@@ -137,8 +136,8 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
       break;
     case Config::POWER:
       profData = power[Config::sensor];
-      if(powerTop[Config::sensor]) {
-        int scale = 100*power[Config::sensor]/powerTop[Config::sensor];
+      if(power[Config::sensor]) {
+        int scale = 100*(power[Config::sensor]-powerMin)/(powerMax-powerMin);
         if(!scale) scale = 1;
         getBaseItem()->setBrush(POWER_COLOR.lighter(scale));
       } else {

@@ -51,8 +51,16 @@ public:
     return true;
   }
 
+  virtual bool isVisibleInGantt() {
+    return true;
+  }
+
   virtual QString getTableName() {
-    return getTypeName() + " " + getFunction()->id + ":" + name;
+    return getModule()->id + ":" + getFunction()->id + "():" + name;
+  }
+
+  virtual QString getGanttName() {
+    return getTableName();
   }
 
   virtual QString getCfgName() {
