@@ -70,7 +70,7 @@ void coresResume(void);
 void coreSetBp(unsigned core, unsigned bpNum, uint64_t addr);
 void coreClearBp(unsigned core, unsigned bpNum);
 
-bool coreHalted(void);
+bool coreHalted(unsigned core);
 
 ///////////////////////////////////////////////////////////////////////////////
 

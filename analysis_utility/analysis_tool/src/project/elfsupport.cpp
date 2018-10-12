@@ -31,51 +31,57 @@ void ElfSupport::setPc(uint64_t pc) {
       return;
     }
 
-    char buf[1024];
-    FILE *fp;
-    std::stringstream pcStream;
-    std::string cmd;
+    for(auto elfFile : elfFiles) {
+      QString fileName = "";
+      QString function = "Unknown";
+      uint64_t lineNumber = 0;
 
-    QString fileName;
-    QString function;
-    uint64_t lineNumber;
+      if(!elfFile.trimmed().isEmpty()) {
+        char buf[1024];
+        FILE *fp;
+        std::stringstream pcStream;
+        std::string cmd;
 
-    // create command
-    pcStream << std::hex << pc;
-    cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
+        // create command
+        pcStream << std::hex << pc;
+        cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
 
-    // run addr2line program
-    if((fp = popen(cmd.c_str(), "r")) == NULL) goto error;
+        // run addr2line program
+        if((fp = popen(cmd.c_str(), "r")) == NULL) goto error;
 
-    // discard first output line
-    if(fgets(buf, 1024, fp) == NULL) goto error;
+        // discard first output line
+        if(fgets(buf, 1024, fp) == NULL) goto error;
 
-    // get function name
-    if(fgets(buf, 1024, fp) == NULL) goto error;
-    function = QString::fromUtf8(buf).simplified();
-    if(function == "??") function = "Unknown";
+        // get function name
+        if(fgets(buf, 1024, fp) == NULL) goto error;
+        function = QString::fromUtf8(buf).simplified();
+        if(function == "??") function = "Unknown";
 
-    // get filename and linenumber
-    if(fgets(buf, 1024, fp) == NULL) goto error;
+        // get filename and linenumber
+        if(fgets(buf, 1024, fp) == NULL) goto error;
 
-    {
-      QString qbuf = QString::fromUtf8(buf);
-      fileName = qbuf.left(qbuf.indexOf(':'));
-      lineNumber = qbuf.mid(qbuf.indexOf(':') + 1).toULongLong();
+        {
+          QString qbuf = QString::fromUtf8(buf);
+          fileName = qbuf.left(qbuf.indexOf(':'));
+          lineNumber = qbuf.mid(qbuf.indexOf(':') + 1).toULongLong();
+        }
+
+        // close stream
+        if(pclose(fp)) goto error;
+      }
+
+      addr2line = Addr2Line(fileName, function, lineNumber);
+      addr2lineCache[pc] = addr2line;
+
+      if((function != "Unknown") || (lineNumber != 0)) break;
     }
-
-    // close stream
-    if(pclose(fp)) goto error;
-
-    addr2line = Addr2Line(fileName, function, lineNumber);
-    addr2lineCache[pc] = addr2line;
-
-    return;
-
-  error:
-    addr2line = Addr2Line("", "", 0);
-    addr2lineCache[pc] = addr2line;
   }
+
+  return;
+
+ error:
+  addr2line = Addr2Line("", "", 0);
+  addr2lineCache[pc] = addr2line;
 }
 
 QString ElfSupport::getFilename(uint64_t pc) {
@@ -107,16 +113,18 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
   FILE *fp;
   char buf[1024];
 
-  // create command line
-  QString cmd = QString("nm ") + elfFile;
+  for(auto elfFile : elfFiles) {
+    // create command line
+    QString cmd = QString("nm ") + elfFile;
 
-  // run program
-  if((fp = popen(cmd.toUtf8().constData(), "r")) == NULL) goto error;
+    // run program
+    if((fp = popen(cmd.toUtf8().constData(), "r")) == NULL) goto error;
 
-  while(fgets(buf, 1024, fp)) {
-    QStringList line = QString::fromUtf8(buf).split(' ');
-    if(line[2].trimmed() == symbol) {
-      return line[0].toULongLong(0, 16);
+    while(fgets(buf, 1024, fp)) {
+      QStringList line = QString::fromUtf8(buf).split(' ');
+      if(line[2].trimmed() == symbol) {
+        return line[0].toULongLong(0, 16);
+      }
     }
   }
 

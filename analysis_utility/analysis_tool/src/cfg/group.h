@@ -28,7 +28,7 @@
 class Group : public Container {
 
 public:
-  Group(QString id) : Container(id, id, NULL, 0) {
+  Group(QString id, Container *parent) : Container(id, id, parent, 0) {
   }
 
   virtual ~Group() {

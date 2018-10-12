@@ -75,6 +75,7 @@ public:
   static bool includeId;
   static QString clang;
   static QString clangpp;
+  static QString opt;
   static QString llc;
   static QString llvm_ir_parser;
   static QString tulipp_source_tool;
@@ -88,6 +89,11 @@ public:
   static unsigned sensor;
   static unsigned window;
   static unsigned sdsocVersion;
+  static QString extraCompileOptions;
+  static QString projectDir;
+  static int64_t overrideSamplePeriod;
+  static bool overrideSamplePc;
+  static bool overrideNoSamplePc;
 };
 
 #endif

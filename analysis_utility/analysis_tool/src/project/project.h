@@ -33,12 +33,11 @@
 #include "projectacc.h"
 #include "config/config.h"
 #include "profile/measurement.h"
-#include "cfg/cfgmodel.h"
+#include "cfg/cfg.h"
 #include "pmu.h"
+#include "location.h"
 
 #define SAMPLEBUF_SIZE (128*1024*1024)
-
-class CfgModel;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -54,6 +53,8 @@ protected:
   virtual bool createMakefile(QFile &makefile);
   virtual bool createMakefile() = 0;
   void copy(Project *p);
+  Location *getLocation(unsigned core, uint64_t pc, ElfSupport *elfSupport, std::map<BasicBlock*,Location*> *locations);
+  void getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations);
 
 public:
   bool opened;
@@ -73,7 +74,10 @@ public:
   bool createBbInfo;
   bool useCustomElf;
   bool samplePc;
+  bool useBp;
+  bool samplingModeGpio;
   int64_t samplePeriod;
+  bool instrument;
 
   // settings from either sdsoc project or user
   QStringList sources;
@@ -94,7 +98,7 @@ public:
   QString customElfFile;
   QString elfFile;
 
-  CfgModel *cfgModel;
+  Cfg *cfg;
 
   int errorCode;
 
@@ -105,7 +109,8 @@ public:
   void close();
   void clear();
 
-  void clean();
+  bool clean();
+  bool cleanBin();
 
   virtual void print();
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
@@ -113,6 +118,9 @@ public:
   QString elfFilename() {
     return name + ".elf";
   }
+
+  bool parseProfFile(QString fileName, Profile *profile);
+  bool parseGProfFile(QString gprofFileName, QString elfFileName, Profile *profile);
 
   void loadFiles();
   void loadXmlFile(const QString &fileName);
@@ -122,15 +130,15 @@ public:
   int xmlBuildSteps() { return 1; }
   int binBuildSteps() { return 2; }
   int profileSteps() { return 3; }
+  int runSteps() { return 1; }
 
   virtual bool isSdSocProject() { return false; }
 
-  Cfg *getCfg();
-
 public slots:
-  void makeXml();
-  virtual void makeBin();
-  void runProfiler();
+  bool makeXml();
+  virtual bool makeBin();
+  bool runProfiler();
+  bool runApp();
 
 signals:
   void advance(int step, QString msg);

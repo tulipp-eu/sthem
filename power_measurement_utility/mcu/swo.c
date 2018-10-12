@@ -22,17 +22,17 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "em_device.h"
-#include "em_cmu.h"
-#include "em_gpio.h"
-#include "em_i2c.h"
-#include "em_system.h"
-#include "em_chip.h"
+#include <em_device.h>
+#include <em_cmu.h>
+#include <em_gpio.h>
+#include <em_i2c.h>
+#include <em_system.h>
+#include <em_chip.h>
 
-#define SWO_ON
+#include "lynsyn.h"
 
 int _write(int fd, char *str, int len) {
-#ifdef SWO_ON
+#ifdef SWO
   for (int i = 0; i < len; i++) {
     ITM_SendChar(str[i]);
   }

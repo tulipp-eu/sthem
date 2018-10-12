@@ -62,7 +62,8 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
             if(func) {
               visibleItem = func;
               assert(func->callers >= 1);
-              scaling /= func->callers;  // TODO: scale using stack profile
+              double ratio = getTop()->getProfile()->getArcRatio(Config::core, this, func);
+              scaling *= ratio;
               callStackFunc.push_back(this);
             } else {
               visibleItem = instr;
@@ -104,12 +105,12 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
   height = yy;
 }
 
-void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
+void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count) {
   if(cachedRuntime == INT_MAX) {
     Profile *profile = getTop()->getProfile();
 
     if(profile) {
-      profile->getProfData(core, this, &cachedRuntime, cachedEnergy);
+      profile->getProfData(core, this, &cachedRuntime, cachedEnergy, &cachedCount);
 
       for(auto child : children) {
         Instruction *instr = dynamic_cast<Instruction*>(child);
@@ -120,23 +121,30 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
               func = getTop()->getFunctionById(instr->target);
             }
             if(func) {
-              if(!callStack.contains(this)) { // TODO: check if this is correct
+              if(!callStack.contains(this)) {
                 if(func->callers == 1) {
+                  if(getModule()->id == "bzip2" && id == "102") printf("One caller\n");
                   double runtimeChild;
                   double energyChild[Pmu::MAX_SENSORS];
+                  uint64_t countChild;
                   callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild);
+                  func->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
                   cachedRuntime += runtimeChild;
                   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
                     cachedEnergy[i] += energyChild[i];
                   }
                 } else {
-                  // double runtimeChild;
-                  // double energyChild;
-                  // callStack.push_back(this);
-                  // func->getProfData(callStack, &runtimeChild, &energyChild);
-                  // cachedRuntime += runtimeChild / func->callers; // TODO: scale using stack profile
-                  // cachedEnergy += energyChild / func->callers;
+                  double runtimeChild;
+                  double energyChild[Pmu::MAX_SENSORS];
+                  uint64_t countChild;
+                  callStack.push_back(this);
+                  func->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
+                  double ratio = profile->getArcRatio(core, this, func);
+                  if(getModule()->id == "bzip2" && id == "102") printf("%d callers, ratio %f\n", func->callers, ratio);
+                  cachedRuntime += runtimeChild * ratio;
+                  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+                    cachedEnergy[i] += energyChild[i] * ratio;
+                  }
                 }
               }
             }
@@ -148,6 +156,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] = 0;
       }
+      cachedCount = 0;
     }
   }
 
@@ -155,6 +164,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
   }
+  *count = cachedCount;
 }
 
 void BasicBlock::getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {
@@ -322,22 +332,24 @@ bool BasicBlock::hasComplexPtrCast(QVector<BasicBlock*> callStack) {
   return false;
 }
 
-void BasicBlock::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack) {
-  for(auto child : children) {
-    Instruction *instr = dynamic_cast<Instruction*>(child);
-    if(instr) {
-      if(instr->name == INSTR_ID_CALL) {
-        if(callStack.contains(this)) {
-          return;
-        } else {
-          Function *func = getModule()->getFunctionById(instr->target);
-          if(!func) {
-            func = getTop()->getFunctionById(instr->target);
-          }
-          if(func) {
-            if(!isSystemFile(func->getSourceFilename())) {
-              callStack.push_back(this);
-              func->getAllLoops(loops, callStack);
+void BasicBlock::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive) {
+  if(recursive) {
+    for(auto child : children) {
+      Instruction *instr = dynamic_cast<Instruction*>(child);
+      if(instr) {
+        if(instr->name == INSTR_ID_CALL) {
+          if(callStack.contains(this)) {
+            return;
+          } else {
+            Function *func = getModule()->getFunctionById(instr->target);
+            if(!func) {
+              func = getTop()->getFunctionById(instr->target);
+            }
+            if(func) {
+              if(!isSystemFile(func->getSourceFilename())) {
+                callStack.push_back(this);
+                func->getAllLoops(loops, callStack, true);
+              }
             }
           }
         }
@@ -356,4 +368,23 @@ QString BasicBlock::getCfgName() {
     }
   }
   return "BasicBlock";
+}
+
+bool BasicBlock::containsFunctionCall(Function *func) {
+  for(auto child : children) {
+    Instruction *instr = dynamic_cast<Instruction*>(child);
+    if(instr) {
+      if(instr->name == INSTR_ID_CALL) {
+        if(instr->target == "<indirect>") return true;
+        Function *called = getModule()->getFunctionById(instr->target);
+        if(!called) {
+          called = getTop()->getFunctionById(instr->target);
+        }
+        if(called) {
+          if(func == called) return true;
+        }
+      }
+    }
+  }
+  return false;
 }

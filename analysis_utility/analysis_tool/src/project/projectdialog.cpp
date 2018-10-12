@@ -79,6 +79,9 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
 
   QGroupBox *compGroup = new QGroupBox("Compiler Options");
 
+  instrumentCheckBox = new QCheckBox("Instrument");
+  instrumentCheckBox->setCheckState(project->instrument ? Qt::Checked : Qt::Unchecked);
+
   QLabel *optLabel = new QLabel("CFG view optimization level:");
 
   optCombo = new QComboBox;
@@ -102,6 +105,7 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
   createBbInfoCheckBox->setCheckState(project->createBbInfo ? Qt::Checked : Qt::Unchecked);
 
   QVBoxLayout *compLayout = new QVBoxLayout;
+  compLayout->addWidget(instrumentCheckBox);
   compLayout->addLayout(optLayout);
   compLayout->addWidget(createBbInfoCheckBox);
 
@@ -325,6 +329,12 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   samplePeriodLayout->addWidget(samplePeriodLabel);
   samplePeriodLayout->addWidget(samplePeriodEdit);
 
+  samplingModeGpioCheckBox = new QCheckBox("GPIO controlled sampling");
+  samplingModeGpioCheckBox->setCheckState(project->samplingModeGpio ? Qt::Checked : Qt::Unchecked);
+
+  useBpCheckBox = new QCheckBox("Use breakpoints");
+  useBpCheckBox->setCheckState(project->useBp ? Qt::Checked : Qt::Unchecked);
+
   QHBoxLayout *stopLayout = new QHBoxLayout;
   QLabel *stopFuncLabel = new QLabel("Stop at function:");
   stopLayout->addWidget(stopFuncLabel);
@@ -339,9 +349,11 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
 
   QVBoxLayout *breakpointsLayout = new QVBoxLayout;
   breakpointsLayout->addLayout(customElfLayout);
+  breakpointsLayout->addWidget(useBpCheckBox);
   breakpointsLayout->addLayout(startLayout);
   breakpointsLayout->addWidget(samplePcCheckBox);
   breakpointsLayout->addLayout(samplePeriodLayout);
+  breakpointsLayout->addWidget(samplingModeGpioCheckBox);
   breakpointsLayout->addLayout(stopLayout);
   breakpointsLayout->addStretch(1);
   breakpointsGroup->setLayout(breakpointsLayout);
@@ -442,6 +454,8 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
     project->cfgOptLevel = buildPage->optCombo->currentIndex();
   }
 
+  project->instrument = buildPage->instrumentCheckBox->checkState() == Qt::Checked;
+
   project->createBbInfo = buildPage->createBbInfoCheckBox->checkState() == Qt::Checked;
 
   if(!project->isSdSocProject()) {
@@ -482,8 +496,12 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->startFunc = profPage->startFuncEdit->text();
   project->startCore = profPage->startCoreEdit->text().toUInt();
 
+  project->useBp = profPage->useBpCheckBox->checkState() == Qt::Checked;
+
   project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
   project->samplePeriod = profPage->samplePeriodEdit->text().toLongLong();
+
+  project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
 
   project->stopFunc = profPage->stopFuncEdit->text();
   project->stopCore = profPage->stopCoreEdit->text().toUInt();

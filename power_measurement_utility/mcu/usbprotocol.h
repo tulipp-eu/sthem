@@ -29,6 +29,7 @@
 
 #define HW_VERSION_2_0 0x20
 #define HW_VERSION_2_1 0x21
+#define HW_VERSION_2_2 0x22
 
 #define SW_VERSION_1_0 1
 #define SW_VERSION_1_1 0x11
@@ -61,6 +62,11 @@
 #define FPGA_CONFIGURE_FAILED 1
 #define FPGA_SPI_FAILED       2
 
+#define SAMPLING_FLAG_SAMPLE_PC 1
+#define SAMPLING_FLAG_BP        2
+#define SAMPLING_FLAG_GPIO      4
+#define SAMPLING_FLAG_PERIOD    8
+
 ///////////////////////////////////////////////////////////////////////////////
 
 #define MAX_PACKET_SIZE (sizeof(struct BreakpointRequestPacket))
@@ -70,9 +76,15 @@ struct __attribute__((__packed__)) RequestPacket {
   uint8_t cmd;
 };
 
+struct __attribute__((__packed__)) StartSamplingRequestPacketV1_1 {
+  struct RequestPacket request;
+  int64_t samplePeriod; // set to 0 for PC sampling, any other number for current sampling only
+};
+
 struct __attribute__((__packed__)) StartSamplingRequestPacket {
   struct RequestPacket request;
   int64_t samplePeriod; // set to 0 for PC sampling, any other number for current sampling only
+  uint64_t flags;
 };
 
 struct __attribute__((__packed__)) BreakpointRequestPacket {

@@ -27,21 +27,28 @@
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/IRReader/IRReader.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Function.h"
-#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/Constants.h"
+
+#include "llvm/IRReader/IRReader.h"
+
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/IR/DIBuilder.h"
+
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/DominanceFrontier.h"
+#include "llvm/Analysis/GlobalsModRef.h"
 
 using namespace llvm;
 
@@ -51,6 +58,7 @@ std::string removeExtension(std::string filename);
 
 class RegNode;
 class BbNode;
+class FunctionNode;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -113,6 +121,15 @@ public:
   }
   virtual std::vector<BasicBlock*> getAllBbs();
   virtual bool addLoop(Loop *loop);
+  virtual void instrument() {
+    for(auto child : children) {
+      child->instrument();
+    }
+  }
+
+  virtual FunctionNode *getFunc() {
+    return parent->getFunc();
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -131,10 +148,10 @@ public:
 ///////////////////////////////////////////////////////////////////////////////
 
 class FunctionNode : public Node {
+public:
   Function *func;
 
-public:
-  FunctionNode(Function *func, Node *parent);
+  FunctionNode(Function *func, ModuleNode *parent);
   void printXML(FILE *fp);
   bool containsLoop(Loop *loop) {
     return true;
@@ -142,6 +159,8 @@ public:
   void print() {
     printf("Function %s\n", func->getName().str().c_str());
   }
+  void instrument();
+  FunctionNode *getFunc() { return this; }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -250,6 +269,7 @@ public:
   void print() {
     printf("Loop %d\n", id);
   }
+  void instrument();
 };
 
 #endif

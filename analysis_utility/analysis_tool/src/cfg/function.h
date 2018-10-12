@@ -125,9 +125,11 @@ public:
     }
   }
 
-  virtual QString getTableName() {
-    return getTypeName() + " " + name + "()";
+  virtual QString getGanttName() {
+    return getTableName();
   }
+
+  virtual QString getTableName();
 
   virtual void clearCallers() {
     callers = 0;

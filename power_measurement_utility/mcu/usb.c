@@ -33,9 +33,6 @@
 #include "fpga.h"
 #include "usbprotocol.h"
 
-#define START_BP 0
-#define STOP_BP  1
-
 ///////////////////////////////////////////////////////////////////////////////
 
 uint8_t startCore;
@@ -141,23 +138,32 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_START_SAMPLING: {
         struct StartSamplingRequestPacket *startSamplingReq = (struct StartSamplingRequestPacket *)req;
 
-        samplePc = startSamplingReq->samplePeriod == 0;
+        samplePc = startSamplingReq->flags & SAMPLING_FLAG_SAMPLE_PC;
+        gpioMode = startSamplingReq->flags & SAMPLING_FLAG_GPIO;
+        useStartBp = startSamplingReq->flags & SAMPLING_FLAG_BP;
+        useStopBp = !(startSamplingReq->flags & SAMPLING_FLAG_PERIOD);
 
-        printf("Starting sample mode (%s)\n", samplePc ? "with PC" : "without PC");
+        printf("Starting sample mode (%llx)\n", startSamplingReq->flags);
 
         setLed(0);
 
-        // run until first bp
-        coresResume();
+        if(useStartBp) {
+          // run until start bp
+          coresResume();
 
-        // wait until we reach bp
-        while(!coreHalted());
+          // wait until we reach start bp
+          while(!coreHalted(startCore));
 
-        // sampling starts here
-        sampleMode = true;
+          // sampling starts here
+          sampleMode = true;
 
-        coreClearBp(startCore, START_BP);
-        coresResume();
+          coreClearBp(startCore, START_BP);
+          coresResume();
+
+        } else {
+          // sampling starts here
+          sampleMode = true;
+        }
 
         sampleStop = startSamplingReq->samplePeriod + calculateTime();
 

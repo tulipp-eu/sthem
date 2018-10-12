@@ -33,6 +33,7 @@ void CustomProject::writeCompileRule(QString compiler, QFile &makefile, QString 
   options << QString("-I") + this->path + "/src";
 
   options << opt.split(' ');
+  options << Config::extraCompileOptions.split(' ');
   options << clangTarget;
 
   makefile.write((fileInfo.completeBaseName() + ".o : " + path + "\n").toUtf8());
@@ -80,7 +81,7 @@ bool CustomProject::createMakefile() {
     QFileInfo info(source);
 
     bool tulippCompile = createBbInfo;
-    Module *mod = cfgModel->getCfg()->getModuleById(info.completeBaseName());
+    Module *mod = cfg->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
     if(info.suffix() == "c") {

@@ -273,11 +273,11 @@ void coresResume(void) {
   }
 }
 
-bool coreHalted(void) {
+bool coreHalted(unsigned core) {
   if(zynqUltrascale) {
-    return coreReadReg(&cores[stopCore], A53_PRSR) & (1 << 4);
+    return coreReadReg(&cores[core], A53_PRSR) & (1 << 4);
   } else {
-    return coreReadPcsr(&cores[stopCore]) == 0xffffffff;
+    return coreReadPcsr(&cores[core]) == 0xffffffff;
   }
 }
 

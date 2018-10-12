@@ -36,13 +36,10 @@ unsigned Sdsoc::getSdsocVersion() {
   QString stdout = process.readAllStandardOutput();
 
   if(stdout.contains("sdscc 2016.2")) {
-    printf("SDSoC version 2016.2 detected\n");
     return 20162;
   } else if(stdout.contains("sdscc 2017.2")) {
-    printf("SDSoC version 2017.2 detected\n");
     return 20172;
   } else if(stdout.contains("sdscc v2017.4")) {
-    printf("SDSoC version 2017.4 detected\n");
     return 20174;
   }
 
@@ -110,6 +107,7 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
   options << QString("-I") + this->path + "/src";
 
   options << opt.split(' ');
+  options << Config::extraCompileOptions.split(' ');
 
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
 
@@ -146,7 +144,7 @@ void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList object
 }
 
 bool Sdsoc::getPlatformOptions() {
-  QString command = "sdscc -sds-pf-info " + platform + " > __tulipp_test__.out";
+  QString command = "sdscc -sds-pf-info " + platform + " > " + "/tmp/__tulipp_test__.out";
   int ret = system(command.toUtf8().constData());
 
   if(ret) {
@@ -156,7 +154,7 @@ bool Sdsoc::getPlatformOptions() {
     return false;
   }
 
-  QFile file("__tulipp_test__.out");
+  QFile file("/tmp/__tulipp_test__.out");
 
   if(file.open(QIODevice::ReadOnly)) {
     QTextStream in(&file);
@@ -198,9 +196,7 @@ bool Sdsoc::getPlatformOptions() {
   return true;
 }
 
-bool Sdsoc::openProject(QString path, QString configType) {
-  printf("Opening SDSoC project\n");
-
+bool Sdsoc::openProject(QString path, QString configType, bool fast) {
   close();
 
   this->path = path;
@@ -249,7 +245,7 @@ bool Sdsoc::openProject(QString path, QString configType) {
     }
   }
 
-  if(!getPlatformOptions()) return false;
+  if(!fast) if(!getPlatformOptions()) return false;
 
   { // get compiler/linker options
     QDomDocument doc;
@@ -275,13 +271,13 @@ bool Sdsoc::openProject(QString path, QString configType) {
               QDomElement toolElement = toolNode.toElement();
               if(!toolElement.isNull()) {
                 if(toolElement.attribute("name", "") == "SDSCC Compiler") {
-                  cOptions = processCompilerOptions(toolElement, &cOptLevel);
+                  cOptions += processCompilerOptions(toolElement, &cOptLevel) + " ";
                 }
                 if(toolElement.attribute("name", "") == "SDS++ Compiler") {
-                  cppOptions = processCompilerOptions(toolElement, &cppOptLevel);
+                  cppOptions += processCompilerOptions(toolElement, &cppOptLevel) + " ";
                 }
                 if(toolElement.attribute("name", "") == "SDS++ Linker") {
-                  linkerOptions = processLinkerOptions(toolElement);
+                  linkerOptions += processLinkerOptions(toolElement) + " ";
                 }
               }
             }
@@ -294,7 +290,13 @@ bool Sdsoc::openProject(QString path, QString configType) {
   opened = true;
 
   // create .tulipp project dir
-  QDir dir(QDir::homePath() + "/.tulipp/" + name);
+  QDir dir;
+  if(Config::projectDir != "") {
+    dir = QDir(Config::projectDir);
+  } else {
+    dir = QDir(QDir::homePath() + "/.tulipp/" + name);
+  }
+
   if(!dir.exists()) {
     dir.mkpath(".");
   }
@@ -304,9 +306,8 @@ bool Sdsoc::openProject(QString path, QString configType) {
 
   // get system includes
   // TODO: This slows down startup, and is not very elegant.  Can we do it differently, or cache results?
-  {
+  if(!fast) {
     { // C
-      printf("Finding default C include paths\n");
       int ret = system("touch __tulipp_test__.c");
       QString command = "sdscc -v -sds-pf " + platform + " -target-os " + os +
         " -c __tulipp_test__.c -o __tulipp_test__.o > __tulipp_test__.out";
@@ -315,7 +316,6 @@ bool Sdsoc::openProject(QString path, QString configType) {
       Q_UNUSED(ret);
     }
     { // C++
-      printf("Finding default C++ include paths\n");
       int ret = system("touch __tulipp_test__.cpp");
       QString command = "sds++ -v -sds-pf " + platform + " -target-os " + os +
         " -c __tulipp_test__.cpp -o __tulipp_test__.o > __tulipp_test__.out";
@@ -335,10 +335,6 @@ bool Sdsoc::openProject(QString path, QString configType) {
 
   // read previous synthesis report (if exists)
   parseSynthesisReport();
-
-  printf("SDSoC project opened\n");
-
-  print();
 
   return true;
 }
@@ -427,7 +423,9 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
           }
         }
 
-        if(grandChildElement.attribute("name", "") == "Optimization Level") {
+        if((grandChildElement.attribute("name", "") == "Optimization Level") ||
+           (grandChildElement.attribute("superClass", "") == "com.xilinx.sdsoc.managedbuild.project.release.sdscc.option.optimization") ||
+           (grandChildElement.attribute("superClass", "") == "com.xilinx.sdsoc.managedbuild.project.release.sdspp.option.optimization")) {
           if(grandChildElement.attribute("value", "") == "gnu.c.optimization.level.none") {
             *optLevel = 0;
           } else if(grandChildElement.attribute("value", "") == "gnu.c.optimization.level.optimize") {
@@ -440,6 +438,10 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
             *optLevel = -1;
           }
           hasOpt = true;
+        }
+
+        if(grandChildElement.attribute("superClass", "") == "xilinx.gnu.compiler.misc.other") {
+          options += grandChildElement.attribute("value", "") + " ";
         }
 
         if(grandChildElement.attribute("superClass", "") == "xilinx.gnu.compiler.misc.ansi") {
@@ -455,6 +457,8 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
 
   if(!hasOpt) {
     if(configType == "SDDebug") {
+      *optLevel = 0;
+    } else if(configType == "Debug") {
       *optLevel = 0;
     } else {
       *optLevel = 3;
@@ -602,7 +606,7 @@ bool Sdsoc::createMakefile() {
     QFileInfo info(source);
 
     bool tulippCompile = createBbInfo;
-    Module *mod = cfgModel->getCfg()->getModuleById(info.completeBaseName());
+    Module *mod = cfg->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
     if(info.suffix() == "c") {

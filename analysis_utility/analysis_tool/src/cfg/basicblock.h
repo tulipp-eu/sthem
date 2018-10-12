@@ -103,7 +103,7 @@ public:
     Vertex::clearColors();
   }
 
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy);
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count);
 
   virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements);
 
@@ -117,7 +117,9 @@ public:
 
   virtual bool hasComplexPtrCast(QVector<BasicBlock*> callStack);
 
-  void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack);
+  void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive = true);
+
+  bool containsFunctionCall(Function *func);
 
 };
 

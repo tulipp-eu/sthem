@@ -34,6 +34,23 @@
 #include "project.h"
 #include "location.h"
 
+struct gmonhdr {
+ uint64_t lpc; /* base pc address of sample buffer */
+ uint64_t hpc; /* max pc address of sampled buffer */
+ int32_t ncnt; /* size of sample buffer (plus this header) */
+ int32_t version; /* version number */
+ int32_t profrate; /* profiling clock rate */
+ int32_t core;
+ int32_t loops;
+ int32_t spare; /* reserved */
+};
+
+struct rawarc {
+ uint64_t raw_frompc;
+ uint64_t raw_selfpc;
+ int64_t raw_count;
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // makefile creation
 
@@ -61,6 +78,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     options << QString("-I") + this->path + "/src";
 
     options << opt.split(' ');
+    options << Config::extraCompileOptions.split(' ');
 
     if(cfgOptLevel >= 0) {
       options << QString("-O") + QString::number(cfgOptLevel);
@@ -82,7 +100,24 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
   // _2.ll
   {
     makefile.write((fileInfo.completeBaseName() + "_2.ll : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
-    makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@\n\n").toUtf8());
+    if(instrument) {
+      makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@ --instrument\n\n").toUtf8());
+    } else {
+      makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@\n\n").toUtf8());
+    }
+  }
+
+  // _3.ll
+  {
+    QStringList options;
+    if(cppOptLevel >= 0) {
+      options << QString("-O") + QString::number(cppOptLevel);
+    } else {
+      options << QString("-Os");
+    }
+
+    makefile.write((fileInfo.completeBaseName() + "_3.ll : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
+    makefile.write((QString("\t") + Config::opt + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
   // .s
@@ -95,7 +130,7 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     }
     options << QString(llcTarget).split(' ');
 
-    makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
+    makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_3.ll\n").toUtf8());
     makefile.write((QString("\t") + Config::llc + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
@@ -144,7 +179,11 @@ bool Project::createXmlMakefile() {
 
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
-  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof __tulipp_test__.* .Xil\n\n").toUtf8());
+  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* __tulipp_test__.* .Xil\n\n").toUtf8());
+
+  makefile.write(QString(".PHONY : cleanbin\n").toUtf8());
+  makefile.write(QString("cleanbin :\n").toUtf8());
+  makefile.write(QString("\trm -rf *_2.ll *_3.ll *.s *.o *.elf __tulipp__.* __tulipp_test__.*\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -161,7 +200,6 @@ bool Project::createXmlMakefile() {
 
   makefile.write(QString(".PHONY : xml\n").toUtf8());
   makefile.write((QString("xml : ") + xmlFiles.join(' ') + "\n").toUtf8());
-  makefile.write(QString("\trm -rf profile.prof\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -173,7 +211,7 @@ bool Project::createXmlMakefile() {
 void Project::writeCleanRule(QFile &makefile) {
   makefile.write(QString(".PHONY : clean\n").toUtf8());
   makefile.write(QString("clean :\n").toUtf8());
-  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* profile.prof __tulipp_test__.* .Xil\n\n").toUtf8());
+  makefile.write(QString("\trm -rf *.ll *.xml *.s *.o *.elf *.bit sd_card _sds __tulipp__.* __tulipp_test__.* .Xil\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 }
@@ -196,7 +234,7 @@ bool Project::createMakefile(QFile &makefile) {
 ///////////////////////////////////////////////////////////////////////////////
 // make
 
-void Project::makeXml() {
+bool Project::makeXml() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
@@ -208,9 +246,11 @@ void Project::makeXml() {
   } else {
     emit finished(errorCode, "");
   }
+
+  return errorCode == 0;
 }
 
-void Project::makeBin() {
+bool Project::makeBin() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
@@ -219,7 +259,7 @@ void Project::makeBin() {
 
   if(!created || errorCode) {
     emit finished(errorCode, "Can't make XML");
-    return;
+    return false;
   }
 
   loadFiles();
@@ -235,13 +275,24 @@ void Project::makeBin() {
   } else {
     emit finished(errorCode, "");
   }
+
+  return errorCode == 0;
 }
 
-void Project::clean() {
+bool Project::clean() {
   if(opened) {
     createXmlMakefile();
     errorCode = system("make clean");
   }
+  return true;
+}
+
+bool Project::cleanBin() {
+  if(opened) {
+    createXmlMakefile();
+    errorCode = system("make cleanbin");
+  }
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -264,12 +315,15 @@ void Project::loadProjectFile() {
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
   useCustomElf = settings.value("useCustomElf", false).toBool();
   samplePc = settings.value("samplePc", true).toBool();
+  useBp = settings.value("useBp", true).toBool();
+  samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
   samplePeriod = settings.value("samplePeriod", 0).toLongLong();
   customElfFile = settings.value("customElfFile", "").toString();
   startFunc = settings.value("startFunc", "main").toString();
   startCore = settings.value("startCore", 0).toUInt();
   stopFunc = settings.value("stopFunc", "_exit").toString();
   stopCore = settings.value("stopCore", 0).toUInt();
+  instrument = settings.value("instrument", false).toBool();
 
   if(!isSdSocProject()) {
     ultrascale = settings.value("ultrascale", true).toBool();
@@ -288,6 +342,10 @@ void Project::loadProjectFile() {
       tcfUploadScript = settings.value("tcfUploadScript", DEFAULT_TCF_UPLOAD_SCRIPT).toString();
     }
   }
+
+  if(Config::overrideSamplePc) samplePc = true;
+  if(Config::overrideNoSamplePc) samplePc = false;
+  if(Config::overrideSamplePeriod) samplePeriod = Config::overrideSamplePeriod;
 }
 
 void Project::saveProjectFile() {
@@ -305,11 +363,14 @@ void Project::saveProjectFile() {
   settings.setValue("useCustomElf", useCustomElf);
   settings.setValue("customElfFile", customElfFile);
   settings.setValue("samplePc", samplePc);
+  settings.setValue("useBp", useBp);
+  settings.setValue("samplingModeGpio", samplingModeGpio);
   settings.setValue("samplePeriod", (qint64)samplePeriod);
   settings.setValue("startFunc", startFunc);
   settings.setValue("startCore", startCore);
   settings.setValue("stopFunc", stopFunc);
   settings.setValue("stopCore", stopCore);
+  settings.setValue("instrument", instrument);
 
   settings.setValue("sources", sources);
   settings.setValue("cOptLevel", cOptLevel);
@@ -350,8 +411,8 @@ int Project::runSourceTool(QString inputFilename, QString outputFilename, QStrin
 // project files
 
 void Project::loadFiles() {
-  if(cfgModel) delete cfgModel;
-  cfgModel = new CfgModel();
+  if(cfg) delete cfg;
+  cfg = new Cfg();
 
   QDir dir(".");
   dir.setFilter(QDir::Files);
@@ -393,7 +454,36 @@ void Project::loadXmlFile(const QString &fileName) {
   file.close();
 
   try {
-    cfgModel->addModule(doc, *this);
+    QDomElement element = doc.documentElement();
+    QString moduleName = element.attribute(ATTR_ID, "");
+    QString fileName = element.attribute(ATTR_FILE, "");
+
+    Module *module = new Module(moduleName, cfg, fileName);
+
+    module->constructFromXml(element, 0, this);
+    module->buildEdgeList();
+    module->buildExitNodes();
+    module->buildEntryNodes();
+
+    for(auto acc : accelerators) {
+      QFileInfo fileInfo(acc.filepath);
+      if(fileInfo.completeBaseName() == moduleName) {
+        QVector<Function*> functions = module->getFunctionsByName(acc.name);
+        assert(functions.size() == 1);
+        functions.at(0)->hw = true;
+      }
+    }
+
+    for(auto func : module->children) {
+      Function *f = static_cast<Function*>(func);
+      f->cycleRemoval();
+    }
+
+    cfg->appendChild(module);
+
+    cfg->clearCallers();
+    cfg->calculateCallers();
+
   } catch (std::exception &e) {
     QMessageBox msgBox;
     msgBox.setText("Invalid CFG file");
@@ -406,7 +496,7 @@ void Project::loadXmlFile(const QString &fileName) {
 // object construction, destruction and management
 
 Project::Project() {
-  cfgModel = NULL;
+  cfg = NULL;
   close();
 }
 
@@ -446,7 +536,7 @@ void Project::copy(Project *p) {
   QString customElfFile;
   elfFile = p->elfFile;
 
-  cfgModel = NULL;
+  cfg = NULL;
 }
 
 Project::Project(Project *p) {
@@ -454,7 +544,7 @@ Project::Project(Project *p) {
 }
 
 Project::~Project() {
-  delete cfgModel;
+  delete cfg;
 }
 
 void Project::close() {
@@ -467,8 +557,9 @@ void Project::close() {
 void Project::clear() {
   sources.clear();
   accelerators.clear();
-  if(cfgModel) delete cfgModel;
-  cfgModel = new CfgModel();
+
+  if(cfg) delete cfg;
+  cfg = new Cfg();
 }
 
 void Project::print() {
@@ -497,38 +588,420 @@ void Project::print() {
 ///////////////////////////////////////////////////////////////////////////////
 // profiling support
 
-void Project::runProfiler() {
+Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSupport, std::map<BasicBlock*,Location*> *locations) {
+  BasicBlock *bb = NULL;
+  Function *func = NULL;
 
-  ElfSupport elfSupport(elfFile);
-  if(useCustomElf) {
-    elfSupport = ElfSupport(customElfFile);
+  if(!useCustomElf && elfSupport->isBb(pc)) {
+    Module *mod = cfg->getModuleById(elfSupport->getModuleId(pc));
+    if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport->getLineNumber(pc)));
+
+  } else {
+    QString functionId;
+
+    if(core != 0) {
+      functionId = QString("CPU") + QString::number(core) + "_" + elfSupport->getFunction(pc);
+    } else {
+      functionId = elfSupport->getFunction(pc);
+    }
+
+    func = cfg->getFunctionById(functionId);
+
+    if(func) {
+      // we don't know the BB, but the function exists in the CFG: add to first BB
+      bb = func->getFirstBb();
+      func = NULL;
+
+    } else {
+      // the function does not exist in the CFG
+      Module *mod = cfg->externalMod;
+      func = mod->getFunctionById(functionId);
+
+      if(func) {
+        bb = static_cast<BasicBlock*>(func->children[0]);
+      } else {
+        func = new Function(functionId, mod, mod->children.size());
+        mod->appendChild(func);
+
+        bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
+        func->appendChild(bb);
+      }
+    }
+  }
+
+  QString bbText = "";
+  QString modText = "";
+  QString funcText = "";
+
+  if(func) {
+    funcText = func->id;
+  }
+
+  assert(bb);
+
+  bbText = bb->id;
+  modText = bb->getModule()->id;
+
+  Location *location;
+
+  if(locations) {
+    auto it = locations->find(bb);
+    if(it != locations->end()) {
+      location = it->second;
+    } else {
+      location = new Location(modText, funcText, bbText, bb);
+      (*locations)[bb] = location;
+    }
+  } else {
+    location = new Location(modText, funcText, bbText, bb);
+  }
+
+  return location;
+}
+
+void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations) {
+  QSqlQuery query;
+  query.exec("SELECT * FROM location WHERE core = " + QString::number(core));
+
+  while(query.next()) {
+    int id = query.value("id").toInt();
+    if(id >= Location::idCounter) Location::idCounter = id + 1;
+    QString modId = query.value("module").toString();
+    QString funcId = query.value("function").toString();
+    QString bbId = query.value("basicblock").toString();
+
+    Module *mod = cfg->getModuleById(modId);
+    assert(mod);
+    BasicBlock *bb = mod->getBasicBlockById(bbId);
+    assert(bb);
+
+    Location *location = new Location(id, modId, funcId, bbId, bb);
+    (*locations)[bb] = location;
+  }
+}
+
+bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile *profile) {
+  QSqlQuery query;
+
+  ElfSupport elfSupport;
+  elfSupport.addElf(elfFileName);
+
+  QFile file(gprofFileName);
+  if(!file.open(QIODevice::ReadOnly)) {
+    QMessageBox msgBox;
+    msgBox.setText("File not found");
+    msgBox.exec();
+    return false;
+  }
+
+  query.exec("DELETE FROM arc");
+
+  std::map<BasicBlock*,Location*> locations;
+
+  QSqlDatabase::database().transaction();
+
+  struct gmonhdr hdr;
+  file.read((char*)&hdr, sizeof(struct gmonhdr));
+
+  unsigned core = hdr.core;
+
+  getLocations(core, &locations);
+
+  for(int i = 0; i < hdr.loops; i++) {
+    uint64_t pc;
+    uint64_t count;
+
+    file.read((char*)&pc, sizeof(uint64_t));
+    file.read((char*)&count, sizeof(uint64_t));
+
+    Location *loop = getLocation(core, pc, &elfSupport, &locations);
+    loop->loopCount = count;
+  }
+
+  while(!file.atEnd()) {
+    struct rawarc arc;
+    file.read((char*)&arc, sizeof(struct rawarc));
+
+    Location *from = getLocation(core, arc.raw_frompc-4, &elfSupport, &locations);
+    Location *self = getLocation(core, arc.raw_selfpc, &elfSupport, &locations);
+
+    if(!from->bb->containsFunctionCall(self->bb->getFunction())) {
+      printf("Warning: Can't find arc %s:%s:%s - %s\n",
+             from->bb->getModule()->id.toUtf8().constData(),
+             from->bb->getFunction()->id.toUtf8().constData(),
+             from->bb->id.toUtf8().constData(),
+             self->bb->getFunction()->id.toUtf8().constData());
+    }
+
+    self->addCaller(from->id, arc.raw_count);
+  }
+
+  for(auto location : locations) {
+    if(!location.second->inDb) {
+      QSqlQuery query;
+
+      query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                    "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
+
+      query.bindValue(":id", location.second->id);
+      query.bindValue(":core", core);
+      query.bindValue(":basicblock", location.second->bbId);
+      query.bindValue(":function", location.second->funcId);
+      query.bindValue(":module", location.second->moduleId);
+      query.bindValue(":runtime", location.second->runtime);
+      query.bindValue(":energy1", location.second->energy[0]);
+      query.bindValue(":energy2", location.second->energy[1]);
+      query.bindValue(":energy3", location.second->energy[2]);
+      query.bindValue(":energy4", location.second->energy[3]);
+      query.bindValue(":energy5", location.second->energy[4]);
+      query.bindValue(":energy6", location.second->energy[5]);
+      query.bindValue(":energy7", location.second->energy[6]);
+      query.bindValue(":loopcount", (qulonglong)location.second->loopCount);
+
+      bool success = query.exec();
+      assert(success);
+    } else {
+      QSqlQuery query;
+
+      query.prepare("UPDATE location SET loopcount=:loopcount WHERE id=:id");
+
+      query.bindValue(":loopcount", (qulonglong)location.second->loopCount);
+      query.bindValue(":id", location.second->id);
+
+      bool success = query.exec();
+      assert(success);
+    }
+
+    for(auto it : location.second->callers) {
+      QSqlQuery arcQuery;
+      int caller = it.first;
+      int count =  it.second;
+
+      arcQuery.prepare("INSERT INTO arc (fromid,selfid,num) VALUES (:fromid,:selfid,:num)");
+
+      arcQuery.bindValue(":fromid", caller);
+      arcQuery.bindValue(":selfid", location.second->id);
+      arcQuery.bindValue(":num", count);
+
+      bool success = arcQuery.exec();
+      assert(success);
+    }
+
+    delete location.second;
+  }
+
+  QSqlDatabase::database().commit();
+
+  return true;
+}
+
+bool Project::parseProfFile(QString fileName, Profile *profile) {
+  QSqlQuery query;
+
+  ElfSupport elfSupport;
+  if(!useCustomElf) elfSupport.addElf(elfFile);
+  for(auto ef : customElfFile.split(',')) {
+    elfSupport.addElf(ef);
+  }
+
+  QFile file(fileName);
+  if(!file.open(QIODevice::ReadOnly)) {
+    QMessageBox msgBox;
+    msgBox.setText("File not found");
+    msgBox.exec();
+    return false;
+  }
+
+  profile->clean();
+
+  std::map<BasicBlock*,Location*> locations;
+
+  unsigned core = 0;
+  unsigned sensor = 0;
+  double calData[7];
+  double period = 0;
+  double unknownPower = 0;
+  double unknownRuntime = 0;
+  uint32_t count = 0;
+
+  file.read((char*)&core, sizeof(uint8_t));
+  file.read((char*)&sensor, sizeof(uint8_t));
+  for(int i = 0; i < 7; i++) {
+    file.read((char*)&calData[i], sizeof(double));
+  }
+  file.read((char*)&period, sizeof(double));
+  file.read((char*)&unknownPower, sizeof(double));
+  file.read((char*)&unknownRuntime, sizeof(double));
+  file.read((char*)&count, sizeof(uint32_t));
+
+  unknownPower = Pmu::currentToPower(sensor, unknownPower, pmu.rl, pmu.supplyVoltage, calData);
+
+  QSqlDatabase::database().transaction();
+
+  if((unknownPower != 0) || (unknownRuntime != 0)) {
+    double energy[7] = {0, 0, 0, 0, 0, 0, 0};
+    if(unknownRuntime) {
+      energy[sensor] = unknownPower * unknownRuntime;
+    }
+
+    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
+
+    query.bindValue(":id", 0);
+    query.bindValue(":core", core);
+    query.bindValue(":basicblock", "uknown-bb");
+    query.bindValue(":function", "Unknown");
+    query.bindValue(":module", cfg->externalMod->id);
+    query.bindValue(":runtime", unknownRuntime);
+    query.bindValue(":energy1", energy[0]);
+    query.bindValue(":energy2", energy[1]);
+    query.bindValue(":energy3", energy[2]);
+    query.bindValue(":energy4", energy[3]);
+    query.bindValue(":energy5", energy[4]);
+    query.bindValue(":energy6", energy[5]);
+    query.bindValue(":energy7", energy[6]);
+    query.bindValue(":loopcount", 0);
+
+    bool success = query.exec();
+    assert(success);
+  }
+
+  double totalRuntime = 0;
+  double totalEnergy[7] = {0, 0, 0, 0, 0, 0, 0};
+
+  for(uint32_t i = 0; i < count; i++) {
+    uint64_t pc;
+    double power;
+    double runtime;
+
+    file.read((char*)&pc, sizeof(uint64_t));
+    file.read((char*)&power, sizeof(double));
+    file.read((char*)&runtime, sizeof(double));
+
+    Location *location = getLocation(core, pc, &elfSupport, &locations);
+
+    power = Pmu::currentToPower(sensor, power, pmu.rl, pmu.supplyVoltage, calData);
+
+    if(runtime) {
+      location->energy[sensor] += power * runtime;
+      location->runtime += runtime;
+
+      totalEnergy[sensor] += power * runtime;
+      totalRuntime += runtime;
+    }
+  }
+
+  for(auto location : locations) {
+    QSqlQuery query;
+
+    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
+
+    query.bindValue(":id", location.second->id);
+    query.bindValue(":core", core);
+    query.bindValue(":basicblock", location.second->bbId);
+    query.bindValue(":function", location.second->funcId);
+    query.bindValue(":module", location.second->moduleId);
+    query.bindValue(":runtime", location.second->runtime);
+    query.bindValue(":energy1", location.second->energy[0]);
+    query.bindValue(":energy2", location.second->energy[1]);
+    query.bindValue(":energy3", location.second->energy[2]);
+    query.bindValue(":energy4", location.second->energy[3]);
+    query.bindValue(":energy5", location.second->energy[4]);
+    query.bindValue(":energy6", location.second->energy[5]);
+    query.bindValue(":energy7", location.second->energy[6]);
+    query.bindValue(":loopcount", 0);
+
+    bool success = query.exec();
+    assert(success);
+
+    delete location.second;
+  }
+
+  QSqlDatabase::database().commit();
+
+  QSqlDatabase::database().transaction();
+
+  query.prepare("INSERT INTO meta"
+                " (samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,"
+                "maxPower1,maxPower2,maxPower3,maxPower4,maxPower5,maxPower6,maxPower7,"
+                "runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7)"
+                " VALUES (:samples,:minTime,:maxTime,:minPower1,:minPower2,:minPower3,:minPower4,:minPower5,:minPower6,:minPower7,"
+                ":maxPower1,:maxPower2,:maxPower3,:maxPower4,:maxPower5,:maxPower6,:maxPower7,"
+                ":runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+
+  query.bindValue(":samples", 0);
+  query.bindValue(":minTime", 0);
+  query.bindValue(":maxTime", (qulonglong)pmu.secondsToCycles(totalRuntime));
+  query.bindValue(":minPower1", 0);
+  query.bindValue(":minPower2", 0);
+  query.bindValue(":minPower3", 0);
+  query.bindValue(":minPower4", 0);
+  query.bindValue(":minPower5", 0);
+  query.bindValue(":minPower6", 0);
+  query.bindValue(":minPower7", 0);
+  query.bindValue(":maxPower1", 0);
+  query.bindValue(":maxPower2", 0);
+  query.bindValue(":maxPower3", 0);
+  query.bindValue(":maxPower4", 0);
+  query.bindValue(":maxPower5", 0);
+  query.bindValue(":maxPower6", 0);
+  query.bindValue(":maxPower7", 0);
+  query.bindValue(":runtime", totalRuntime);
+  query.bindValue(":energy1", totalEnergy[0]);
+  query.bindValue(":energy2", totalEnergy[1]);
+  query.bindValue(":energy3", totalEnergy[2]);
+  query.bindValue(":energy4", totalEnergy[3]);
+  query.bindValue(":energy5", totalEnergy[4]);
+  query.bindValue(":energy6", totalEnergy[5]);
+  query.bindValue(":energy7", totalEnergy[6]);
+
+  bool success = query.exec();
+  assert(success);
+
+  QSqlDatabase::database().commit();
+
+  return true;
+}
+
+bool Project::runProfiler() {
+
+  ElfSupport elfSupport;
+  if(!useCustomElf) elfSupport.addElf(elfFile);
+  for(auto ef : customElfFile.split(',')) {
+    elfSupport.addElf(ef);
   }
 
   bool pmuInited = pmu.init();
   if(!pmuInited) {
     emit finished(1, "Can't connect to PMU");
-    return;
+    return false;
   }
 
-  emit advance(0, "Uploading binary");
+  if(!useBp) {
+    emit advance(0, "Skipping upload");
 
-  // upload binaries
-  QFile tclFile("temp-pmu-prof.tcl");
-  bool success = tclFile.open(QIODevice::WriteOnly);
-  Q_UNUSED(success);
-  assert(success);
+  } else {
+    emit advance(0, "Uploading binary");
 
-  QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
+    // upload binaries
+    QFile tclFile("temp-pmu-prof.tcl");
+    bool success = tclFile.open(QIODevice::WriteOnly);
+    Q_UNUSED(success);
+    assert(success);
+
+    QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
       
-  tclFile.write(tcl.toUtf8());
+    tclFile.write(tcl.toUtf8());
 
-  tclFile.close();
+    tclFile.close();
 
-  int ret = system("xsct temp-pmu-prof.tcl");
-  if(ret) {
-    emit finished(1, "Can't upload binaries");
-    pmu.release();
-    return;
+    int ret = system("xsct temp-pmu-prof.tcl");
+    if(ret) {
+      emit finished(1, "Can't upload binaries");
+      pmu.release();
+      return false;
+    }
   }
 
   uint64_t samples;
@@ -542,15 +1015,28 @@ void Project::runProfiler() {
   // // collect samples
   {
     emit advance(1, "Collecting samples");
-    pmu.collectSamples(samplePc, samplePeriod, startCore, elfSupport.lookupSymbol(startFunc), stopCore, elfSupport.lookupSymbol(stopFunc),
+
+    uint64_t startAddr = 0;
+    uint64_t stopAddr = 0;
+
+    if(useBp) {
+      startAddr = elfSupport.lookupSymbol(startFunc);
+      stopAddr = elfSupport.lookupSymbol(stopFunc);
+    }
+
+    bool usePeriod = samplePeriod != 0;
+
+    pmu.collectSamples(useBp, samplePc, samplingModeGpio, usePeriod, 
+                       samplePeriod, startCore, startAddr, stopCore, stopAddr,
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }
+
+  pmu.release();
 
   {
     emit advance(2, "Processing samples");
 
     std::map<BasicBlock*,Location*> locations[LYNSYN_MAX_CORES];
-    unsigned locationId = 0;
 
     printf("Querying samples\n");
 
@@ -571,7 +1057,8 @@ void Project::runProfiler() {
                         " WHERE rowid = :rowid");
 
     while(query.next()) {
-      if((counter++ % 10000) == 0) printf("Processed %d samples...\n", counter);
+      if(counter && ((counter % 10000) == 0)) printf("Processed %d samples...\n", counter);
+      counter++;
 
       unsigned rowId = query.value("rowid").toUInt();
 
@@ -596,59 +1083,10 @@ void Project::runProfiler() {
       power[6] = query.value("power7").toDouble();
 
       for(int core = 0; core < 4; core++) {
-        BasicBlock *bb = NULL;
-        Function *func = NULL;
+        Location *location = getLocation(core, pc[core], &elfSupport, &locations[core]);
 
-        if(!useCustomElf && elfSupport.isBb(pc[core])) {
-          Module *mod = cfgModel->getCfg()->getModuleById(elfSupport.getModuleId(pc[core]));
-          if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport.getLineNumber(pc[core])));
-
-        } else {
-          func = cfgModel->getCfg()->getFunctionById(elfSupport.getFunction(pc[core]));
-
-          if(func) {
-            // we don't know the BB, but the function exists in the CFG: add to first BB
-            bb = func->getFirstBb();
-            func = NULL;
-
-          } else {
-            // the function does not exist in the CFG
-            Module *mod = cfgModel->getCfg()->externalMod;
-            func = mod->getFunctionById(elfSupport.getFunction(pc[core]));
-
-            if(func) {
-              bb = static_cast<BasicBlock*>(func->children[0]);
-            } else {
-              func = new Function(elfSupport.getFunction(pc[core]), mod, mod->children.size());
-              mod->appendChild(func);
-
-              bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
-              func->appendChild(bb);
-            }
-          }
-        }
-
-        bbText[core] = "";
-        modText[core] = "";
-        QString funcText = "";
-
-        if(func) {
-          funcText = func->id;
-        }
-
-        assert(bb);
-
-        bbText[core] = bb->id;
-        modText[core] = bb->getModule()->id;
-
-        Location *location;
-        auto it = locations[core].find(bb);
-        if(it != locations[core].end()) {
-          location = it->second;
-        } else {
-          location = new Location(locationId++, modText[core], funcText, bbText[core]);
-          locations[core][bb] = location;
-        }
+        bbText[core] = location->bbId;
+        modText[core] = location->moduleId;
 
         location->runtime += Pmu::cyclesToSeconds(timeSinceLast);
 
@@ -673,6 +1111,8 @@ void Project::runProfiler() {
       assert(success);
     }
 
+    printf("Processed %d samples...\n", counter);
+
     QSqlDatabase::database().commit();
 
     QSqlDatabase::database().transaction();
@@ -683,8 +1123,8 @@ void Project::runProfiler() {
       for(auto location : locations[c]) {
         QSqlQuery query;
 
-        query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                      "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+        query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                      "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
 
         query.bindValue(":core", c);
         query.bindValue(":basicblock", location.second->bbId);
@@ -698,6 +1138,7 @@ void Project::runProfiler() {
         query.bindValue(":energy5", location.second->energy[4]);
         query.bindValue(":energy6", location.second->energy[5]);
         query.bindValue(":energy7", location.second->energy[6]);
+        query.bindValue(":loopcount", 0);
 
         bool success = query.exec();
         assert(success);
@@ -756,14 +1197,37 @@ void Project::runProfiler() {
     query.exec("CREATE INDEX measurements_time_idx ON measurements(time)");
   }
 
-  pmu.release();
+  emit finished(0, "");
+
+  return true;
+}
+
+bool Project::runApp() {
+
+  emit advance(0, "Uploading binary");
+
+  // upload binaries
+  QFile tclFile("temp-pmu-prof.tcl");
+  bool success = tclFile.open(QIODevice::WriteOnly);
+  Q_UNUSED(success);
+  assert(success);
+
+  QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript + "con\n";
+      
+  tclFile.write(tcl.toUtf8());
+
+  tclFile.close();
+
+  int ret = system("xsct temp-pmu-prof.tcl");
+  if(ret) {
+    emit finished(1, "Can't upload binaries");
+    return false;
+  }
 
   emit finished(0, "");
+
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-Cfg *Project::getCfg() {
-  return cfgModel->getCfg();
-}
 

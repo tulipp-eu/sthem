@@ -64,11 +64,12 @@ public:
   Sdsoc() {}
   Sdsoc(Sdsoc *p);
 
-  bool openProject(QString path, QString configType);
+  bool openProject(QString path, QString configType, bool fast = false);
 
-  void makeBin() {
-    Project::makeBin();
-    parseSynthesisReport();
+  bool makeBin() {
+    bool ret = Project::makeBin();
+    if(ret) parseSynthesisReport();
+    return ret;
   }
 
   bool getTimingOk() const { return timingOk; }

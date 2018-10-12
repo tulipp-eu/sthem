@@ -55,6 +55,7 @@ public:
   QComboBox *cppOptCombo;
   QLineEdit *cppOptionsEdit;
   QLineEdit *linkerOptionsEdit;
+  QCheckBox *instrumentCheckBox;
 
   ProjectBuildPage(Project *project, QWidget *parent = 0);
 };
@@ -79,6 +80,8 @@ public:
   QCheckBox *customElfCheckBox;
   QLineEdit *customElfEdit;
   QCheckBox *samplePcCheckBox;
+  QCheckBox *useBpCheckBox;
+  QCheckBox *samplingModeGpioCheckBox;
   QLineEdit *samplePeriodEdit;
 
   ProjectProfPage(Project *project, QWidget *parent = 0);

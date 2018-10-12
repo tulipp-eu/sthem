@@ -58,6 +58,7 @@ protected:
   ProfLine *cachedProfLine[Pmu::MAX_CORES];
   double cachedRuntime;
   double cachedEnergy[Pmu::MAX_SENSORS];
+  uint64_t cachedCount;
 
 public:
   std::vector<Vertex*> children;
@@ -76,6 +77,7 @@ public:
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       cachedEnergy[i] = INT_MAX;
     }
+    cachedCount = INT_MAX;
   }
 
   virtual ~Container();
@@ -120,7 +122,7 @@ public:
 
   virtual void printLayers();
 
-  virtual void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack);
+  virtual void getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive = true);
 
   virtual bool hasHwCalls();
 
@@ -191,7 +193,7 @@ public:
   
   virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements);
 
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy);
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count);
 
   virtual void buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forModel = false);
 

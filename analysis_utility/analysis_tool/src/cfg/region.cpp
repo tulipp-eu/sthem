@@ -25,7 +25,8 @@
 void Region::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling) {
   unsigned xx = startX + LINE_CLEARANCE;
 
-  if(isSuperBb) {
+  if(false) {
+    //  if(isSuperBb) {
     if(expanded) {
       yy += LINE_CLEARANCE;
     }
@@ -65,7 +66,8 @@ void Region::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector<Bas
                 }
                 if(func) {
                   visibleItem = func;
-                  scaling /= func->callers;  // TODO: scale using stack profile
+                  double ratio = getTop()->getProfile()->getArcRatio(Config::core, bb, func);
+                  scaling *= ratio;
                   callStackFunc.push_back(bb);
                 } else {
                   visibleItem = instr;

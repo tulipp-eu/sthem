@@ -52,7 +52,7 @@ class ElfSupport {
 private:
   std::map<uint64_t, Addr2Line> addr2lineCache;
 
-  QString elfFile;
+  QStringList elfFiles;
   uint64_t prevPc;
 
   Addr2Line addr2line;
@@ -60,9 +60,11 @@ private:
   void setPc(uint64_t pc);
 
 public:
-  ElfSupport(QString elfFile) {
-    this->elfFile = elfFile;
+  ElfSupport() {
     prevPc = -1;
+  }
+  void addElf(QString elfFile) {
+    elfFiles.push_back(elfFile);
   }
 
   // get debug info

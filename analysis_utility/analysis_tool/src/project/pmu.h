@@ -52,9 +52,8 @@ private:
 
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
-  int getArray(uint8_t *bytes, int maxNum, int numBytes);
+  bool getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived);
   void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy);
-  double currentToPower(unsigned sensor, int16_t current);
 
 public:
   static const unsigned MAX_SENSORS = LYNSYN_SENSORS;
@@ -75,7 +74,11 @@ public:
   bool init();
   void release();
 
-  void collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
+  double currentToPower(unsigned sensor, double current);
+  static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorCalibration);
+
+  void collectSamples(bool useBp, bool samplePc, bool samplingModeGpio, bool usePeriod, 
+                      int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                       uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                       double *runtime, double *energy);
 
@@ -83,6 +86,7 @@ public:
   unsigned numCores() { return LYNSYN_MAX_CORES; }
 
   static double cyclesToSeconds(uint64_t cycles) { return cycles / (double)LYNSYN_FREQ; }
+  static uint64_t secondsToCycles(double seconds) { return (uint64_t)(seconds * LYNSYN_FREQ); }
 };
 
 #endif

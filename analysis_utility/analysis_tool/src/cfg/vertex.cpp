@@ -87,22 +87,24 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
   double profData = 0;
 
   double runtimeTop;
-  double powerTop[Pmu::MAX_SENSORS], energyTop[Pmu::MAX_SENSORS];
+  double energyTop[Pmu::MAX_SENSORS];
+  uint64_t countTop;
 
   double runtime;
   double power[Pmu::MAX_SENSORS], energy[Pmu::MAX_SENSORS];
+  uint64_t count;
 
-  visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop);
-  if(runtimeTop) {
-    powerTop[Config::sensor] = energyTop[Config::sensor] / runtimeTop;
-  }
-  else powerTop[Config::sensor] = 0;
+  visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop, &countTop);
 
-  getProfData(Config::core, callStack, &runtime, energy);
+  double powerMin = getTop()->getProfile()->getMinPower(Config::sensor);
+  double powerMax = getTop()->getProfile()->getMaxPower(Config::sensor);
+
+  getProfData(Config::core, callStack, &runtime, energy, &count);
   runtime *= scaling;
   energy[Config::sensor] *= scaling;
   if(runtime) power[Config::sensor] = energy[Config::sensor] / runtime;
   else power[Config::sensor] = 0;
+  count *= scaling;
 
   assert(runtimeTop >= runtime);
   assert(energyTop[0] >= energy[0]);
@@ -112,6 +114,11 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
   assert(energyTop[4] >= energy[4]);
   assert(energyTop[5] >= energy[5]);
   assert(energyTop[6] >= energy[6]);
+
+  // if(runtimeTop < runtime) runtimeTop = runtime;
+  // for(int i = 0; i < 7; i++) {
+  //   if(energyTop[i] < energy[i]) energyTop[i] = energy[i];
+  // }
 
   switch(Config::colorMode) {
     case Config::STRUCT:
@@ -129,8 +136,8 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
       break;
     case Config::POWER:
       profData = power[Config::sensor];
-      if(powerTop[Config::sensor]) {
-        int scale = 100*power[Config::sensor]/powerTop[Config::sensor];
+      if(power[Config::sensor]) {
+        int scale = 100*(power[Config::sensor]-powerMin)/(powerMax-powerMin);
         if(!scale) scale = 1;
         getBaseItem()->setBrush(POWER_COLOR.lighter(scale));
       } else {
@@ -182,7 +189,11 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
     // create prof data text
     xx = TEXT_CLEARANCE;
     yy += TEXT_CLEARANCE;
-    text = new TextItem("Profile: " + QString::number(profData), getBaseItem());
+    if(isFunction()) {
+      text = new TextItem("Profile: " + QString::number(profData) + " Count: " + QString::number(count), getBaseItem());
+    } else {
+      text = new TextItem("Profile: " + QString::number(profData), getBaseItem());
+    }
     text->setPos(QPointF(xx, yy));
     text->setData(0, QVariant::fromValue((void*)this));
     text->setData(1, makeQVariant(callStack));

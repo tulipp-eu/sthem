@@ -43,6 +43,7 @@ lynsyn.elf: \
 	${SDK}/platform/emlib/src/em_rtc.o \
 	${SDK}/platform/emlib/src/em_emu.o \
 	${SDK}/platform/emlib/src/em_msc.o \
+	${SDK}/platform/emlib/src/em_i2c.o \
 	${SDK}/platform/middleware/usb_gecko/src/em_usbd.o \
 	${SDK}/platform/middleware/usb_gecko/src/em_usbdch9.o \
 	${SDK}/platform/middleware/usb_gecko/src/em_usbdep.o \

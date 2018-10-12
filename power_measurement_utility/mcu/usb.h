@@ -25,6 +25,9 @@
 #include "lynsyn.h"
 #include "usbprotocol.h"
 
+#define START_BP 0
+#define STOP_BP  1
+
 void usbInit(void);
 void sendSamples(struct SampleReplyPacket *sample, unsigned n);
 

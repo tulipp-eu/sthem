@@ -30,6 +30,7 @@
 #include <em_cmu.h>
 #include <em_gpio.h>
 #include <em_emu.h>
+#include <em_i2c.h>
 
 #include "adc.h"
 #include "config.h"
@@ -41,6 +42,9 @@
 
 volatile bool sampleMode;
 volatile bool samplePc;
+volatile bool gpioMode;
+volatile bool useStartBp;
+volatile bool useStopBp;
 volatile int64_t sampleStop;
 
 volatile uint32_t lastLowWord = 0;
@@ -48,6 +52,30 @@ volatile uint32_t highWord = 0;
 
 static struct SampleReplyPacket sampleBuf1[MAX_SAMPLES] __attribute__((__aligned__(4)));
 static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned__(4)));
+
+#ifndef SWO
+
+#define I2C_NO_CMD               0
+#define I2C_MAGIC                1
+#define I2C_READ_CURRENT_AVG     2
+#define I2C_READ_CURRENT_INSTANT 3
+#define I2C_GET_CAL              4
+
+static uint8_t i2cCommand;
+static uint8_t i2cSensors;
+
+static int16_t i2cCurrent[7];
+static int16_t i2cCurrentAvg[7];
+static int16_t i2cCurrentInstant[7];
+static double i2cCalData[7];
+static uint8_t *i2cSendBufPtr;
+
+static int i2cIdx;
+
+static int i2cSamplesSinceLast[7];
+static uint64_t i2cCurrentAcc[7];
+
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -84,6 +112,139 @@ void panic(const char *fmt, ...) {
   while(true);
 }
 
+#ifndef SWO
+
+void i2cInit(void) {
+  CMU_ClockEnable(cmuClock_I2C0, true);  
+
+  GPIO->ROUTE = (GPIO->ROUTE & ~(_GPIO_ROUTE_SWLOCATION_MASK)) | GPIO_ROUTE_SWLOCATION_LOC0;
+
+  GPIO->ROUTE = GPIO->ROUTE & ~GPIO_ROUTE_SWCLKPEN;
+  GPIO->ROUTE = GPIO->ROUTE & ~GPIO_ROUTE_SWDIOPEN;
+
+  GPIO_PinModeSet(I2C_SCL_PORT, I2C_SCL_PIN, gpioModeWiredAndPullUp, 1);
+  GPIO_PinModeSet(I2C_SDA_PORT, I2C_SDA_PIN, gpioModeWiredAndPullUp, 1);
+
+  I2C0->ROUTE = I2C_ROUTE_SDAPEN | I2C_ROUTE_SCLPEN |
+    (I2C_LOCATION << _I2C_ROUTE_LOCATION_SHIFT);
+
+  /* Initializing the I2C */
+  I2C_Init_TypeDef i2cInit = I2C_INIT_DEFAULT;
+  i2cInit.master = false;
+  I2C_Init(I2C0, &i2cInit);
+  
+  /* Setting up to enable slave mode */
+  I2C0->SADDR = I2C_ADDRESS;
+  I2C0->SADDRMASK = 0x7f;
+  I2C0->CTRL |= I2C_CTRL_SLAVE | I2C_CTRL_AUTOACK;
+
+  if(I2C0->STATE & I2C_STATE_BUSY) {
+    I2C0->CMD = I2C_CMD_ABORT;
+  }
+
+  I2C_IntClear(I2C0, I2C_IEN_ADDR | I2C_IEN_RXDATAV | I2C_IEN_SSTOP | I2C_IEN_ACK);  
+  I2C_IntEnable(I2C0, I2C_IEN_ADDR | I2C_IEN_RXDATAV | I2C_IEN_SSTOP | I2C_IEN_ACK);
+
+  NVIC_EnableIRQ(I2C0_IRQn);    
+}
+
+void i2cSendData(void) {
+  switch(i2cCommand) {
+
+    case I2C_READ_CURRENT_AVG:
+    case I2C_READ_CURRENT_INSTANT:
+      while(!(i2cSensors & (1 << (i2cIdx/2))) && (i2cIdx < 14)) {
+        i2cIdx += 2;
+      }
+
+      if(i2cIdx < 14) {
+        I2C0->TXDATA = i2cSendBufPtr[i2cIdx++];
+      } else {
+        I2C0->TXDATA = 0;
+      }
+      break;
+
+    case I2C_MAGIC:
+      I2C0->TXDATA = 0xad;
+      break;
+
+    case I2C_GET_CAL:
+      I2C0->TXDATA = i2cSendBufPtr[i2cIdx++];
+      break;
+
+    default:
+    case I2C_NO_CMD:
+      I2C0->TXDATA = 0;
+
+      break;
+  }
+}
+
+void I2C0_IRQHandler(void) {
+  int status;
+   
+  status = I2C0->IF;
+
+  if(status & I2C_IF_ADDR) {
+    /* address match */ 
+    uint8_t addr = I2C0->RXDATA;
+
+    i2cIdx = 0;
+
+    if(addr & 1) {
+
+      if(i2cCommand == I2C_READ_CURRENT_AVG) {
+        for(int i = 0; i < 7; i++) {
+          i2cCurrentAvg[i] = i2cCurrentAcc[i] / i2cSamplesSinceLast[i];
+          i2cCurrentAcc[i] = 0;
+          i2cSamplesSinceLast[i] = 0;
+        }
+
+        i2cSendBufPtr = (uint8_t*)i2cCurrentAvg;
+
+      } else if(i2cCommand == I2C_READ_CURRENT_INSTANT) {
+        i2cSendBufPtr = (uint8_t*)i2cCurrentInstant;
+
+      } else if(i2cCommand == I2C_GET_CAL) {
+        i2cSendBufPtr = (uint8_t*)i2cCalData;
+      }
+
+      i2cSendData();
+    }
+
+    I2C_IntClear(I2C0, I2C_IFC_ADDR);
+
+  } else if(status & I2C_IF_RXDATAV) {
+    /* data received */
+    switch(i2cIdx) {
+      case 0:
+        i2cCommand = I2C0->RXDATA;
+        break;
+      case 1:
+        if(i2cCommand == I2C_READ_CURRENT_AVG) i2cSensors = I2C0->RXDATA;
+        if(i2cCommand == I2C_READ_CURRENT_INSTANT) i2cSensors = I2C0->RXDATA;
+        break;
+      default:
+        I2C0->RXDATA;
+        break;
+    }
+    i2cIdx++;
+  }
+
+  if(status & I2C_IEN_ACK) {
+    /* need to write data */
+    i2cSendData();
+    I2C_IntClear(I2C0, I2C_IFC_ACK);
+  }
+
+  if(status & I2C_IEN_SSTOP) {
+    /* stop received */
+    I2C_IntClear(I2C0, I2C_IEN_SSTOP);
+  }
+}
+
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 
 int main(void) {
@@ -98,18 +259,20 @@ int main(void) {
   CMU_ClockEnable(cmuClock_HFPER, true);
   CMU_ClockEnable(cmuClock_USB, true);
   CMU_ClockEnable(cmuClock_ADC0, true);
-
-#ifdef TRIGGER_INPUT
-  GPIO_PinModeSet(TRIGGER_IN_PORT, TRIGGER_IN_BIT, gpioModeInput, 0);
-#else
-  swoInit();
+#ifndef SWO
+  CMU_ClockEnable(cmuClock_I2C0, true);
+  CMU_ClockEnable(cmuClock_CORELE, true);
 #endif
-
-  printf("Lynsyn firmware %s initializing...\n", SW_VERSION_STRING);
 
   // setup LEDs
   GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
   GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
+
+#ifdef SWO
+  swoInit();
+#endif
+
+  printf("Lynsyn firmware %s initializing...\n", SW_VERSION_STRING);
 
   // Enable cycle counter
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -122,13 +285,26 @@ int main(void) {
   usbInit();
   jtagInit();
 
+#ifndef SWO
+  GPIO_PinModeSet(TRIGGER_IN_PORT, TRIGGER_IN_BIT, gpioModeInput, 0);
+  while(DWT->CYCCNT < BOOT_DELAY);
+  i2cInit();
+
+  i2cCalData[0] = getDouble("cal0");
+  i2cCalData[1] = getDouble("cal1");
+  i2cCalData[2] = getDouble("cal2");
+  i2cCalData[3] = getDouble("cal3");
+  i2cCalData[4] = getDouble("cal4");
+  i2cCalData[5] = getDouble("cal5");
+  i2cCalData[6] = getDouble("cal6");
+#endif
+
   clearLed(0);
   clearLed(1);
 
   printf("Ready.\n");
 
   int samples = 0;
-  int64_t startTime = 0;
 
   unsigned currentSample = 0;
 
@@ -136,19 +312,18 @@ int main(void) {
 
   // main loop
   while(true) {
-    int64_t currentTime = calculateTime();
-
-    struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
-
     if(sampleMode) {
+      int64_t currentTime = calculateTime();
+      struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
+
       bool halted = false;
 
-#ifdef TRIGGER_INPUT
-      bool send = false;
+#ifndef SWO
+      bool send = !gpioMode;
 
-      if(!GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
-        if(samplePc) {
-          halted = coreHalted();
+      if(gpioMode && !GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
+        if(useStopBp) {
+          halted = coreHalted(stopCore);
         } else {
           halted = currentTime >= sampleStop;
         }
@@ -164,12 +339,16 @@ int main(void) {
         } else {
           for(int i = 0; i < 4; i++) {
             samplePtr->pc[i] = 0;
-            halted = currentTime >= sampleStop;
           }
         }
+
+        if(!useStopBp) {
+          halted = currentTime >= sampleStop;
+        }
+
         adcScanWait();
 
-#ifdef TRIGGER_INPUT
+#ifndef SWO
         if(GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
           send = true;
         }
@@ -177,21 +356,27 @@ int main(void) {
       }
 
       if(halted) {
-#ifdef TRIGGER_INPUT
+#ifndef SWO
         send = true;
 #endif
         samplePtr->time = -1;
-        clearLed(0);
         sampleMode = false;
+
+        if(useStopBp) {
+          coreClearBp(stopCore, STOP_BP);
+          coresResume();
+        }
+
         jtagExt();
 
-        double totalTime = (currentTime - startTime) / CLOCK_FREQ;
-        printf("Exiting sample mode, %d samples (%d per second)\n", samples, (unsigned)(samples/totalTime));
+        clearLed(0);
+
+        printf("Exiting sample mode, %d samples\n", samples);
 
         samples = 0;
       }
 
-#ifdef TRIGGER_INPUT
+#ifndef SWO
       if(send) {
 #else
       {
@@ -206,17 +391,28 @@ int main(void) {
           currentSample = 0;
         }
       }
-
+#ifndef SWO
     } else {
-      startTime = currentTime;
-      currentSample = 0;
+      adcScan(i2cCurrent);
+      adcScanWait();
+
+      __disable_irq();
+      for(int i = 0; i < 7; i++) {
+        i2cCurrentAcc[i] += i2cCurrent[i];
+        i2cSamplesSinceLast[i]++;
+        i2cCurrentInstant[i] = i2cCurrent[i];
+      }
+      __enable_irq();
+#endif      
     }
-  }
+  } 
 }
 
 int64_t calculateTime() {
   uint32_t lowWord = DWT->CYCCNT;
+  __disable_irq();
   if(lowWord < lastLowWord) highWord++;
   lastLowWord = lowWord;
+  __enable_irq();
   return ((uint64_t)highWord << 32) | lowWord;
 }

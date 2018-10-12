@@ -166,7 +166,7 @@ void Pmu::getBytes(uint8_t *bytes, int numBytes) {
   return;
 }
 
-int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
+bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived) {
   int transfered = 0;
   int ret = LIBUSB_ERROR_TIMEOUT;
 
@@ -178,10 +178,14 @@ int Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes) {
     }
   }
 
-  assert((transfered % numBytes) == 0);
-  assert(transfered);
+  *elementsReceived = transfered / numBytes;
 
-  return transfered / numBytes;
+  if(transfered % numBytes) {
+    printf("Warning: Incomplete USB transfer\n");
+    return false;
+  }
+
+  return true;
 }
 
 void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy) {
@@ -217,48 +221,70 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   }
 }
 
-void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
+void Pmu::collectSamples(bool useBp, bool samplePc, bool samplingModeGpio, bool usePeriod,
+                         int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
-  {
+  if(useBp || samplePc) {
     struct RequestPacket req;
     req.cmd = USB_CMD_JTAG_INIT;
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
   }
 
-  {
-    struct BreakpointRequestPacket req;
-    req.request.cmd = USB_CMD_BREAKPOINT;
-    req.core = startCore;
-    req.bpType = BP_TYPE_START;
-    req.addr = startAddr;
+  if(useBp) {
+    {
+      struct BreakpointRequestPacket req;
+      req.request.cmd = USB_CMD_BREAKPOINT;
+      req.core = startCore;
+      req.bpType = BP_TYPE_START;
+      req.addr = startAddr;
 
-    sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
-  }
+      sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+    }
 
-  {
-    struct BreakpointRequestPacket req;
-    req.request.cmd = USB_CMD_BREAKPOINT;
-    req.core = stopCore;
-    req.bpType = BP_TYPE_STOP;
-    req.addr = stopAddr;
+    if(!usePeriod) {
+      struct BreakpointRequestPacket req;
+      req.request.cmd = USB_CMD_BREAKPOINT;
+      req.core = stopCore;
+      req.bpType = BP_TYPE_STOP;
+      req.addr = stopAddr;
 
-    sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+      sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+    }
   }
 
   if(swVersion <= SW_VERSION_1_1) {
     struct RequestPacket req;
     req.cmd = USB_CMD_START_SAMPLING;
-    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
     if(!samplePc) printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
+    if(!useBp) {
+      printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      return;
+    }
+    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
+
+  } else if(swVersion == SW_VERSION_1_1) {
+    struct StartSamplingRequestPacketV1_1 req;
+    req.request.cmd = USB_CMD_START_SAMPLING;
+    req.samplePeriod = samplePeriod;
+    if(samplingModeGpio) {
+      printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
+    }
+    if(!useBp) {
+      printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      return;
+    }
+    sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacketV1_1));
+
   } else {
     struct StartSamplingRequestPacket req;
     req.request.cmd = USB_CMD_START_SAMPLING;
-    if(samplePc) {
-      req.samplePeriod = 0;
-    } else {
-      req.samplePeriod = samplePeriod;
-    }
+    req.samplePeriod = samplePeriod;
+    req.flags =
+      (usePeriod ? SAMPLING_FLAG_PERIOD : 0) |
+      (samplePc ? SAMPLING_FLAG_SAMPLE_PC : 0) |
+      (samplingModeGpio ? SAMPLING_FLAG_GPIO : 0) |
+      (useBp ? SAMPLING_FLAG_BP : 0);
     sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacket));
   }
 
@@ -292,26 +318,34 @@ void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore
       if((counter % 313) == 0) printf("Got %ld samples...\n", *samples);
     }
 
-    int n = 1;
+    unsigned n = 1;
 
     if(swVersion <= SW_VERSION_1_1) {
       getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
     } else {
-      n = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket));
+      bool transferOk = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket), &n);
+      if(!transferOk) {
+        printf("Warning: Incomplete USB transfer, stopping\n");
+        printf("Got %ld samples...\n", *samples);
+        printf("Sampling done\n");
+        done = true;
+        break;
+      }
     }
 
     *samples += n;
 
     SampleReplyPacket *sample = (SampleReplyPacket*)buf;
 
-    for(int i = 0; i < n; i++) {
+    for(unsigned i = 0; i < n; i++) {
       if(*minTime == 0) *minTime = sample->time;
       if(sample->time > *maxTime) *maxTime = sample->time;
 
       if(sample->time == -1) {
+        (*samples)--;
+        printf("Got %ld samples...\n", *samples);
         printf("Sampling done\n");
         done = true;
-        (*samples)--;
         break;
 
       } else {
@@ -333,7 +367,7 @@ void Pmu::collectSamples(bool samplePc, int64_t samplePeriod, unsigned startCore
   free(buf);
 }
 
-double Pmu::currentToPower(unsigned sensor, int16_t current) {
+double Pmu::currentToPower(unsigned sensor, double current) {
   switch(hwVersion) {
     case HW_VERSION_2_0: {
       double vo = (current * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;
@@ -348,4 +382,11 @@ double Pmu::currentToPower(unsigned sensor, int16_t current) {
     }
   }
   return 0;
+}
+
+double Pmu::currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorCalibration) {
+  double v = (current * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
+  double vs = v / 20;
+  double i = vs / rl[sensor];
+  return i * supplyVoltage[sensor];
 }

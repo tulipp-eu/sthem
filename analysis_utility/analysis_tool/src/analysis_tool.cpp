@@ -22,6 +22,7 @@
 #include <QApplication>
 
 #include "mainwindow.h"
+#include "analysis.h"
 #include "cfg/loop.h"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,17 +31,318 @@ int main(int argc, char *argv[]) {
   Q_INIT_RESOURCE(application);
 
   QApplication app(argc, argv);
-
   app.setOrganizationName(ORG_NAME);
   app.setOrganizationDomain(ORG_DOMAIN);
   app.setApplicationName(APP_NAME);
+  app.setApplicationVersion(QString("V") + QString::number(VERSION));
 
-  MainWindow *mainWin;
+  QCommandLineParser parser;
+  parser.setApplicationDescription("Analysis Tool");
+  parser.addHelpOption();
+  parser.addVersionOption();
 
-  mainWin = new MainWindow();
-  mainWin->show();
+  QCommandLineOption runOption("run", QCoreApplication::translate("main", "Run Application"));
+  parser.addOption(runOption);
+  QCommandLineOption profileOption("profile", QCoreApplication::translate("main", "Profile Application"));
+  parser.addOption(profileOption);
+  QCommandLineOption buildOption("build", QCoreApplication::translate("main", "Build Application"));
+  parser.addOption(buildOption);
+  QCommandLineOption cleanOption("clean", QCoreApplication::translate("main", "Clean Application"));
+  parser.addOption(cleanOption);
+  QCommandLineOption samplePcOption("sample-pc", QCoreApplication::translate("main", "Sample PC over JTAG"));
+  parser.addOption(samplePcOption);
+  QCommandLineOption noSamplePcOption("no-sample-pc", QCoreApplication::translate("main", "Do not sample PC over JTAG"));
+  parser.addOption(noSamplePcOption);
 
-  return app.exec();
+  QCommandLineOption projectOption(QStringList() << "project",
+                                   QCoreApplication::translate("main", "Open project"),
+                                   QCoreApplication::translate("main", "project"));
+  parser.addOption(projectOption);
+
+  QCommandLineOption buildConfigOption(QStringList() << "build-config",
+                                       QCoreApplication::translate("main", "Build config"),
+                                       QCoreApplication::translate("main", "config"));
+  parser.addOption(buildConfigOption);
+
+  QCommandLineOption loadProfileOption(QStringList() << "load-profile",
+                                       QCoreApplication::translate("main", "Load profile"),
+                                       QCoreApplication::translate("main", "file"));
+  parser.addOption(loadProfileOption);
+
+  QCommandLineOption cflagsOption(QStringList() << "compile-flags",
+                                  QCoreApplication::translate("main", "Extra compile flags"),
+                                  QCoreApplication::translate("main", "flags"));
+  parser.addOption(cflagsOption);
+
+  QCommandLineOption getRuntimeOption(QStringList() << "get-runtime",
+                                      QCoreApplication::translate("main", "Get runtime"),
+                                      QCoreApplication::translate("main", "module,function,core"));
+  parser.addOption(getRuntimeOption);
+
+  QCommandLineOption getPowerOption(QStringList() << "get-power",
+                                    QCoreApplication::translate("main", "Get power"),
+                                    QCoreApplication::translate("main", "module,function,core,sensor"));
+  parser.addOption(getPowerOption);
+
+  QCommandLineOption getEnergyOption(QStringList() << "get-energy",
+                                     QCoreApplication::translate("main", "Get energy"),
+                                     QCoreApplication::translate("main", "module,function,core,sensor"));
+  parser.addOption(getEnergyOption);
+
+  QCommandLineOption getCountOption(QStringList() << "get-count",
+                                    QCoreApplication::translate("main", "Get count"),
+                                    QCoreApplication::translate("main", "module,function,core"));
+  parser.addOption(getCountOption);
+
+  QCommandLineOption getTotalEnergyOption(QStringList() << "get-total-energy",
+                                     QCoreApplication::translate("main", "Get energy for entire run"),
+                                     QCoreApplication::translate("main", "sensor"));
+  parser.addOption(getTotalEnergyOption);
+
+  QCommandLineOption projectDirOption(QStringList() << "project-dir",
+                                         QCoreApplication::translate("main", "Project directory"),
+                                         QCoreApplication::translate("main", "path"));
+  parser.addOption(projectDirOption);
+
+  QCommandLineOption periodOption(QStringList() << "period",
+                                  QCoreApplication::translate("main", "Cycles to sample"),
+                                  QCoreApplication::translate("main", "cycles"));
+  parser.addOption(periodOption);
+
+  QCommandLineOption dumpRoiOption(QStringList() << "dump-roi",
+                                  QCoreApplication::translate("main", "Dump ROI data"),
+                                  QCoreApplication::translate("main", "core,sensor"));
+  parser.addOption(dumpRoiOption);
+
+  parser.process(app);
+
+  QSettings settings;
+  QString project = settings.value("currentProject", "").toString();
+  QString buildConfig = settings.value("currentBuildConfig", "").toString();
+
+  Analysis analysis;
+
+  if(parser.isSet(projectOption)) {
+    project = parser.value(projectOption);
+  }
+
+  if(parser.isSet(buildConfigOption)) {
+    buildConfig = parser.value(buildConfigOption);
+  }
+
+  if(parser.isSet(cflagsOption)) {
+    Config::extraCompileOptions = parser.value(cflagsOption);
+  }
+
+  Config::overrideSamplePeriod = 0;
+  if(parser.isSet(periodOption)) {
+    Config::overrideSamplePeriod = parser.value(periodOption).toLongLong();
+  }
+
+  Config::overrideSamplePc = false;
+  Config::overrideSamplePc = parser.isSet(samplePcOption);
+
+  Config::overrideNoSamplePc = false;
+  Config::overrideNoSamplePc = parser.isSet(noSamplePcOption);
+
+  if(parser.isSet(projectDirOption)) {
+    Config::projectDir = parser.value(projectDirOption);
+  } else {
+    Config::projectDir = "";
+  }
+
+  bool batch =
+    parser.isSet(getRuntimeOption) ||
+    parser.isSet(getPowerOption) ||
+    parser.isSet(getTotalEnergyOption) ||
+    parser.isSet(getEnergyOption) ||
+    parser.isSet(getCountOption) ||
+    parser.isSet(cleanOption) || 
+    parser.isSet(buildOption) || 
+    parser.isSet(loadProfileOption) || 
+    parser.isSet(runOption) || 
+    parser.isSet(dumpRoiOption) || 
+    parser.isSet(profileOption);
+
+  bool compile =
+    parser.isSet(cleanOption) || 
+    parser.isSet(buildOption);
+
+  if(batch) {
+    if(!analysis.openProject(project, buildConfig, !compile)) {
+      printf("Can't open project\n");
+      return -1;
+    }
+
+    if(parser.isSet(cleanOption)) {
+      printf("Cleaning application\n");
+      if(!analysis.clean()) {
+        printf("Can't clean project\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(buildOption)) {
+      printf("Building application\n");
+      if(!analysis.project->makeBin()) {
+        printf("Can't build project\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(loadProfileOption)) {
+      printf("Loading profile\n");
+      if(!analysis.loadProfFile(parser.value(loadProfileOption))) {
+        printf("Can't load profile\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(runOption)) {
+      printf("Running application\n");
+      if(!analysis.runApp()) {
+        printf("Can't run application\n");
+        return -1;
+      }
+    } else if(parser.isSet(profileOption)) {
+      printf("Profiling application\n");
+      if(!analysis.profileApp()) {
+        printf("Can't run profiler\n");
+        return -1;
+      }
+    }
+
+    if(parser.isSet(dumpRoiOption)) {
+      QStringList arg = parser.value(dumpRoiOption).split(',');
+      unsigned core = arg[0].toUInt();
+      unsigned sensor = arg[1].toUInt();
+      analysis.dump(core, sensor);
+    }
+
+    if(parser.isSet(getRuntimeOption)) {
+      QStringList arg = parser.value(getRuntimeOption).split(',');
+      QString moduleId = arg[0];
+      QString functionId = arg[1];
+      unsigned core = arg[2].toUInt();
+
+      Module *mod = analysis.project->cfg->getModuleById(moduleId);
+      if(!mod) {
+        printf("Can't find module %s\n", moduleId.toUtf8().constData());
+        return -1;
+      }
+      Function *func = mod->getFunctionById(functionId);
+      if(!func) {
+        printf("Can't find function %s\n", functionId.toUtf8().constData());
+        return -1;
+      }
+
+      double runtime;
+      double energy[LYNSYN_SENSORS];
+      uint64_t count;
+
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+
+      printf("%f\n", runtime);
+    }
+
+    if(parser.isSet(getPowerOption)) {
+      QStringList arg = parser.value(getPowerOption).split(',');
+      QString moduleId = arg[0];
+      QString functionId = arg[1];
+      unsigned core = arg[2].toUInt();
+      unsigned sensor = arg[3].toUInt();
+
+      Module *mod = analysis.project->cfg->getModuleById(moduleId);
+      if(!mod) {
+        printf("Can't find module %s\n", moduleId.toUtf8().constData());
+        return -1;
+      }
+      Function *func = mod->getFunctionById(functionId);
+      if(!func) {
+        printf("Can't find function %s\n", functionId.toUtf8().constData());
+        return -1;
+      }
+
+      double runtime;
+      double energy[LYNSYN_SENSORS];
+      uint64_t count;
+
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+
+      printf("%f\n", energy[sensor] / runtime);
+    }
+
+    if(parser.isSet(getTotalEnergyOption)) {
+      unsigned sensor = parser.value(getTotalEnergyOption).toUInt();
+
+      printf("%f\n", analysis.profile->getEnergy(sensor));
+    }
+
+    if(parser.isSet(getEnergyOption)) {
+      QStringList arg = parser.value(getEnergyOption).split(',');
+      QString moduleId = arg[0];
+      QString functionId = arg[1];
+      unsigned core = arg[2].toUInt();
+      unsigned sensor = arg[3].toUInt();
+
+      Module *mod = analysis.project->cfg->getModuleById(moduleId);
+      if(!mod) {
+        printf("Can't find module %s\n", moduleId.toUtf8().constData());
+        return -1;
+      }
+      Function *func = mod->getFunctionById(functionId);
+      if(!func) {
+        printf("Can't find function %s\n", functionId.toUtf8().constData());
+        return -1;
+      }
+
+      double runtime;
+      double energy[LYNSYN_SENSORS];
+      uint64_t count;
+
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+
+      printf("%f\n", energy[sensor]);
+    }
+
+    if(parser.isSet(getCountOption)) {
+      QStringList arg = parser.value(getCountOption).split(',');
+      QString moduleId = arg[0];
+      QString functionId = arg[1];
+      unsigned core = arg[2].toUInt();
+
+      Module *mod = analysis.project->cfg->getModuleById(moduleId);
+      if(!mod) {
+        printf("Can't find module %s\n", moduleId.toUtf8().constData());
+        return -1;
+      }
+      Function *func = mod->getFunctionById(functionId);
+      if(!func) {
+        printf("Can't find function %s\n", functionId.toUtf8().constData());
+        return -1;
+      }
+
+      double runtime;
+      double energy[LYNSYN_SENSORS];
+      uint64_t count;
+
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+
+      printf("%ld\n", count);
+    }
+
+  } else {
+    MainWindow *mainWin = new MainWindow(&analysis);
+
+    // open project
+    if(project != "") {
+      mainWin->openProject(project, buildConfig);
+    }
+
+    mainWin->show();
+
+    return app.exec();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

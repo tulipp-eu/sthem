@@ -31,6 +31,7 @@
 
 #include "analysis_tool.h"
 
+#include "analysis.h"
 #include "project/project.h"
 #include "project/customproject.h"
 #include "project/sdsoc.h"
@@ -43,15 +44,14 @@
 #include "textview.h"
 #include "dse/dse.h"
 #include "cfg/group.h"
+#include "cfg/cfgmodel.h"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
 private:
-  Project *project;
-  Dse *dse;
-  Profile *profile;
-  QString elfFile;
+  Analysis *analysis;
+
   QTreeView *treeView;
   QTreeView *analysisView;
   TextView *textView;
@@ -65,6 +65,7 @@ private:
   QComboBox *sensorBox;
   QComboBox *cfgModeBox;
   ProfModel *profModel;
+  CfgModel *cfgModel;
   QTableView *tableView;
   QSplitter *cfgSplitter;
   QSplitter *cfgSplitter2;
@@ -88,12 +89,16 @@ private:
   QAction *configDialogAct;
   QAction *projectDialogAct;
   QAction *openProjectAct;
+  QAction *openProfileAct;
+  QAction *openGProfAct;
   QAction *createProjectAct;
   QAction *closeProjectAct;
   QAction *cleanAct;
+  QAction *cleanBinAct;
   QAction *makeXmlAct;
   QAction *makeBinAct;
   QAction *profileAct;
+  QAction *runAct;
   QAction *showProfileAct;
   QAction *showDseAct;
 
@@ -101,10 +106,7 @@ private:
   QProgressDialog *progDialog;
 
   void loadFiles();
-  void loadFile(const QString &fileName);
-  void loadDseFile(const QString &fileName);
   void buildProjectMenu();
-  bool openProject(QString path, QString buildConfig);
   void clearGui();
 
 private slots:
@@ -117,18 +119,23 @@ private slots:
   void configDialog();
   void projectDialog();
   void openProjectEvent(QAction *action);
+  void openProfileEvent();
+  void openGProfEvent();
   void openCustomProject();
   void createProject();
   void closeProject();
   void cleanEvent();
+  void cleanBinEvent();
   void makeXmlEvent();
   void makeBinEvent();
   void profileEvent();
+  void runEvent();
   void showProfileSummary();
   void showDseSummary();
   void finishXml(int error, QString msg);
   void finishBin(int error, QString msg);
   void finishProfile(int error, QString msg);
+  void finishRun(int error, QString msg);
   void advance(int step, QString msg);
   void changeCore(int core);
   void changeSensor(int sensor);
@@ -140,8 +147,10 @@ protected:
   void closeEvent(QCloseEvent *event) Q_DECL_OVERRIDE;
 
 public:
-  MainWindow();
+  MainWindow(Analysis *analysis);
   ~MainWindow();
+
+  bool openProject(QString path, QString buildConfig);
 
   void resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);

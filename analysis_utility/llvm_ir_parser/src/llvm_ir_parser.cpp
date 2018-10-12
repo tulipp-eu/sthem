@@ -111,7 +111,7 @@ void recreateDbInfo(Module *mod) {
 
 int main(int argc, char* argv[]) {
   if (argc < 4) {
-    fprintf(stderr, "Usage: %s <input ir file> <-xml|-ll> <output file>\n", argv[0]);
+    fprintf(stderr, "Usage: %s <input ir file> <-xml|-ll> <output file> [--instrument]\n", argv[0]);
     exit(1);
   }
 
@@ -130,6 +130,7 @@ int main(int argc, char* argv[]) {
 
   } else if(!strncmp("-ll", argv[2], 3)) {
     recreateDbInfo(mod.get());
+    if(argc >= 5) top->instrument();
     printIR(mod.get(), argv[3]);
 
   } else {

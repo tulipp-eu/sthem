@@ -39,7 +39,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 
-//#define TRIGGER_INPUT
+//#define SWO
 
 #define CAL_AVERAGE_SAMPLES 100
 
@@ -47,6 +47,15 @@
 // lynsyn settings
 
 #define CLOCK_FREQ 48000000
+
+#define BOOT_DELAY (3*CLOCK_FREQ)
+
+#define I2C_ADDRESS  0xaa
+#define I2C_SCL_PORT gpioPortF
+#define I2C_SCL_PIN  1
+#define I2C_SDA_PORT gpioPortF
+#define I2C_SDA_PIN  0
+#define I2C_LOCATION 5
 
 #define TRIGGER_IN_BIT 2
 #define TRIGGER_IN_PORT gpioPortF
@@ -111,6 +120,9 @@ void panic(const char *fmt, ...);
 
 extern volatile bool sampleMode;
 extern volatile bool samplePc;
+extern volatile bool gpioMode;
+extern volatile bool useStartBp;
+extern volatile bool useStopBp;
 extern volatile int64_t sampleStop;
 extern uint8_t startCore;
 extern uint8_t stopCore;

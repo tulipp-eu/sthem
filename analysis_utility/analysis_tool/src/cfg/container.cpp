@@ -764,21 +764,24 @@ void Container::collapse() {
   }
 }
 
-void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy) {
+void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count) {
   if(cachedRuntime == INT_MAX) {
     cachedRuntime = 0;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       cachedEnergy[i] = 0;
     }
+    cachedCount = 0;
 
     for(auto child : children) {
       double runtimeChild;
       double energyChild[Pmu::MAX_SENSORS];
-      child->getProfData(core, callStack, &runtimeChild, energyChild);
+      uint64_t countChild;
+      child->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
       cachedRuntime += runtimeChild;
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] += energyChild[i];
       }
+      cachedCount += countChild;
     }
   }
 
@@ -786,6 +789,7 @@ void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, doubl
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
   }
+  *count = cachedCount;
 }
 
 void Container::getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {
@@ -803,10 +807,11 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
     if(!cachedProfLine[core]) {
       double runtime;
       double energy[Pmu::MAX_SENSORS];
+      uint64_t count;
 
       cachedProfLine[core] = new ProfLine();
 
-      getProfData(core, QVector<BasicBlock*>(), &runtime, energy);
+      getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
       getMeasurements(core, QVector<BasicBlock*>(), &(cachedProfLine[core]->measurements));
 
       double power[Pmu::MAX_SENSORS];
@@ -822,7 +827,7 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
   }
 }
 
-void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack) {
+void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStack, bool recursive) {
   for(auto child : children) {
     if(child->isLoop()) {
       if(!isSystemFile(child->getSourceFilename())) {
@@ -832,7 +837,7 @@ void Container::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callStac
         }
       }
     } else {
-      child->getAllLoops(loops, callStack);
+      child->getAllLoops(loops, callStack, recursive);
     }
   }
 }
