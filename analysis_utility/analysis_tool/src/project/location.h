@@ -36,6 +36,7 @@ private:
     for(int i = 0; i < LYNSYN_SENSORS; i++) {
       energy[i] = 0;
     }
+    loopCount = 0;
   }
 
 public:
@@ -51,6 +52,8 @@ public:
 
   double runtime;
   double energy[LYNSYN_SENSORS];
+
+  uint64_t loopCount;
 
   bool inDb;
 

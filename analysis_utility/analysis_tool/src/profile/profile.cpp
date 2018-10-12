@@ -25,6 +25,7 @@
 #include <QMainWindow>
 
 #include "profile.h"
+#include "cfg/loop.h"
 
 Profile::Profile() {
   QSqlDatabase db = QSqlDatabase::database();
@@ -43,7 +44,7 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS location (id INTEGER PRIMARY KEY, core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS location (id INTEGER PRIMARY KEY, core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL, loopcount INT)");
   assert(success);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS arc (fromid INT, selfid INT, num INT)");
@@ -133,7 +134,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   if(bb->getTop()->externalMod == bb->getModule()) {
     queryString =
       QString() +
-      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7" +
+      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getTop()->externalMod->id +
@@ -142,7 +143,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   } else {
     queryString =
       QString() +
-      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7" +
+      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getModule()->id +
@@ -169,6 +170,14 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
       *count = countQuery.value(0).toInt();
     } else {
       *count = 0; // todo
+    }
+
+    // TODO: should possibly be somewhere else
+    uint64_t loopCount = query.value("loopcount").toULongLong();
+    if(loopCount) {
+      assert(dynamic_cast<Loop*>(bb->parent));
+      Loop *loop = static_cast<Loop*>(bb->parent);
+      loop->count = loopCount;
     }
 
   } else {

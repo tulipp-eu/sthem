@@ -125,12 +125,12 @@ std::vector<BasicBlock*> Node::getAllBbs() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-ModuleNode::ModuleNode(Module *mod, bool instrument) : Node(NULL) {
+ModuleNode::ModuleNode(Module *mod) : Node(NULL) {
   this->mod = mod;
 
   for(auto &func : mod->functions()) {
     if(!func.isIntrinsic() && func.getBasicBlockList().size() > 0) {
-      children.push_back(new FunctionNode(&func, this, instrument));
+      children.push_back(new FunctionNode(&func, this));
     }
   }
 }
@@ -172,38 +172,8 @@ void getAllLoops(Loop *loop, std::vector<Loop*> &loops) {
   }
 }
 
-FunctionNode::FunctionNode(Function *func, ModuleNode *parent, bool instrument) : Node(parent) {
+FunctionNode::FunctionNode(Function *func, ModuleNode *parent) : Node(parent) {
   this->func = func;
-
-  //func.addFnAttr("instrument-function-entry-inlined", "__cyg_profile_func_enter");
-  {
-    StringRef Func = "__cyg_profile_func_enter";
-    Instruction *InsertionPt = &*func->begin()->getFirstInsertionPt();
-
-    Module &M = *InsertionPt->getParent()->getParent()->getParent();
-    LLVMContext &C = InsertionPt->getParent()->getContext();
-
-    Type *ArgTypes[] = {Type::getInt8PtrTy(C), Type::getInt8PtrTy(C)};
- 
-    Constant *Fn = M.getOrInsertFunction(Func, FunctionType::get(Type::getVoidTy(C), ArgTypes, false));
- 
-    Function *f = cast<Function>(c);
-
-    IRBuilder<> builder(inst);
-
-    ArrayRef<Value *> Args 
-
-    builder.CreateCall(f, Args,a);
-
-
-
-    Instruction *RetAddr = CallInst::Create(Intrinsic::getDeclaration(&M, Intrinsic::returnaddress),
-                                            ArrayRef<Value *>(ConstantInt::get(Type::getInt32Ty(C), 0)), "",
-                                            InsertionPt);
-    Value *Args[] = {ConstantExpr::getBitCast(func, Type::getInt8PtrTy(C)), RetAddr};
- 
-    CallInst *Call = CallInst::Create(Fn, ArrayRef<Value *>(Args), "", InsertionPt);
-  }
 
   // analyze
   DominatorTree dt;
@@ -298,6 +268,33 @@ void FunctionNode::printXML(FILE *fp) {
   }
 
   fprintf(fp, "</function>\n");
+}
+
+void FunctionNode::instrument() {
+  Node::instrument();
+
+  StringRef Func = "__tulipp_func_enter";
+  Instruction *InsertionPt = &*func->begin()->getFirstInsertionPt();
+
+  Module &M = *InsertionPt->getParent()->getParent()->getParent();
+  LLVMContext &C = InsertionPt->getParent()->getContext();
+
+  DebugLoc DL;
+  if(auto SP = func->getSubprogram()) DL = DebugLoc::get(SP->getScopeLine(), 0, SP);
+
+  Type *ArgTypes[] = {Type::getInt8PtrTy(C), Type::getInt8PtrTy(C)};
+
+ 
+  Constant *Fn = M.getOrInsertFunction(Func, FunctionType::get(Type::getVoidTy(C), ArgTypes, false));
+ 
+  Instruction *RetAddr = CallInst::Create(Intrinsic::getDeclaration(&M, Intrinsic::returnaddress),
+                                          ArrayRef<Value *>(ConstantInt::get(Type::getInt32Ty(C), 0)), "",
+                                          InsertionPt);
+ 
+  Value *Args[] = {ConstantExpr::getBitCast(func, Type::getInt8PtrTy(C)), RetAddr};
+ 
+  CallInst *Call = CallInst::Create(Fn, ArrayRef<Value *>(Args), "", InsertionPt);
+  Call->setDebugLoc(DL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -574,4 +571,49 @@ void LoopNode::printXML(FILE *fp) {
   }
 
   fprintf(fp, "</loop>\n");
+}
+
+void LoopNode::instrument() {
+  Node::instrument();
+
+  {
+    StringRef Func = "__tulipp_loop_header";
+    BasicBlock *bbHeader = loop->getHeader();
+    Instruction *InsertionPt = &(*bbHeader->getFirstInsertionPt());
+
+    Module &M = *InsertionPt->getParent()->getParent()->getParent();
+    LLVMContext &C = InsertionPt->getParent()->getContext();
+
+    DebugLoc DL = bbHeader->getFirstNonPHIOrDbgOrLifetime()->getDebugLoc();
+
+    Type *ArgTypes[] = {Type::getInt8PtrTy(C)};
+ 
+    Constant *Fn = M.getOrInsertFunction(Func, FunctionType::get(Type::getVoidTy(C), ArgTypes, false));
+ 
+    Value *Args[] = {ConstantExpr::getBitCast(BlockAddress::get(getFunc()->func, bbHeader), Type::getInt8PtrTy(C))};
+ 
+    CallInst *Call = CallInst::Create(Fn, ArrayRef<Value *>(Args), "", InsertionPt);
+    Call->setDebugLoc(DL);
+  }
+
+  {
+    StringRef Func = "__tulipp_loop_body";
+    BasicBlock *bbHeader = loop->getHeader();
+    BasicBlock *bbLatch = loop->getLoopLatch();
+    Instruction *InsertionPt = &(*bbLatch->getFirstInsertionPt());
+
+    Module &M = *InsertionPt->getParent()->getParent()->getParent();
+    LLVMContext &C = InsertionPt->getParent()->getContext();
+
+    DebugLoc DL = bbHeader->getFirstNonPHIOrDbgOrLifetime()->getDebugLoc();
+
+    Type *ArgTypes[] = {Type::getInt8PtrTy(C)};
+ 
+    Constant *Fn = M.getOrInsertFunction(Func, FunctionType::get(Type::getVoidTy(C), ArgTypes, false));
+ 
+    Value *Args[] = {ConstantExpr::getBitCast(BlockAddress::get(getFunc()->func, bbHeader), Type::getInt8PtrTy(C))};
+ 
+    CallInst *Call = CallInst::Create(Fn, ArrayRef<Value *>(Args), "", InsertionPt);
+    Call->setDebugLoc(DL);
+  }
 }

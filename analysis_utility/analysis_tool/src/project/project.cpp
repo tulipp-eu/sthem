@@ -41,7 +41,8 @@ struct gmonhdr {
  int32_t version; /* version number */
  int32_t profrate; /* profiling clock rate */
  int32_t core;
- int32_t spare[2]; /* reserved */
+ int32_t loops;
+ int32_t spare; /* reserved */
 };
 
 struct rawarc {
@@ -114,7 +115,6 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     } else {
       options << QString("-Os");
     }
-    if(instrument) options << QString("-post-inline-ee-instrument");
 
     makefile.write((fileInfo.completeBaseName() + "_3.ll : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
     makefile.write((QString("\t") + Config::opt + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
@@ -707,6 +707,17 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
 
   getLocations(core, &locations);
 
+  for(int i = 0; i < hdr.loops; i++) {
+    uint64_t pc;
+    uint64_t count;
+
+    file.read((char*)&pc, sizeof(uint64_t));
+    file.read((char*)&count, sizeof(uint64_t));
+
+    Location *loop = getLocation(core, pc, &elfSupport, &locations);
+    loop->loopCount = count;
+  }
+
   while(!file.atEnd()) {
     struct rawarc arc;
     file.read((char*)&arc, sizeof(struct rawarc));
@@ -729,8 +740,8 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
     if(!location.second->inDb) {
       QSqlQuery query;
 
-      query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                    "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+      query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                    "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
 
       query.bindValue(":id", location.second->id);
       query.bindValue(":core", core);
@@ -745,6 +756,17 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
       query.bindValue(":energy5", location.second->energy[4]);
       query.bindValue(":energy6", location.second->energy[5]);
       query.bindValue(":energy7", location.second->energy[6]);
+      query.bindValue(":loopcount", (qulonglong)location.second->loopCount);
+
+      bool success = query.exec();
+      assert(success);
+    } else {
+      QSqlQuery query;
+
+      query.prepare("UPDATE location SET loopcount=:loopcount WHERE id=:id");
+
+      query.bindValue(":loopcount", (qulonglong)location.second->loopCount);
+      query.bindValue(":id", location.second->id);
 
       bool success = query.exec();
       assert(success);
@@ -822,8 +844,8 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
       energy[sensor] = unknownPower * unknownRuntime;
     }
 
-    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
 
     query.bindValue(":id", 0);
     query.bindValue(":core", core);
@@ -838,6 +860,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":energy5", energy[4]);
     query.bindValue(":energy6", energy[5]);
     query.bindValue(":energy7", energy[6]);
+    query.bindValue(":loopcount", 0);
 
     bool success = query.exec();
     assert(success);
@@ -871,8 +894,8 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   for(auto location : locations) {
     QSqlQuery query;
 
-    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+    query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                  "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
 
     query.bindValue(":id", location.second->id);
     query.bindValue(":core", core);
@@ -887,6 +910,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     query.bindValue(":energy5", location.second->energy[4]);
     query.bindValue(":energy6", location.second->energy[5]);
     query.bindValue(":energy7", location.second->energy[6]);
+    query.bindValue(":loopcount", 0);
 
     bool success = query.exec();
     assert(success);
@@ -1099,8 +1123,8 @@ bool Project::runProfiler() {
       for(auto location : locations[c]) {
         QSqlQuery query;
 
-        query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7) "
-                      "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+        query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
+                      "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
 
         query.bindValue(":core", c);
         query.bindValue(":basicblock", location.second->bbId);
@@ -1114,6 +1138,7 @@ bool Project::runProfiler() {
         query.bindValue(":energy5", location.second->energy[4]);
         query.bindValue(":energy6", location.second->energy[5]);
         query.bindValue(":energy7", location.second->energy[6]);
+        query.bindValue(":loopcount", 0);
 
         bool success = query.exec();
         assert(success);

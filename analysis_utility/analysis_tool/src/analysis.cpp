@@ -208,23 +208,23 @@ bool Analysis::profileApp() {
   return project->runProfiler();  
 }
 
-void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop, uint64_t count) {
+void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   double runtime;
   double energy[7];
-  uint64_t loopCount;
+  uint64_t dummyCount;
 
-  loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &loopCount);
+  loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &dummyCount);
   if(runtime > 0) {
     printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
            (function->id + "-" + loop->id).toUtf8().constData(),
-           count, runtime, energy[sensor],
-           runtime / count, energy[sensor] / count, energy[sensor] / runtime);
+           loop->count, runtime, energy[sensor],
+           runtime / loop->count, energy[sensor] / loop->count, energy[sensor] / runtime);
   }
 
   QVector<Loop*> loops;
   loop->getAllLoops(loops, QVector<BasicBlock*>(), false);
   for(auto childLoop : loops) {
-    dumpLoop(core, sensor, function, childLoop, count);
+    dumpLoop(core, sensor, function, childLoop);
   }
 }
 
@@ -249,7 +249,7 @@ void Analysis::dump(unsigned core, unsigned sensor) {
         QVector<Loop*> loops;
         function->getAllLoops(loops, QVector<BasicBlock*>(), false);
         for(auto loop : loops) {
-          dumpLoop(core, sensor, function, loop, count);
+          dumpLoop(core, sensor, function, loop);
         }
       }
     }

@@ -519,6 +519,8 @@ void programTestAndCalibrate(void) {
   printf("This procedure programs, tests and calibrates the Lynsyn board.\n"
          "All lines starting with '***' requires you to do a certain action, and then press enter to continue.\n\n");
 
+  printf("First step: Manual tests.\n\n");
+
   printf("*** Connect Lynsyn to the PC USB port.\n");
   getchar();
 
@@ -562,12 +564,21 @@ void programTestAndCalibrate(void) {
   printf("*** Secure RV1 by applying a drop of nail polish on top.\n");
   getchar();
 
+  printf("Second step: Programming.\n\n");
+
   program();
+
+  printf("Third step: Automatic tests.\n\n");
+
   automaticTests(true);
 
   if(!initLynsyn()) exit(-1);
 
+  printf("Fourth step: Initializing non-volatile memory.\n\n");
+
   if(!cleanNonVolatile()) exit(-1);
+
+  printf("Fift step: More manual tests.\n\n");
 
   ledsOn();
 
@@ -578,6 +589,8 @@ void programTestAndCalibrate(void) {
 
   printf("*** Verify that LEDs D1 and D2 are unlit.\n");
   getchar();
+
+  printf("Sixt step: Sensor calibration.\n\n");
 
   if(hwVersion == HW_VERSION_2_0) {
     printf("Not doing sensor calibration for this HW version.\n");

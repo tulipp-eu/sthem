@@ -31,7 +31,7 @@ class Loop : public Container {
   std::vector<Exit*> exitNodes;
 
 public:
-  bool isSuperBb;
+  uint64_t count;
 
   Loop(QString id, Container *parent, unsigned treeviewRow, QString sourceFilename = "", unsigned sourceLineNumber = 1, unsigned sourceColumn = 1) : Container(id, id, parent, treeviewRow, sourceFilename, sourceLineNumber, sourceColumn) {
     entryNode = NULL;
