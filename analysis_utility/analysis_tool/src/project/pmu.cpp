@@ -109,7 +109,7 @@ bool Pmu::init() {
       return false;
     }
 
-    if((initReply.hwVersion != HW_VERSION_2_0) && (initReply.hwVersion != HW_VERSION_2_1)) {
+    if((initReply.hwVersion != HW_VERSION_2_0) && (initReply.hwVersion != HW_VERSION_2_1) && (initReply.hwVersion != HW_VERSION_2_2)) {
       printf("Unsupported Lynsyn HW Version: %x\n", initReply.hwVersion);
       return false;
     }

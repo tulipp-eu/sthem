@@ -568,17 +568,17 @@ void programTestAndCalibrate(void) {
 
   program();
 
-  printf("Third step: Automatic tests.\n\n");
+  printf("\nThird step: Automatic tests.\n\n");
 
   automaticTests(true);
 
   if(!initLynsyn()) exit(-1);
 
-  printf("Fourth step: Initializing non-volatile memory.\n\n");
+  printf("\nFourth step: Initializing non-volatile memory.\n\n");
 
   if(!cleanNonVolatile()) exit(-1);
 
-  printf("Fift step: More manual tests.\n\n");
+  printf("\nFift step: More manual tests.\n\n");
 
   ledsOn();
 

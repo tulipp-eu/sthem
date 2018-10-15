@@ -665,7 +665,7 @@ void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locat
 
   while(query.next()) {
     int id = query.value("id").toInt();
-    if(id >= Location::idCounter) Location::idCounter = id + 1;
+
     QString modId = query.value("module").toString();
     QString funcId = query.value("function").toString();
     QString bbId = query.value("basicblock").toString();
@@ -677,6 +677,11 @@ void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locat
 
     Location *location = new Location(id, modId, funcId, bbId, bb);
     (*locations)[bb] = location;
+  }
+
+  query.exec("SELECT * FROM location ORDER BY id DESC LIMIT 1");
+  if(query.next()) {
+    Location::idCounter = query.value(0).toInt() + 1;
   }
 }
 

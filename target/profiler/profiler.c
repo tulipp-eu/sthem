@@ -294,21 +294,23 @@ void initPerfCounters(uint32_t pmuEvent0, uint32_t pmuEvent1, uint32_t pmuEvent2
   asm volatile("msr pmcntenset_el0, %0" : : "r" (r|0x3f));
 }
 
-bool startProfiler(uint64_t textStart, uint64_t textSize, double period, bool dualCore) {
-  { // setup gpio
-    XGpioPs_Config *ConfigPtr = XGpioPs_LookupConfig(GPIO_DEVICE_ID);
+bool setupGpio(void) {
+  XGpioPs_Config *ConfigPtr = XGpioPs_LookupConfig(GPIO_DEVICE_ID);
 
-    int status = XGpioPs_CfgInitialize(&Gpio, ConfigPtr, ConfigPtr->BaseAddr);
-    if(status != XST_SUCCESS) {
-      printf("Can't initialize GPIO\n");
-      return false;
-    }
-
-    XGpioPs_SetDirection(&Gpio, XGPIOPS_BANK3, 1);
-    XGpioPs_Write(&Gpio, XGPIOPS_BANK3, 0x0);
-    XGpioPs_SetOutputEnable(&Gpio, XGPIOPS_BANK3, 1);
+  int status = XGpioPs_CfgInitialize(&Gpio, ConfigPtr, ConfigPtr->BaseAddr);
+  if(status != XST_SUCCESS) {
+    printf("Can't initialize GPIO\n");
+    return false;
   }
 
+  XGpioPs_SetDirection(&Gpio, XGPIOPS_BANK3, 1);
+  XGpioPs_Write(&Gpio, XGPIOPS_BANK3, 0x0);
+  XGpioPs_SetOutputEnable(&Gpio, XGPIOPS_BANK3, 1);
+
+  return true;
+}
+
+bool startProfiler(uint64_t textStart, uint64_t textSize, double period, bool dualCore) {
   // setup timer interrupt
   if(period > 0) {
     pcSamplerPeriod = period;
@@ -443,8 +445,6 @@ void stopProfiler(char *filename) {
 
   fclose(fp);
 
-  _mcleanup(0);
-
   printf("PROFILER: Done\n");
 }
 
@@ -454,4 +454,15 @@ void profilerOn(void) {
 
 void profilerOff(void) {
   XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
+}
+
+bool setupCallTracer(void) {
+  _monInit();
+  return true;
+}
+
+bool endCallTracer(unsigned core) {
+  _mcleanup(core);
+  printf("PROFILER: Call trace file written\n"); 
+  return true;
 }

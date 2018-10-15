@@ -598,20 +598,19 @@ void LoopNode::instrument() {
 
   {
     StringRef Func = "__tulipp_loop_body";
-    BasicBlock *bbHeader = loop->getHeader();
     BasicBlock *bbLatch = loop->getLoopLatch();
     Instruction *InsertionPt = &(*bbLatch->getFirstInsertionPt());
 
     Module &M = *InsertionPt->getParent()->getParent()->getParent();
     LLVMContext &C = InsertionPt->getParent()->getContext();
 
-    DebugLoc DL = bbHeader->getFirstNonPHIOrDbgOrLifetime()->getDebugLoc();
+    DebugLoc DL = bbLatch->getFirstNonPHIOrDbgOrLifetime()->getDebugLoc();
 
     Type *ArgTypes[] = {Type::getInt8PtrTy(C)};
  
     Constant *Fn = M.getOrInsertFunction(Func, FunctionType::get(Type::getVoidTy(C), ArgTypes, false));
  
-    Value *Args[] = {ConstantExpr::getBitCast(BlockAddress::get(getFunc()->func, bbHeader), Type::getInt8PtrTy(C))};
+    Value *Args[] = {ConstantExpr::getBitCast(BlockAddress::get(getFunc()->func, bbLatch), Type::getInt8PtrTy(C))};
  
     CallInst *Call = CallInst::Create(Fn, ArrayRef<Value *>(Args), "", InsertionPt);
     Call->setDebugLoc(DL);

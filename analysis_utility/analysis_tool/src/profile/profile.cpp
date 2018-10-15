@@ -175,9 +175,19 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
     // TODO: should possibly be somewhere else
     uint64_t loopCount = query.value("loopcount").toULongLong();
     if(loopCount) {
-      assert(dynamic_cast<Loop*>(bb->parent));
-      Loop *loop = static_cast<Loop*>(bb->parent);
-      loop->count = loopCount;
+      Vertex *loop = bb->parent;
+      while(!loop->isLoop()) {
+        loop = loop->parent;
+        if(!loop) break;
+      }
+
+      if(loop) (static_cast<Loop*>(loop))->count = loopCount;
+      else {
+        printf("Cant find loop:\n");
+        printf("  Mod %s\n", bb->getModule()->id.toUtf8().constData());
+        printf("  Func %s\n", bb->getFunction()->id.toUtf8().constData());
+        printf("  Bb: %s\n", bb->id.toUtf8().constData());
+      }
     }
 
   } else {

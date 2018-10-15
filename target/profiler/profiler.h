@@ -74,6 +74,8 @@ bool startProfiler(uint64_t textStart, uint64_t textSize, double period, bool du
 /** Stop timer interrupt based profiler and save profile to disk */
 void stopProfiler(char *filename);
 
+/** Setup GPIO support */
+bool setupGpio(void);
 /** Begin GPIO controlled Region-Of-Interest */
 void profilerOn(void);
 /** End GPIO controlled Region-Of-Interest */
@@ -87,5 +89,10 @@ void disablePerfCounters(void);
 uint64_t getCycleCounter(void);
 /** Return value of given performance counter */
 uint64_t getCounter(unsigned i);
+
+/** Setup call tracer */
+bool setupCallTracer(void);
+/** End call tracer, write to file */
+bool endCallTracer(unsigned core);
 
 #endif
