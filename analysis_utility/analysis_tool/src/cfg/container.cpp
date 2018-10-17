@@ -215,7 +215,9 @@ int Container::constructFromXml(const QDomElement &element, int treeviewRow, Pro
 
   } else if(tagName == TAG_BASICBLOCK) {
     bool isEntry = element.attribute(ATTR_ENTRY, "false") != "false";
-    child = new BasicBlock(childId, this, treeviewRow++);
+    bool frameDone = element.attribute(ATTR_FRAME_DONE, "false") != "false";
+    child = new BasicBlock(childId, this, treeviewRow++, frameDone);
+
     if(isEntry) {
       Vertex *p = this;
       while(p) {

@@ -29,7 +29,7 @@
 #define APP_NAME   "Analysis Tool"
 #define ORG_NAME   "TULIPP"
 #define ORG_DOMAIN "ntnu.no"
-#define VERSION    1.2
+#define VERSION    1.3
 
 ///////////////////////////////////////////////////////////////////////////////
 // XML defines
@@ -48,6 +48,7 @@
 #define ATTR_LINE              "line"
 #define ATTR_COLUMN            "col"
 #define ATTR_ENTRY             "entry"
+#define ATTR_FRAME_DONE        "frameDone"
 #define ATTR_ISSTATIC          "isStatic"
 #define ATTR_ISMEMBER          "isMember"
 #define ATTR_PTRTOPTRARG       "ptrToPtrArg"

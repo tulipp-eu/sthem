@@ -28,6 +28,7 @@
 #include "profile.h"
 #include "graph.h"
 #include "ganttline.h"
+#include "frameline.h"
 
 #define LINE_SPACING 30
 
@@ -87,19 +88,20 @@ class GraphScene : public QGraphicsScene {
 
 private:
   Graph *graph;
-  QVector<GanttLine*> lines;
+  QVector<GanttLine*> ganttLines;
   unsigned currentCore;
   unsigned currentSensor;
   Cfg *cfg;
   double minPower;
   double maxPower;
 
-  void addLineSegments(int line, QVector<Measurement> *measurements);
+  void addGanttLineSegments(int line, QVector<Measurement> *measurements);
   int64_t scaleTime(int64_t time);
   double scalePower(double power);
-  int addLine(QString id, QColor color);
-  void addLineSegment(unsigned lineNum, int64_t start, int64_t stop);
+  int addGanttLine(QString id, QColor color);
+  void addGanttLineSegment(unsigned lineNum, int64_t start, int64_t stop);
   void addPoint(int64_t time, double value);
+  void addFrameLine(int64_t time, unsigned depth, QColor color);
 
 public:
   int64_t minTime;
@@ -119,7 +121,7 @@ public:
   void clearScene() {
     profile = NULL;
     clear();
-    lines.clear();
+    ganttLines.clear();
     update();
   }
 };

@@ -72,6 +72,7 @@ private:
   QTabWidget *tabWidget;
   Group *hwGroup;
   Group *topGroup;
+  Loop *frameLoop;
   QMenu *fileMenu;
   QMenu *projectMenu;
   QMenu *viewMenu;
@@ -85,6 +86,7 @@ private:
   QAction *aboutAct;
   QAction *clearColorsAct;
   QAction *topAct;
+  QAction *frameAct;
   QAction *hwAct;
   QAction *configDialogAct;
   QAction *projectDialogAct;
@@ -115,6 +117,7 @@ private slots:
   void analysisClicked(const QModelIndex &index);
   void clearColorsEvent();
   void topEvent();
+  void frameEvent();
   void hwEvent();
   void configDialog();
   void projectDialog();

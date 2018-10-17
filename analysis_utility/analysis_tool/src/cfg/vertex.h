@@ -223,6 +223,14 @@ public:
   // get toplevel vertex
   virtual Cfg *getTop();
 
+  // get basic block representing frame done
+  virtual BasicBlock *getFrameDoneBb() {
+    return NULL;
+  }
+
+  // get nearest surrounding loop
+  virtual Loop *getLoop();
+
   //---------------------------------------------------------------------------
   // graph building
 

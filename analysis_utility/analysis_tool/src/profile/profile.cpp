@@ -50,6 +50,9 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS arc (fromid INT, selfid INT, num INT)");
   assert(success);
 
+  success = query.exec("CREATE TABLE IF NOT EXISTS frames (time INT)");
+  assert(success);
+
   success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
   assert(success);
 
@@ -108,6 +111,7 @@ void Profile::clean() {
   query.exec("DELETE FROM measurements");
   query.exec("DELETE FROM location");
   query.exec("DELETE FROM arc");
+  query.exec("DELETE FROM frames");
   query.exec("DELETE FROM meta");
 
   cycles = 0;

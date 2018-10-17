@@ -127,6 +127,17 @@ public:
   virtual bool hasHwCalls();
 
   //---------------------------------------------------------------------------
+  // information about the rest of the graph
+
+  virtual BasicBlock *getFrameDoneBb() {
+    for(auto child : children) {
+      BasicBlock *frameDoneBb = child->getFrameDoneBb();
+      if(frameDoneBb) return frameDoneBb;
+    }
+    return NULL;
+  }
+
+  //---------------------------------------------------------------------------
   // graph building
 
 

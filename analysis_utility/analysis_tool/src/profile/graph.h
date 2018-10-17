@@ -30,27 +30,42 @@
 #define GRAPH_TEXT_SPACING 20
 
 class Graph : public QGraphicsItem {
-  int64_t maxTime;
-  int maxPower;
   QVector<QPoint> points;
   unsigned textWidth;
   unsigned textHeight;
   QFont font;
-  double lowValue;
-  double highValue;
+
+  unsigned lowPower;
+  unsigned highPower;
+  int64_t lowTime;
+  int64_t highTime;
+
+  double lowPowerValue;
+  double highPowerValue;
+  double lowTimeValue;
+  double highTimeValue;
 
 public:
-  Graph(QFont font, double lowValue, double highValue, QGraphicsItem *parent = NULL) : QGraphicsItem(parent) {
-    maxTime = 0;
-    maxPower = 0;
+  Graph(QFont font,
+        unsigned lowPower, unsigned highPower, int64_t lowTime, int64_t highTime,
+        double lowPowerValue, double highPowerValue, double lowTimeValue, double highTimeValue,
+        QGraphicsItem *parent = NULL) : QGraphicsItem(parent) {
 
     this->font = font;
-    this->lowValue = lowValue;
-    this->highValue = highValue;
+
+    this->lowPower = lowPower;
+    this->highPower = highPower;
+    this->lowTime = lowTime;
+    this->highTime = highTime;
+
+    this->lowPowerValue = lowPowerValue;
+    this->highPowerValue = highPowerValue;
+    this->lowTimeValue = lowTimeValue;
+    this->highTimeValue = highTimeValue;
 
     QFontMetrics fm(font);
-    unsigned w1 = fm.width(QString::number(lowValue) + "W");
-    unsigned w2 = fm.width(QString::number(highValue) + "W");
+    unsigned w1 = fm.width(QString::number(lowPowerValue) + "W");
+    unsigned w2 = fm.width(QString::number(highPowerValue) + "W");
     if(w1 > w2) textWidth = w1;
     else textWidth = w2;
     textHeight = fm.height();
@@ -59,32 +74,31 @@ public:
 
   void addPoint(int64_t time, unsigned value) {
     points.push_back(QPoint(time, value));
-    if((int)value > maxPower) {
-      maxPower = value;
-      prepareGeometryChange();
-    }
-    if(time > maxTime) {
-      maxTime = time;
-      prepareGeometryChange();
-    }
   }
 
   QRectF boundingRect() const {
     qreal penWidth = 1;
     return QRectF(-penWidth/2 - textWidth-GRAPH_TEXT_SPACING,
-                  -(double)maxPower - (double)textHeight,
-                  maxTime + penWidth/2 + textWidth + GRAPH_TEXT_SPACING,
-                  maxPower + textHeight);
+                  -(double)highPower,
+                  highTime + penWidth/2 + textWidth + GRAPH_TEXT_SPACING,
+                  highPower + textHeight);
   }
 
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    QString highTimeText = QString::number(highTimeValue) + "s";
+
+    QFontMetrics fm(font);
+
     painter->setPen(QPen(NTNU_BLUE));
 
-    painter->drawLine(0, 0, 0, -maxPower);
-    painter->drawLine(0, 0, maxTime, 0);
+    painter->drawLine(0, 0, 0, -highPower);
+    painter->drawLine(0, 0, highTime, 0);
 
-    painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), 0, QString::number(lowValue) + "W");
-    painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), -maxPower, QString::number(highValue) + "W");
+    painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), 0, QString::number(lowPowerValue) + "W");
+    painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), -highPower + textHeight, QString::number(highPowerValue) + "W");
+
+    painter->drawText((int)0, textHeight, QString::number(lowTimeValue) + "s");
+    painter->drawText((int)highTime - fm.width(highTimeText), textHeight, highTimeText);
 
     painter->setPen(QPen(FOREGROUND_COLOR));
     QPoint prevPoint = QPoint(0,0);

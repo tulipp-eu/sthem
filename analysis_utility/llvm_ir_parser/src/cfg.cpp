@@ -303,6 +303,23 @@ BbNode::BbNode(BasicBlock *bb, Node *parent, bool isEntry) : Node(parent) {
   id = bbCounter++;
   this->bb = bb;
   this->isEntry = isEntry;
+  frameDone = false;
+
+  if(bb) {
+    for(auto &instr : *bb) {
+      if(instr.getOpcode() == Instruction::Call) {
+        CallInst *call = static_cast<CallInst*>(&instr);
+        Function *func = call->getCalledFunction();
+        if(func) {
+          if(demangle(func->getName().str()) == "__tulippFrameDone") {
+            if(dumpType == XML_DUMP) instr.eraseFromParent();
+            frameDone = true;
+            break;
+          }
+        }
+      }
+    }
+  }
 }
 
 void BbNode::splitBbs() {
@@ -398,6 +415,9 @@ void BbNode::printXML(FILE *fp) {
   fprintf(fp, "<bb id=\"%d\"", id);
   if(isEntry) {
     fprintf(fp, " entry=\"true\"");
+  }
+  if(frameDone) {
+    fprintf(fp, " frameDone=\"true\"");
   }
   fprintf(fp, ">\n");
 

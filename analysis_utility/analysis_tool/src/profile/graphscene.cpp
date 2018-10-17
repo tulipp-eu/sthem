@@ -23,7 +23,7 @@
 #include "profmodel.h"
 
 #define GANTT_SPACING 20
-#define GANTT_SIZE (scaleFactorPower + GANTT_SPACING)
+#define GRAPH_SIZE (scaleFactorPower + GANTT_SPACING)
 
 GraphScene::GraphScene(QObject *parent) : QGraphicsScene(parent) {
   scaleFactorTime = 1000;
@@ -32,7 +32,7 @@ GraphScene::GraphScene(QObject *parent) : QGraphicsScene(parent) {
   graph = NULL;
 }
 
-void GraphScene::addLineSegments(int line, QVector<Measurement> *measurements) {
+void GraphScene::addGanttLineSegments(int line, QVector<Measurement> *measurements) {
   int64_t startTime = ~0;
   int64_t lastTime = ~0;
   uint64_t lastSeq = ~0;
@@ -41,7 +41,7 @@ void GraphScene::addLineSegments(int line, QVector<Measurement> *measurements) {
     uint64_t seq = measurement.sequence;
     if(seq != lastSeq+1) {
       if(startTime != (int64_t)~0) {
-        addLineSegment(line, startTime, lastTime);
+        addGanttLineSegment(line, startTime, lastTime);
       }
       startTime = time;
     }
@@ -49,13 +49,13 @@ void GraphScene::addLineSegments(int line, QVector<Measurement> *measurements) {
     lastSeq = seq;
   }
   if(measurements->size()) {
-    addLineSegment(line, startTime, lastTime);
+    addGanttLineSegment(line, startTime, lastTime);
   }
 }
 
 void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *profile, int64_t beginTime, int64_t endTime) {
   clear();
-  lines.clear();
+  ganttLines.clear();
 
   this->currentCore = core;
   this->currentSensor = sensor;
@@ -87,8 +87,11 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
         if(endTime < 0) maxTime = maxTimeDb;
         else maxTime = endTime;
 
-        graph = new Graph(font(), minPower, maxPower);
-        graph->setPos(0, GANTT_SIZE-GANTT_SPACING);
+        graph = new Graph(font(),
+                          scalePower(minPower), scalePower(maxPower),
+                          scaleTime(minTime), scaleTime(maxTime),
+                          minPower, maxPower, Pmu::cyclesToSeconds(minTime-minTimeDb), Pmu::cyclesToSeconds(maxTime-minTimeDb));
+        graph->setPos(0, GRAPH_SIZE-GANTT_SPACING);
         addItem(graph);
 
         unsigned ticksPerSample = (maxTimeDb - minTimeDb) / samples;
@@ -114,6 +117,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
         
           do {
             int64_t time = query.value("time").toLongLong();
+
             double power = query.value("power" + QString::number(sensor+1)).toDouble();
             QString moduleId = query.value("module" + QString::number(core+1)).toString();
             QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
@@ -133,6 +137,8 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 
         profile->setMeasurements(measurements);
 
+        unsigned ganttSize = 0;
+
         std::vector<ProfLine*> table;
         cfg->buildProfTable(core, table);
         ProfSort profSort;
@@ -140,17 +146,29 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 
         for(auto profLine : table) {
           if(!profLine->vertex) {
-            int l = addLine("Unknown", FOREGROUND_COLOR);
-            addLineSegments(l, profLine->getMeasurements());
+            int l = addGanttLine("Unknown", FOREGROUND_COLOR);
+            addGanttLineSegments(l, profLine->getMeasurements());
       
           } else {
             Vertex *vertex = profLine->vertex;
 
             if(vertex->isVisibleInGantt() && (profLine->measurements.size() > 0)) {
-              int l = addLine(vertex->getGanttName(), vertex->getColor());
-              addLineSegments(l, profLine->getMeasurements());
+              int l = addGanttLine(vertex->getGanttName(), vertex->getColor());
+              addGanttLineSegments(l, profLine->getMeasurements());
+              ganttSize = GANTT_SPACING + (l+1) * LINE_SPACING;
             }
           }
+        }
+
+        queryString = QString() +
+          "SELECT time FROM frames" +
+          " WHERE time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime);
+
+        query.exec(queryString);
+
+        while(query.next()) {
+          int64_t time = query.value("time").toLongLong();
+          addFrameLine(time, ganttSize, Qt::red);
         }
       }
     }
@@ -167,23 +185,29 @@ void GraphScene::redrawFull() {
   drawProfile(currentCore, currentSensor, cfg, profile);
 }
 
-int GraphScene::addLine(QString id, QColor color) {
-  int lineNum = lines.size();
+int GraphScene::addGanttLine(QString id, QColor color) {
+  int lineNum = ganttLines.size();
 
   GanttLine *line = new GanttLine(id, font(), color);
-  line->setPos(0, GANTT_SIZE + (lineNum+1) * LINE_SPACING);
+  line->setPos(0, GRAPH_SIZE + (lineNum+1) * LINE_SPACING);
   addItem(line);
-  lines.push_back(line);
+  ganttLines.push_back(line);
 
   return lineNum;
 }
 
-void GraphScene::addLineSegment(unsigned lineNum, int64_t start, int64_t stop) {
-  lines[lineNum]->addLine(scaleTime(start), scaleTime(stop));
+void GraphScene::addGanttLineSegment(unsigned lineNum, int64_t start, int64_t stop) {
+  ganttLines[lineNum]->addLine(scaleTime(start), scaleTime(stop));
 }
 
 void GraphScene::addPoint(int64_t time, double value) {
   graph->addPoint(scaleTime(time), scalePower(value));
+}
+
+void GraphScene::addFrameLine(int64_t time, unsigned depth, QColor color) {
+  FrameLine *line = new FrameLine(scaleTime(time), scaleFactorPower, depth, color);
+  line->setPos(0, GRAPH_SIZE-GANTT_SPACING);
+  addItem(line);
 }
 
 int64_t GraphScene::scaleTime(int64_t time) {

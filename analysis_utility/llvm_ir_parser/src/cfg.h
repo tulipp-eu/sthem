@@ -50,6 +50,12 @@
 #include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 
+#define NO_DUMP  0
+#define XML_DUMP 1
+#define LL_DUMP  2
+
+extern unsigned dumpType;
+
 using namespace llvm;
 
 std::string demangle(std::string name);
@@ -172,6 +178,7 @@ public:
   std::vector<Instruction*> instructions;
   int id;
   int nextId;
+  bool frameDone;
 
   BbNode(BasicBlock *bb, Node *parent, bool isEntry = false);
 

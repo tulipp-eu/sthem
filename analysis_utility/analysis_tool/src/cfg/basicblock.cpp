@@ -46,6 +46,7 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
     for(auto child : children) {
       Instruction *instr = dynamic_cast<Instruction*>(child);
       Vertex *visibleItem = NULL;
+      float childScaling = scaling;
       if(instr) {
         QVector<BasicBlock*> callStackFunc = callStack;
 
@@ -63,7 +64,7 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
               visibleItem = func;
               assert(func->callers >= 1);
               double ratio = getTop()->getProfile()->getArcRatio(Config::core, this, func);
-              scaling *= ratio;
+              childScaling *= ratio;
               callStackFunc.push_back(this);
             } else {
               visibleItem = instr;
@@ -359,15 +360,20 @@ void BasicBlock::getAllLoops(QVector<Loop*> &loops, QVector<BasicBlock*> callSta
 }
 
 QString BasicBlock::getCfgName() {
+  QString text = "BasicBlock";
+
   for(auto child : children) {
     Instruction *instr = dynamic_cast<Instruction*>(child);
     if(instr) {
       if(instr->name == INSTR_ID_CALL) {
-        return "BasicBlock+";
+        text += "+";
       }
     }
   }
-  return "BasicBlock";
+
+  if(frameDone) text += "[frame]";
+
+  return text;
 }
 
 bool BasicBlock::containsFunctionCall(Function *func) {

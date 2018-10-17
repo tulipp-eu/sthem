@@ -1031,7 +1031,10 @@ bool Project::runProfiler() {
 
     bool usePeriod = samplePeriod != 0;
 
-    pmu.collectSamples(useBp, samplePc, samplingModeGpio, usePeriod, 
+    bool useFrame = true;
+    uint64_t frameAddr = elfSupport.lookupSymbol("__tulippFrameDone");
+
+    pmu.collectSamples(useFrame, frameAddr, useBp, samplePc, samplingModeGpio, usePeriod, 
                        samplePeriod, startCore, startAddr, stopCore, stopAddr,
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }

@@ -279,3 +279,8 @@ bool Vertex::isHw(QVector<BasicBlock*> callStack) {
   }
   return false;
 }
+
+Loop *Vertex::getLoop() {
+  if(parent) return parent->getLoop();
+  else return NULL;
+}

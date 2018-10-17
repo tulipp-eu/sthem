@@ -75,6 +75,10 @@ public:
     return getCfgName();
   }
 
+  virtual Loop *getLoop() {
+    return this;
+  }
+
 };
 
 #endif

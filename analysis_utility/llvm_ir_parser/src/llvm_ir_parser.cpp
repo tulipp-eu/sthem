@@ -31,6 +31,7 @@ static DIFile *diFile;
 static DICompileUnit *diUnit;
 
 ModuleNode *top = NULL;
+unsigned dumpType = NO_DUMP;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -115,6 +116,12 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
+  if(!strncmp("-xml", argv[2], 4)) {
+    dumpType = XML_DUMP;
+  } else if(!strncmp("-ll", argv[2], 3)) {
+    dumpType = LL_DUMP;
+  }
+
   SMDiagnostic Err;
   std::unique_ptr<Module> mod = parseIRFile(argv[1], Err, Context);
 
@@ -125,17 +132,21 @@ int main(int argc, char* argv[]) {
 
   top = new ModuleNode(mod.get());
 
-  if(!strncmp("-xml", argv[2], 4)) {
-    printXML(argv[3]);
+  switch(dumpType) {
 
-  } else if(!strncmp("-ll", argv[2], 3)) {
-    recreateDbInfo(mod.get());
-    if(argc >= 5) top->instrument();
-    printIR(mod.get(), argv[3]);
+    case XML_DUMP:
+      printXML(argv[3]);
+      break;
 
-  } else {
-    printf("Unknown output\n");
-    exit(1);
+    case LL_DUMP:
+      recreateDbInfo(mod.get());
+      if(argc >= 5) top->instrument();
+      printIR(mod.get(), argv[3]);
+      break;
+
+    default:
+      printf("Unknown output\n");
+      exit(1);
   }
 
   return 0;

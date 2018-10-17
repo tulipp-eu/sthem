@@ -32,6 +32,7 @@
 #include "mainwindow.h"
 #include "cfg/cfgview.h"
 #include "cfg/basicblock.h"
+#include "cfg/loop.h"
 #include "analysis/analysismodel.h"
 #include "config/configdialog.h"
 #include "project/projectdialog.h"
@@ -49,6 +50,7 @@ MainWindow::MainWindow(Analysis *analysis) {
 
   hwGroup = NULL;
   topGroup = NULL;
+  frameLoop = NULL;
   profModel = NULL;
   cfgModel = NULL;
 
@@ -153,6 +155,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   topAct = new QAction("Top", this);
   connect(topAct, SIGNAL(triggered()), this, SLOT(topEvent()));
 
+  frameAct = new QAction("Frame", this);
+  connect(frameAct, SIGNAL(triggered()), this, SLOT(frameEvent()));
+
   hwAct = new QAction("HW", this);
   connect(hwAct, SIGNAL(triggered()), this, SLOT(hwEvent()));
 
@@ -220,6 +225,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   cfgToolBar->addWidget(colorBox);
   cfgToolBar->addAction(clearColorsAct);
   cfgToolBar->addAction(topAct);
+  cfgToolBar->addAction(frameAct);
   cfgToolBar->addAction(hwAct);
 
   graphToolBar = addToolBar("GraphTB");
@@ -388,6 +394,7 @@ void MainWindow::closeProject() {
   hwGroup = NULL;
   if(topGroup) delete topGroup;
   topGroup = NULL;
+  if(frameLoop) frameLoop = NULL;
 
   projectDialogAct->setEnabled(false);
   closeProjectAct->setEnabled(false);
@@ -550,6 +557,25 @@ void MainWindow::topEvent() {
   textView->loadFile(topGroup->getSourceFilename(), topGroup->getSourceLineNumber());
   cfgView->verticalScrollBar()->setValue(0);
   cfgView->horizontalScrollBar()->setValue(0);
+}
+
+void MainWindow::frameEvent() {
+  cfgModel->collapseAll();
+  cfgModel->clearColors();
+
+  BasicBlock *frameDoneBb = analysis->project->cfg->getFrameDoneBb();
+  if(frameDoneBb) {
+    frameLoop = analysis->project->cfg->getFrameDoneBb()->getLoop();
+    if(frameLoop) {
+      frameLoop->toggleExpanded();
+      cfgScene->drawElement(frameLoop);
+      textView->loadFile(frameLoop->getSourceFilename(), frameLoop->getSourceLineNumber());
+      cfgView->verticalScrollBar()->setValue(0);
+      cfgView->horizontalScrollBar()->setValue(0);
+    }
+  }
+
+  if(!frameLoop) cfgScene->clearScene();
 }
 
 void MainWindow::hwEvent() {
