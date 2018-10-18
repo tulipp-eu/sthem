@@ -65,7 +65,10 @@ public:
     STRUCT,
     RUNTIME,
     POWER,
-    ENERGY
+    ENERGY,
+    RUNTIME_FRAME,
+    POWER_FRAME,
+    ENERGY_FRAME
   };
 
   static QString workspace;

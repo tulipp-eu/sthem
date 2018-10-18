@@ -210,10 +210,12 @@ bool Analysis::profileApp() {
 
 void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   double runtime;
+  double runtimeFrame;
   double energy[7];
+  double energyFrame[7];
   uint64_t dummyCount;
 
-  loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &dummyCount);
+  loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &dummyCount);
   if(runtime > 0) {
     printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
            (function->id + "-" + loop->id).toUtf8().constData(),
@@ -237,10 +239,12 @@ void Analysis::dump(unsigned core, unsigned sensor) {
       Function *function = static_cast<Function*>(modChild);
 
       double runtime;
+      double runtimeFrame;
       double energy[7];
+      double energyFrame[7];
       uint64_t count;
 
-      function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
       if(runtime > 0) { // && (count > 0)) {
         printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
                function->id.toUtf8().constData(), count, runtime,

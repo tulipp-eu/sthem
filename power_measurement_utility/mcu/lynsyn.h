@@ -39,7 +39,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 
-//#define SWO
+#define SWO
 
 #define CAL_AVERAGE_SAMPLES 100
 
@@ -126,5 +126,6 @@ extern volatile bool useStopBp;
 extern volatile int64_t sampleStop;
 extern uint8_t startCore;
 extern uint8_t stopCore;
+extern uint64_t frameBp;
 
 #endif

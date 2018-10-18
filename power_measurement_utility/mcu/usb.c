@@ -37,6 +37,7 @@
 
 uint8_t startCore;
 uint8_t stopCore;
+uint64_t frameBp;
 
 static uint8_t inBuffer[MAX_PACKET_SIZE + 3];
 
@@ -127,11 +128,23 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_BREAKPOINT: {
         struct BreakpointRequestPacket *bpReq = (struct BreakpointRequestPacket *)req;
 
-        printf("Set %s BP %llx on core %d\n", (bpReq->bpType == BP_TYPE_START) ? "start" : "stop", bpReq->addr, bpReq->core);
-        coreSetBp(bpReq->core, (bpReq->bpType == BP_TYPE_START) ? START_BP : STOP_BP, bpReq->addr);
-        if(bpReq->bpType == BP_TYPE_STOP) {
-          stopCore = bpReq->core;
+        switch(bpReq->bpType) {
+          case BP_TYPE_START:
+            printf("Set start BP %llx on core %d\n", bpReq->addr, bpReq->core);
+            coreSetBp(bpReq->core, START_BP, bpReq->addr);
+            break;
+          case BP_TYPE_STOP:
+            printf("Set stop BP %llx on core %d\n", bpReq->addr, bpReq->core);
+            coreSetBp(bpReq->core, STOP_BP, bpReq->addr);
+            stopCore = bpReq->core;
+            break;
+          case BP_TYPE_FRAME:
+            printf("Set frame BP %llx on core %d\n", bpReq->addr, bpReq->core);
+            frameBp = bpReq->addr;
+            //coreSetBp(bpReq->core, FRAME_BP, bpReq->addr);
+            break;
         }
+            
         break;
       }
 
@@ -158,6 +171,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
           sampleMode = true;
 
           coreClearBp(startCore, START_BP);
+          coreSetBp(startCore, FRAME_BP, frameBp);
           coresResume();
 
         } else {

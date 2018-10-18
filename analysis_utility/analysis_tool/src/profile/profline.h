@@ -37,16 +37,24 @@ public:
   double runtime;
   double power[Pmu::MAX_SENSORS];
   double energy[Pmu::MAX_SENSORS];
+  double runtimeFrame;
+  double powerFrame[Pmu::MAX_SENSORS];
+  double energyFrame[Pmu::MAX_SENSORS];
   QVector<Measurement> measurements;
 
   ProfLine() {}
 
-  void init(Vertex *vertex, double runtime, double power[], double energy[]) {
+  void init(Vertex *vertex,
+            double runtime, double power[], double energy[],
+            double runtimeFrame, double powerFrame[], double energyFrame[]) {
     this->vertex = vertex;
     this->runtime = runtime;
+    this->runtimeFrame = runtimeFrame;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       this->power[i] = power[i];
       this->energy[i]= energy[i];
+      this->powerFrame[i] = powerFrame[i];
+      this->energyFrame[i]= energyFrame[i];
     }
   }
 

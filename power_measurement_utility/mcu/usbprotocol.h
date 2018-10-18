@@ -24,8 +24,8 @@
 
 #include <stdint.h>
 
-#define SW_VERSION        SW_VERSION_1_2
-#define SW_VERSION_STRING "V1.2"
+#define SW_VERSION        SW_VERSION_1_3
+#define SW_VERSION_STRING "V1.3"
 
 #define HW_VERSION_2_0 0x20
 #define HW_VERSION_2_1 0x21
@@ -34,6 +34,7 @@
 #define SW_VERSION_1_0 1
 #define SW_VERSION_1_1 0x11
 #define SW_VERSION_1_2 0x12
+#define SW_VERSION_1_3 0x13
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -49,6 +50,7 @@
 
 #define BP_TYPE_START 0
 #define BP_TYPE_STOP  1
+#define BP_TYPE_FRAME 2
 
 #define TEST_USB      0
 #define TEST_SPI      1
@@ -66,6 +68,8 @@
 #define SAMPLING_FLAG_BP        2
 #define SAMPLING_FLAG_GPIO      4
 #define SAMPLING_FLAG_PERIOD    8
+
+#define SAMPLE_REPLY_FLAG_FRAME_DONE 1
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -149,11 +153,18 @@ struct __attribute__((__packed__)) SampleReplyPacketV1_0 {
   int16_t current[7];
 };
 
-struct __attribute__((__packed__)) SampleReplyPacket {
+struct __attribute__((__packed__)) SampleReplyPacketV1_1 {
   int64_t time;
   uint64_t pc[4];
   int16_t current[7];
   int16_t : 16;
+};
+
+struct __attribute__((__packed__)) SampleReplyPacket {
+  int64_t time;
+  uint64_t pc[4];
+  int16_t current[7];
+  uint16_t flags;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

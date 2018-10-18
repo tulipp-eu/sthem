@@ -1041,6 +1041,14 @@ bool Project::runProfiler() {
 
   pmu.release();
 
+  // find all frames
+  QVector<int64_t> frames;
+  {
+    QSqlQuery query;
+    query.exec("SELECT time FROM frames");
+    while(query.next()) frames.push_back(query.value("time").toLongLong());
+  }
+
   {
     emit advance(2, "Processing samples");
 
@@ -1050,7 +1058,7 @@ bool Project::runProfiler() {
 
     QSqlQuery query;
     query.setForwardOnly(true);
-    query.exec("SELECT rowid,timeSinceLast,pc1,pc2,pc3,pc4,power1,power2,power3,power4,power5,power6,power7 FROM measurements");
+    query.exec("SELECT rowid,time,timeSinceLast,pc1,pc2,pc3,pc4,power1,power2,power3,power4,power5,power6,power7 FROM measurements");
 
     int counter = 0;
 
@@ -1064,11 +1072,35 @@ bool Project::runProfiler() {
                         ", basicblock4=:basicblock4,module4=:module4"
                         " WHERE rowid = :rowid");
 
+    int currentFrame = 0;
+
     while(query.next()) {
       if(counter && ((counter % 10000) == 0)) printf("Processed %d samples...\n", counter);
       counter++;
 
       unsigned rowId = query.value("rowid").toUInt();
+
+      int64_t time = query.value("time").toLongLong();
+
+      if(currentFrame < frames.size()) {
+        if(time > frames[currentFrame]) {
+          currentFrame++;
+
+          if(currentFrame == frames.size()) {
+            printf("Last frame\n");
+            for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
+
+          } else if(currentFrame == 1) {
+            printf("First frame\n");
+
+          } else {
+            printf("New frame\n");
+            for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
+          }
+
+          for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->clearFrameData();
+        }
+      }
 
       QString bbText[4];
       QString modText[4];
@@ -1096,10 +1128,9 @@ bool Project::runProfiler() {
         bbText[core] = location->bbId;
         modText[core] = location->moduleId;
 
-        location->runtime += Pmu::cyclesToSeconds(timeSinceLast);
-
+        location->updateRuntime(Pmu::cyclesToSeconds(timeSinceLast));
         for(int sensor = 0; sensor < 7; sensor++) {
-          location->energy[sensor] += power[sensor] * Pmu::cyclesToSeconds(timeSinceLast);
+          location->updateEnergy(sensor, power[sensor] * Pmu::cyclesToSeconds(timeSinceLast));
         }
       }
 
@@ -1131,8 +1162,14 @@ bool Project::runProfiler() {
       for(auto location : locations[c]) {
         QSqlQuery query;
 
-        query.prepare("INSERT INTO location (core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
-                      "VALUES (:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
+        query.prepare("INSERT INTO location (core,basicblock,function,module,"
+                      "runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,"
+                      "runtimeFrame,energyFrame1,energyFrame2,energyFrame3,energyFrame4,energyFrame5,energyFrame6,energyFrame7,"
+                      "loopcount) "
+                      "VALUES (:core,:basicblock,:function,:module,"
+                      ":runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,"
+                      ":runtimeFrame,:energyFrame1,:energyFrame2,:energyFrame3,:energyFrame4,:energyFrame5,:energyFrame6,:energyFrame7,"
+                      ":loopcount)");
 
         query.bindValue(":core", c);
         query.bindValue(":basicblock", location.second->bbId);
@@ -1146,6 +1183,14 @@ bool Project::runProfiler() {
         query.bindValue(":energy5", location.second->energy[4]);
         query.bindValue(":energy6", location.second->energy[5]);
         query.bindValue(":energy7", location.second->energy[6]);
+        query.bindValue(":runtimeFrame", location.second->runtimeFrameAvg);
+        query.bindValue(":energyFrame1", location.second->energyFrameAvg[0]);
+        query.bindValue(":energyFrame2", location.second->energyFrameAvg[1]);
+        query.bindValue(":energyFrame3", location.second->energyFrameAvg[2]);
+        query.bindValue(":energyFrame4", location.second->energyFrameAvg[3]);
+        query.bindValue(":energyFrame5", location.second->energyFrameAvg[4]);
+        query.bindValue(":energyFrame6", location.second->energyFrameAvg[5]);
+        query.bindValue(":energyFrame7", location.second->energyFrameAvg[6]);
         query.bindValue(":loopcount", 0);
 
         bool success = query.exec();

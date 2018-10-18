@@ -69,6 +69,9 @@ public:
         case 0: return i->runtime > j->runtime;
         case 1: return i->power[Config::sensor] > j->power[Config::sensor];
         case 2: return i->energy[Config::sensor] > j->energy[Config::sensor];
+        case 3: return i->runtimeFrame > j->runtimeFrame;
+        case 4: return i->powerFrame[Config::sensor] > j->powerFrame[Config::sensor];
+        case 5: return i->energyFrame[Config::sensor] > j->energyFrame[Config::sensor];
       }
     }
     if(order == Qt::DescendingOrder) {
@@ -85,6 +88,9 @@ public:
         case 0: return i->runtime < j->runtime;
         case 1: return i->power[Config::sensor] < j->power[Config::sensor];
         case 2: return i->energy[Config::sensor] < j->energy[Config::sensor];
+        case 3: return i->runtimeFrame < j->runtimeFrame;
+        case 4: return i->powerFrame[Config::sensor] < j->powerFrame[Config::sensor];
+        case 5: return i->energyFrame[Config::sensor] < j->energyFrame[Config::sensor];
       }
     }
     return false;

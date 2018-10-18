@@ -44,7 +44,13 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS location (id INTEGER PRIMARY KEY, core INT, basicblock TEXT, function TEXT, module TEXT, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL, loopcount INT)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS location ("
+                       "id INTEGER PRIMARY KEY, core INT, basicblock TEXT, function TEXT, module TEXT, "
+                       "runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, "
+                       "energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL, "
+                       "runtimeFrame REAL, energyFrame1 REAL, energyFrame2 REAL, energyFrame3 REAL, "
+                       "energyFrame4 REAL, energyFrame5 REAL, energyFrame6 REAL, energyFrame7 REAL, "
+                       "loopcount INT)");
   assert(success);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS arc (fromid INT, selfid INT, num INT)");
@@ -131,14 +137,15 @@ void Profile::setMeasurements(QVector<Measurement> *measurements) {
   }
 }
 
-void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, uint64_t *count) {
+void Profile::getProfData(unsigned core, BasicBlock *bb,
+                          double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count) {
   QSqlQuery query;
   QString queryString;
 
   if(bb->getTop()->externalMod == bb->getModule()) {
     queryString =
       QString() +
-      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount" +
+      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,runtimeFrame,energyFrame1,energyFrame2,energyFrame3,energyFrame4,energyFrame5,energyFrame6,energyFrame7,loopcount" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getTop()->externalMod->id +
@@ -147,7 +154,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
   } else {
     queryString =
       QString() +
-      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount" +
+      "SELECT id,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,runtimeFrame,energyFrame1,energyFrame2,energyFrame3,energyFrame4,energyFrame5,energyFrame6,energyFrame7,loopcount" +
       " FROM location" +
       " WHERE core = " + QString::number(core) +
       " AND module = \"" + bb->getModule()->id +
@@ -165,6 +172,15 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
     energy[4] = query.value("energy5").toDouble();
     energy[5] = query.value("energy6").toDouble();
     energy[6] = query.value("energy7").toDouble();
+
+    *runtimeFrame = query.value("runtimeFrame").toDouble();
+    energyFrame[0] = query.value("energyFrame1").toDouble();
+    energyFrame[1] = query.value("energyFrame2").toDouble();
+    energyFrame[2] = query.value("energyFrame3").toDouble();
+    energyFrame[3] = query.value("energyFrame4").toDouble();
+    energyFrame[4] = query.value("energyFrame5").toDouble();
+    energyFrame[5] = query.value("energyFrame6").toDouble();
+    energyFrame[6] = query.value("energyFrame7").toDouble();
 
     int id = query.value("id").toInt();
 
@@ -196,13 +212,11 @@ void Profile::getProfData(unsigned core, BasicBlock *bb, double *runtime, double
 
   } else {
     *runtime = 0;
-    energy[0] = 0;
-    energy[1] = 0;
-    energy[2] = 0;
-    energy[3] = 0;
-    energy[4] = 0;
-    energy[5] = 0;
-    energy[6] = 0;
+    *runtimeFrame = 0;
+    for(int i = 0; i < 7; i++) {
+      energy[i] = 0;
+      energyFrame[i] = 0;
+    }
     *count = 0;
   }
 }

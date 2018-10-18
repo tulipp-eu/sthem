@@ -27,6 +27,7 @@
 
 #define START_BP 0
 #define STOP_BP  1
+#define FRAME_BP 0
 
 void usbInit(void);
 void sendSamples(struct SampleReplyPacket *sample, unsigned n);

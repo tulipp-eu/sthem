@@ -31,11 +31,17 @@ private:
     moduleId = mid;
     funcId = fid;
     bbId = bid;
-    runtime = 0;
     bb = b;
+
+    runtime = 0;
+    runtimeFrame = 0;
+    runtimeFrameAvg = 0;
     for(int i = 0; i < LYNSYN_SENSORS; i++) {
       energy[i] = 0;
+      energyFrame[i] = 0;
+      energyFrameAvg[i] = 0;
     }
+
     loopCount = 0;
   }
 
@@ -52,6 +58,12 @@ public:
 
   double runtime;
   double energy[LYNSYN_SENSORS];
+
+  double runtimeFrame;
+  double energyFrame[LYNSYN_SENSORS];
+
+  double runtimeFrameAvg;
+  double energyFrameAvg[LYNSYN_SENSORS];
 
   uint64_t loopCount;
 
@@ -74,6 +86,30 @@ public:
       callers[caller] = callers[caller] + count;
     } else {
       callers[caller] = count;
+    }
+  }
+
+  void updateRuntime(double addedRuntime) {
+    runtime += addedRuntime;
+    runtimeFrame += addedRuntime;
+  }
+
+  void updateEnergy(unsigned sensor, double addedEnergy) {
+    energy[sensor] += addedEnergy;
+    energyFrame[sensor] += addedEnergy;
+  }
+
+  void clearFrameData() {
+    runtimeFrame = 0;
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      energyFrame[i] = 0;
+    }
+  }
+
+  void addToAvg(unsigned totalFrames) {
+    runtimeFrameAvg += runtimeFrame / totalFrames;
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      energyFrameAvg[i] += energyFrame[i] / totalFrames;
     }
   }
 };

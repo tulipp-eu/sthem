@@ -95,6 +95,16 @@ enum DBG_MOE_T {UNKNOWN=0, BREAKPOINT, NUM_MOE_TYPES};
 #define A53_PRSR        197
 #define A53_OSLAR       192
 
+#define A53_ITR         33
+#define A53_DTRTX       35
+#define A53_DTRRX       32
+
+#define MCR 0xee000010
+#define CPREG(coproc, opc1, rt, crn, crm, opc2) \
+	(((opc1) << 21) | ((crn) << 16) | ((rt) << 12) | \
+        ((coproc) << 8) | ((opc2) << 5) | (crm))
+#define DTRTXint CPREG(14, 0, 0, 0, 5, 0)
+
 #define CHANNEL_0 1
 #define CHANNEL_1 2
 

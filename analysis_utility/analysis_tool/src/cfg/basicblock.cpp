@@ -106,12 +106,13 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
   height = yy;
 }
 
-void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count) {
+void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
+                             double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count) {
   if(cachedRuntime == INT_MAX) {
     Profile *profile = getTop()->getProfile();
 
     if(profile) {
-      profile->getProfData(core, this, &cachedRuntime, cachedEnergy, &cachedCount);
+      profile->getProfData(core, this, &cachedRuntime, cachedEnergy, &cachedRuntimeFrame, cachedEnergyFrame, &cachedCount);
 
       for(auto child : children) {
         Instruction *instr = dynamic_cast<Instruction*>(child);
@@ -126,25 +127,35 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
                 if(func->callers == 1) {
                   if(getModule()->id == "bzip2" && id == "102") printf("One caller\n");
                   double runtimeChild;
+                  double runtimeChildFrame;
                   double energyChild[Pmu::MAX_SENSORS];
+                  double energyChildFrame[Pmu::MAX_SENSORS];
                   uint64_t countChild;
                   callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
+                  func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
+
                   cachedRuntime += runtimeChild;
+                  cachedRuntimeFrame += runtimeChildFrame;
                   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
                     cachedEnergy[i] += energyChild[i];
+                    cachedEnergyFrame[i] += energyChildFrame[i];
                   }
                 } else {
                   double runtimeChild;
+                  double runtimeChildFrame;
                   double energyChild[Pmu::MAX_SENSORS];
+                  double energyChildFrame[Pmu::MAX_SENSORS];
                   uint64_t countChild;
                   callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
+                  func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
                   double ratio = profile->getArcRatio(core, this, func);
                   if(getModule()->id == "bzip2" && id == "102") printf("%d callers, ratio %f\n", func->callers, ratio);
+
                   cachedRuntime += runtimeChild * ratio;
+                  cachedRuntimeFrame += runtimeChildFrame * ratio;
                   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
                     cachedEnergy[i] += energyChild[i] * ratio;
+                    cachedEnergyFrame[i] += energyChildFrame[i] * ratio;
                   }
                 }
               }
@@ -154,16 +165,20 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack, doub
       }
     } else {
       cachedRuntime = 0;
+      cachedRuntimeFrame = 0;
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] = 0;
+        cachedEnergyFrame[i] = 0;
       }
       cachedCount = 0;
     }
   }
 
   *runtime = cachedRuntime;
+  *runtimeFrame = cachedRuntimeFrame;
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
+    energyFrame[i] = cachedEnergyFrame[i];
   }
   *count = cachedCount;
 }

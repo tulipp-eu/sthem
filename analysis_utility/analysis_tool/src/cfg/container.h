@@ -57,7 +57,9 @@ protected:
 
   ProfLine *cachedProfLine[Pmu::MAX_CORES];
   double cachedRuntime;
+  double cachedRuntimeFrame;
   double cachedEnergy[Pmu::MAX_SENSORS];
+  double cachedEnergyFrame[Pmu::MAX_SENSORS];
   uint64_t cachedCount;
 
 public:
@@ -74,8 +76,10 @@ public:
       cachedProfLine[i] = NULL;
     }
     cachedRuntime = INT_MAX;
+    cachedRuntimeFrame = INT_MAX;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       cachedEnergy[i] = INT_MAX;
+      cachedEnergyFrame[i] = INT_MAX;
     }
     cachedCount = INT_MAX;
   }
@@ -204,7 +208,8 @@ public:
   
   virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements);
 
-  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count);
+  virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack,
+                           double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count);
 
   virtual void buildProfTable(unsigned core, std::vector<ProfLine*> &table, bool forModel = false);
 

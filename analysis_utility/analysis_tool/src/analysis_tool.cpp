@@ -237,10 +237,12 @@ int main(int argc, char *argv[]) {
       }
 
       double runtime;
+      double runtimeFrame;
       double energy[LYNSYN_SENSORS];
+      double energyFrame[LYNSYN_SENSORS];
       uint64_t count;
 
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
 
       printf("%f\n", runtime);
     }
@@ -264,10 +266,12 @@ int main(int argc, char *argv[]) {
       }
 
       double runtime;
+      double runtimeFrame;
       double energy[LYNSYN_SENSORS];
+      double energyFrame[LYNSYN_SENSORS];
       uint64_t count;
 
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
 
       printf("%f\n", energy[sensor] / runtime);
     }
@@ -297,10 +301,12 @@ int main(int argc, char *argv[]) {
       }
 
       double runtime;
+      double runtimeFrame;
       double energy[LYNSYN_SENSORS];
+      double energyFrame[LYNSYN_SENSORS];
       uint64_t count;
 
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
 
       printf("%f\n", energy[sensor]);
     }
@@ -323,10 +329,12 @@ int main(int argc, char *argv[]) {
       }
 
       double runtime;
+      double runtimeFrame;
       double energy[LYNSYN_SENSORS];
+      double energyFrame[LYNSYN_SENSORS];
       uint64_t count;
 
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
 
       printf("%ld\n", count);
     }

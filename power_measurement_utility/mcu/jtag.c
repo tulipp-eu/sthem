@@ -184,6 +184,21 @@ uint32_t coreReadReg(struct Core *core, uint16_t reg) {
   return ret;
 }
 
+uint8_t coreReadStatus(unsigned core) {
+  return coreReadReg(&cores[core], A53_SCR) & 0x3f;
+}
+
+#define ARMV8_MRS_DLR(Rt)	(0xd53b4520 | (Rt))
+#define ARMV8_MSR_GP(System, Rt) (0xd5100000 | ((System) << 5) | (Rt))
+#define SYSTEM_DBG_DBGDTR_EL0	0b1001100000100000
+
+uint64_t readPc(unsigned core) {
+	coreWriteReg(&cores[core], A53_ITR, ARMV8_MRS_DLR(0));
+	coreWriteReg(&cores[core], A53_ITR, ARMV8_MSR_GP(SYSTEM_DBG_DBGDTR_EL0, 0));
+
+  return (((uint64_t)coreReadReg(&cores[core], A53_DTRRX)) << 32) | (uint64_t)coreReadReg(&cores[core], A53_DTRTX);
+}
+
 uint64_t calcOffset(uint64_t dbgpcsr) {
   return dbgpcsr & ~3;
 }
@@ -220,7 +235,7 @@ void coreSetBp(unsigned core, unsigned bpNum, uint64_t addr) {
     coreWriteReg(&cores[core], A53_BVR_L(bpNum), addr & 0xfffffffc);
     coreWriteReg(&cores[core], A53_BVR_H(bpNum), (addr >> 32));
     coreWriteReg(&cores[core], A53_BCR(bpNum), (1 << 13) | (3 << 1) | BCR_BAS_ANY | BCR_EN);
-		coreWriteReg(&cores[core], A53_SCR, coreReadReg(&cores[core], A53_SCR) | (0x1 << 14));
+    coreWriteReg(&cores[core], A53_SCR, coreReadReg(&cores[core], A53_SCR) | (0x1 << 14));
   } else {
     coreWriteReg(&cores[core], A9_BVR(bpNum), addr & ~3);
     coreWriteReg(&cores[core], A9_BCR(bpNum), BCR_BAS_ANY | BCR_EN);

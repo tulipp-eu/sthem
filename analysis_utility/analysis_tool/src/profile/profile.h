@@ -52,7 +52,8 @@ public:
   virtual ~Profile();
 
   void setMeasurements(QVector<Measurement> *measurements);
-  void getProfData(unsigned core, BasicBlock *bb, double *runtime, double *energy, uint64_t *count);
+  void getProfData(unsigned core, BasicBlock *bb,
+                   double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count);
   void getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement> *measurements);
 
   double getArcRatio(unsigned core, BasicBlock *bb, Function *func);

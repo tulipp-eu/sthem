@@ -766,30 +766,39 @@ void Container::collapse() {
   }
 }
 
-void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack, double *runtime, double *energy, uint64_t *count) {
+void Container::getProfData(unsigned core, QVector<BasicBlock*> callStack,
+                            double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count) {
   if(cachedRuntime == INT_MAX) {
     cachedRuntime = 0;
+    cachedRuntimeFrame = 0;
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       cachedEnergy[i] = 0;
+      cachedEnergyFrame[i] = 0;
     }
     cachedCount = 0;
 
     for(auto child : children) {
       double runtimeChild;
+      double runtimeChildFrame;
       double energyChild[Pmu::MAX_SENSORS];
+      double energyChildFrame[Pmu::MAX_SENSORS];
       uint64_t countChild;
-      child->getProfData(core, callStack, &runtimeChild, energyChild, &countChild);
+      child->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
       cachedRuntime += runtimeChild;
+      cachedRuntimeFrame += runtimeChildFrame;
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         cachedEnergy[i] += energyChild[i];
+        cachedEnergyFrame[i] += energyChildFrame[i];
       }
       cachedCount += countChild;
     }
   }
 
   *runtime = cachedRuntime;
+  *runtimeFrame = cachedRuntimeFrame;
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
     energy[i] = cachedEnergy[i];
+    energyFrame[i] = cachedEnergyFrame[i];
   }
   *count = cachedCount;
 }
@@ -808,21 +817,27 @@ void Container::buildProfTable(unsigned core, std::vector<ProfLine*> &table, boo
   if(!forModel || isVisibleInTable()) {
     if(!cachedProfLine[core]) {
       double runtime;
+      double runtimeFrame;
       double energy[Pmu::MAX_SENSORS];
+      double energyFrame[Pmu::MAX_SENSORS];
       uint64_t count;
 
       cachedProfLine[core] = new ProfLine();
 
-      getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &count);
+      getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
       getMeasurements(core, QVector<BasicBlock*>(), &(cachedProfLine[core]->measurements));
 
       double power[Pmu::MAX_SENSORS];
+      double powerFrame[Pmu::MAX_SENSORS];
       for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
         power[i] = 0;
         if(runtime) power[i] = energy[i] / runtime;
+
+        powerFrame[i] = 0;
+        if(runtimeFrame) powerFrame[i] = energyFrame[i] / runtimeFrame;
       }
 
-      cachedProfLine[core]->init(this, runtime, power, energy);
+      cachedProfLine[core]->init(this, runtime, power, energy, runtimeFrame, powerFrame, energyFrame);
     }
 
     table.push_back(cachedProfLine[core]);

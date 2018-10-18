@@ -34,7 +34,7 @@ int ProfModel::rowCount(const QModelIndex &parent) const {
 
 int ProfModel::columnCount(const QModelIndex &parent) const {
   Q_UNUSED(parent);
-  return 4;
+  return 7;
 }
 
 QVariant ProfModel::data(const QModelIndex &index, int role) const {
@@ -51,6 +51,9 @@ QVariant ProfModel::data(const QModelIndex &index, int role) const {
       case 0: return line->runtime;
       case 1: return line->power[Config::sensor];
       case 2: return line->energy[Config::sensor];
+      case 3: return line->runtimeFrame;
+      case 4: return line->powerFrame[Config::sensor];
+      case 5: return line->energyFrame[Config::sensor];
     }
   }
   return QVariant();
@@ -63,6 +66,9 @@ QVariant ProfModel::headerData(int section, Qt::Orientation orientation, int rol
       case 1: return QVariant("Runtime [s]"); break;
       case 2: return QVariant("Power [W]"); break;
       case 3: return QVariant("Energy [J]"); break;
+      case 4: return QVariant("Runtime Frame [s]"); break;
+      case 5: return QVariant("Power Frame [W]"); break;
+      case 6: return QVariant("Energy Frame [J]"); break;
     }
   }
   return QVariant();

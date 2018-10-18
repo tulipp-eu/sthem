@@ -272,7 +272,7 @@ int main(void) {
   swoInit();
 #endif
 
-  printf("Lynsyn firmware %s initializing...\n", SW_VERSION_STRING);
+  printf("Lynsyn initializing...\n");
 
   // Enable cycle counter
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -280,6 +280,9 @@ int main(void) {
   DWT->CYCCNT = 0;
 
   configInit();
+
+  printf("Hardware V%lx.%lx Firmware %s\n", (getUint32("hwver") & 0xf0) >> 4, getUint32("hwver") & 0xf, SW_VERSION_STRING);
+
   fpgaInit();
   adcInit();
   usbInit();
@@ -316,6 +319,8 @@ int main(void) {
       int64_t currentTime = calculateTime();
       struct SampleReplyPacket *samplePtr = &sampleBuf[currentSample];
 
+      samplePtr->flags = 0;
+
       bool halted = false;
 
 #ifndef SWO
@@ -336,6 +341,18 @@ int main(void) {
         adcScan(samplePtr->current);
         if(samplePc) {
           halted = coreReadPcsrFast(samplePtr->pc);
+          if(halted) {
+            if(readPc(0) == frameBp) {
+              coreClearBp(startCore, FRAME_BP);
+              coresResume();
+
+              halted = false;
+
+              samplePtr->flags = SAMPLE_REPLY_FLAG_FRAME_DONE;
+
+              coreSetBp(startCore, FRAME_BP, frameBp);
+            }
+          }
         } else {
           for(int i = 0; i < 4; i++) {
             samplePtr->pc[i] = 0;

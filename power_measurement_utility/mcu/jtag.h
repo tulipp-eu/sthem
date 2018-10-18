@@ -70,6 +70,9 @@ void coresResume(void);
 void coreSetBp(unsigned core, unsigned bpNum, uint64_t addr);
 void coreClearBp(unsigned core, unsigned bpNum);
 
+uint8_t coreReadStatus(unsigned core);
+uint64_t readPc(unsigned core);
+
 bool coreHalted(unsigned core);
 
 ///////////////////////////////////////////////////////////////////////////////

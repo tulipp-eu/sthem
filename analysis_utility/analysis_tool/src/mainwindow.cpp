@@ -83,7 +83,7 @@ MainWindow::MainWindow(Analysis *analysis) {
 
   sensorBox = new QComboBox();
   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
-    sensorBox->addItem(QString("Sensor ") + QString::number(i));
+    sensorBox->addItem(QString("Sensor ") + QString::number(i+1));
   }
   connect(sensorBox, SIGNAL(activated(int)), this, SLOT(changeSensor(int)));
 
@@ -92,6 +92,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   cfgModeBox->addItem("Runtime");
   cfgModeBox->addItem("Power");
   cfgModeBox->addItem("Energy");
+  cfgModeBox->addItem("Runtime Frame");
+  cfgModeBox->addItem("Power Frame");
+  cfgModeBox->addItem("Energy Frame");
   connect(cfgModeBox, SIGNAL(activated(int)), this, SLOT(changeCfgMode(int)));
 
   coreBox = new QComboBox();
@@ -938,6 +941,19 @@ void MainWindow::changeCfgMode(int mode) {
     case 3:
       Config::colorMode = Config::ENERGY;
       cfgScene->redraw();
+      break;
+    case 4:
+      Config::colorMode = Config::RUNTIME_FRAME;
+      cfgScene->redraw();
+      break;
+    case 5:
+      Config::colorMode = Config::POWER_FRAME;
+      cfgScene->redraw();
+      break;
+    case 6:
+      Config::colorMode = Config::ENERGY_FRAME;
+      cfgScene->redraw();
+      break;
   }
 }
 
