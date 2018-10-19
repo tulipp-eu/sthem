@@ -71,6 +71,14 @@ public:
   double getMinPower(unsigned sensor);
   double getMaxPower(unsigned sensor);
 
+  double getFrameRuntimeMin();
+  double getFrameRuntimeAvg();
+  double getFrameRuntimeMax();
+
+  double getFrameEnergyMin(unsigned sensor);
+  double getFrameEnergyAvg(unsigned sensor);
+  double getFrameEnergyMax(unsigned sensor);
+
   void setCycles(int64_t cycles) {
     this->cycles = cycles;
   }

@@ -102,6 +102,7 @@ private:
   QAction *profileAct;
   QAction *runAct;
   QAction *showProfileAct;
+  QAction *showFrameAct;
   QAction *showDseAct;
 
   QThread thread;
@@ -133,6 +134,7 @@ private slots:
   void makeBinEvent();
   void profileEvent();
   void runEvent();
+  void showFrameSummary();
   void showProfileSummary();
   void showDseSummary();
   void finishXml(int error, QString msg);

@@ -1041,20 +1041,45 @@ bool Project::runProfiler() {
 
   pmu.release();
 
+  int64_t frameRuntimeMin = 0;
+  int64_t frameRuntimeMax = 0;
+  int64_t frameRuntimeAvg = 0;
+
   // find all frames
   QVector<int64_t> frames;
+  unsigned frameCount;
   {
+    int64_t lastTime = 0;
     QSqlQuery query;
-    query.exec("SELECT time FROM frames");
-    while(query.next()) frames.push_back(query.value("time").toLongLong());
+    query.exec("SELECT time,delay FROM frames");
+    while(query.next()) {
+      int64_t time = query.value("time").toLongLong();
+      int64_t delay = query.value("delay").toLongLong();
+      frames.push_back(time);
+
+      if(lastTime) {
+        int64_t frameRuntime = time - lastTime - delay;
+        if(frameRuntime > frameRuntimeMax) frameRuntimeMax = frameRuntime;
+        if((frameRuntimeMin == 0) || (frameRuntime < frameRuntimeMin)) frameRuntimeMin = frameRuntime;
+        frameRuntimeAvg += frameRuntime;
+        frameCount++;
+      }
+      
+      lastTime = time;
+    }
   }
+
+  frameRuntimeAvg /= frameCount;
+  
+  double frameEnergyMin[LYNSYN_SENSORS];
+  double frameEnergyMax[LYNSYN_SENSORS];
+  double frameEnergyAvg[LYNSYN_SENSORS];
+  double currentFrameEnergy[LYNSYN_SENSORS];
 
   {
     emit advance(2, "Processing samples");
 
     std::map<BasicBlock*,Location*> locations[LYNSYN_MAX_CORES];
-
-    printf("Querying samples\n");
 
     QSqlQuery query;
     query.setForwardOnly(true);
@@ -1086,16 +1111,24 @@ bool Project::runProfiler() {
         if(time > frames[currentFrame]) {
           currentFrame++;
 
-          if(currentFrame == frames.size()) {
-            printf("Last frame\n");
-            for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
-
-          } else if(currentFrame == 1) {
-            printf("First frame\n");
+          if(currentFrame == 1) {
+            // first frame
+            for(int i = 0; i < LYNSYN_SENSORS; i++) {
+              frameEnergyMin[i] = 0;
+              frameEnergyMax[i] = 0;
+              frameEnergyAvg[i] = 0;
+              currentFrameEnergy[i] = 0;
+            }
 
           } else {
-            printf("New frame\n");
+            // next frame
             for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
+            for(int i = 0; i < LYNSYN_SENSORS; i++) {
+              if(currentFrameEnergy[i] > frameEnergyMax[i]) frameEnergyMax[i] = currentFrameEnergy[i];
+              if((frameEnergyMin[i] == 0) || (currentFrameEnergy[i] < frameEnergyMin[i])) frameEnergyMin[i] = currentFrameEnergy[i];
+              frameEnergyAvg[i] += currentFrameEnergy[i];
+              currentFrameEnergy[i] = 0;
+            }
           }
 
           for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->clearFrameData();
@@ -1121,6 +1154,8 @@ bool Project::runProfiler() {
       power[4] = query.value("power5").toDouble();
       power[5] = query.value("power6").toDouble();
       power[6] = query.value("power7").toDouble();
+
+      for(int i = 0; i < LYNSYN_SENSORS; i++) currentFrameEnergy[i] += power[i] * Pmu::cyclesToSeconds(timeSinceLast);
 
       for(int core = 0; core < 4; core++) {
         Location *location = getLocation(core, pc[core], &elfSupport, &locations[core]);
@@ -1150,13 +1185,15 @@ bool Project::runProfiler() {
       assert(success);
     }
 
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      frameEnergyAvg[i] /= frameCount;
+    }
+
     printf("Processed %d samples...\n", counter);
 
     QSqlDatabase::database().commit();
 
     QSqlDatabase::database().transaction();
-
-    printf("Storing locations\n");
 
     for(unsigned c = 0; c < LYNSYN_MAX_CORES; c++) {
       for(auto location : locations[c]) {
@@ -1204,15 +1241,31 @@ bool Project::runProfiler() {
 
     QSqlDatabase::database().transaction();
 
-    printf("storing meta\n");
-
-    query.prepare("INSERT INTO meta"
-                  " (samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,"
+    query.prepare("INSERT INTO meta ("
+                  "samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,"
                   "maxPower1,maxPower2,maxPower3,maxPower4,maxPower5,maxPower6,maxPower7,"
-                  "runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7)"
-                  " VALUES (:samples,:minTime,:maxTime,:minPower1,:minPower2,:minPower3,:minPower4,:minPower5,:minPower6,:minPower7,"
+                  "runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,"
+                  "frameRuntimeMin,frameRuntimeAvg,frameRuntimeMax,"
+                  "frameEnergyMin1,frameEnergyAvg1,frameEnergyMax1,"
+                  "frameEnergyMin2,frameEnergyAvg2,frameEnergyMax2,"
+                  "frameEnergyMin3,frameEnergyAvg3,frameEnergyMax3,"
+                  "frameEnergyMin4,frameEnergyAvg4,frameEnergyMax4,"
+                  "frameEnergyMin5,frameEnergyAvg5,frameEnergyMax5,"
+                  "frameEnergyMin6,frameEnergyAvg6,frameEnergyMax6,"
+                  "frameEnergyMin7,frameEnergyAvg7,frameEnergyMax7"
+                  ") VALUES ("
+                  ":samples,:minTime,:maxTime,:minPower1,:minPower2,:minPower3,:minPower4,:minPower5,:minPower6,:minPower7,"
                   ":maxPower1,:maxPower2,:maxPower3,:maxPower4,:maxPower5,:maxPower6,:maxPower7,"
-                  ":runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7)");
+                  ":runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,"
+                  ":frameRuntimeMin,:frameRuntimeAvg,:frameRuntimeMax,"
+                  ":frameEnergyMin1,:frameEnergyAvg1,:frameEnergyMax1,"
+                  ":frameEnergyMin2,:frameEnergyAvg2,:frameEnergyMax2,"
+                  ":frameEnergyMin3,:frameEnergyAvg3,:frameEnergyMax3,"
+                  ":frameEnergyMin4,:frameEnergyAvg4,:frameEnergyMax4,"
+                  ":frameEnergyMin5,:frameEnergyAvg5,:frameEnergyMax5,"
+                  ":frameEnergyMin6,:frameEnergyAvg6,:frameEnergyMax6,"
+                  ":frameEnergyMin7,:frameEnergyAvg7,:frameEnergyMax7"
+                  ")");
 
     query.bindValue(":samples", (quint64)samples);
     query.bindValue(":minTime", (qint64)minTime);
@@ -1239,13 +1292,35 @@ bool Project::runProfiler() {
     query.bindValue(":energy5", energy[4]);
     query.bindValue(":energy6", energy[5]);
     query.bindValue(":energy7", energy[6]);
+    query.bindValue(":frameRuntimeMin", Pmu::cyclesToSeconds(frameRuntimeMin));
+    query.bindValue(":frameRuntimeAvg", Pmu::cyclesToSeconds(frameRuntimeAvg));
+    query.bindValue(":frameRuntimeMax", Pmu::cyclesToSeconds(frameRuntimeMax));
+    query.bindValue(":frameEnergyMin1", frameEnergyMin[0]);
+    query.bindValue(":frameEnergyAvg1", frameEnergyAvg[0]);
+    query.bindValue(":frameEnergyMax1", frameEnergyMax[0]);
+    query.bindValue(":frameEnergyMin2", frameEnergyMin[1]);
+    query.bindValue(":frameEnergyAvg2", frameEnergyAvg[1]);
+    query.bindValue(":frameEnergyMax2", frameEnergyMax[1]);
+    query.bindValue(":frameEnergyMin3", frameEnergyMin[2]);
+    query.bindValue(":frameEnergyAvg3", frameEnergyAvg[2]);
+    query.bindValue(":frameEnergyMax3", frameEnergyMax[2]);
+    query.bindValue(":frameEnergyMin4", frameEnergyMin[3]);
+    query.bindValue(":frameEnergyAvg4", frameEnergyAvg[3]);
+    query.bindValue(":frameEnergyMax4", frameEnergyMax[3]);
+    query.bindValue(":frameEnergyMin5", frameEnergyMin[4]);
+    query.bindValue(":frameEnergyAvg5", frameEnergyAvg[4]);
+    query.bindValue(":frameEnergyMax5", frameEnergyMax[4]);
+    query.bindValue(":frameEnergyMin6", frameEnergyMin[5]);
+    query.bindValue(":frameEnergyAvg6", frameEnergyAvg[5]);
+    query.bindValue(":frameEnergyMax6", frameEnergyMax[5]);
+    query.bindValue(":frameEnergyMin7", frameEnergyMin[6]);
+    query.bindValue(":frameEnergyAvg7", frameEnergyAvg[6]);
+    query.bindValue(":frameEnergyMax7", frameEnergyMax[6]);
 
     bool success = query.exec();
     assert(success);
 
     QSqlDatabase::database().commit();
-
-    printf("creating index\n");
 
     query.exec("CREATE INDEX measurements_time_idx ON measurements(time)");
   }

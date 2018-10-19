@@ -149,6 +149,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   showProfileAct = new QAction("Summary", this);
   connect(showProfileAct, SIGNAL(triggered()), this, SLOT(showProfileSummary()));
 
+  showFrameAct = new QAction("Summary(Frame)", this);
+  connect(showFrameAct, SIGNAL(triggered()), this, SLOT(showFrameSummary()));
+
   showDseAct = new QAction("Summary(DSE)", this);
   connect(showDseAct, SIGNAL(triggered()), this, SLOT(showDseSummary()));
 
@@ -244,6 +247,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   projectToolBar->addAction(runAct);
   projectToolBar->addAction(profileAct);
   projectToolBar->addAction(showProfileAct);
+  projectToolBar->addAction(showFrameAct);
   projectToolBar->addAction(showDseAct);
 
   // statusbar
@@ -864,6 +868,49 @@ void MainWindow::showProfileSummary() {
       messageTextStream << "</tr>";
       messageTextStream << "<tr>";
       messageTextStream << "<td>Registers:</td><td>" << sdsoc->getRegs() << "%</td>";
+      messageTextStream << "</tr>";
+    }
+    messageTextStream << "</table>";
+  
+    QMessageBox msgBox;
+    msgBox.setText(messageText);
+    msgBox.exec();
+
+  } else {
+    QMessageBox msgBox;
+    msgBox.setText("No data to display");
+    msgBox.exec();
+  }
+}
+
+void MainWindow::showFrameSummary() {
+  if(analysis->profile) {
+    QString messageText;
+    QTextStream messageTextStream(&messageText);
+
+    messageTextStream << "<h4>Frame Summary:</h4><table border=\"1\" cellpadding=\"5\">";
+
+    messageTextStream << "<tr>";
+    messageTextStream << "<td><b>Min runtime</b></td><td><b>Average runtime</b></td><td><b>Max runtime</b></td>";
+    messageTextStream << "</tr>";
+
+    messageTextStream << "<tr>";
+    messageTextStream << "<td>" << analysis->profile->getFrameRuntimeMin() << " s</td>";
+    messageTextStream << "<td>" << analysis->profile->getFrameRuntimeAvg() << " s</td>";
+    messageTextStream << "<td>" << analysis->profile->getFrameRuntimeMax() << " s</td>";
+    messageTextStream << "</tr>";
+
+    messageTextStream << "<tr>";
+    messageTextStream << "<td><b>Min energy</b></td>";
+    messageTextStream << "<td><b>Average energy</b></td>";
+    messageTextStream << "<td><b>Max energy</b></td>";
+    messageTextStream << "</tr>";
+
+    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+      messageTextStream << "<tr>";
+      messageTextStream << "<td>" << analysis->profile->getFrameEnergyMin(i) << "J</td>";
+      messageTextStream << "<td>" << analysis->profile->getFrameEnergyAvg(i) << "J</td>";
+      messageTextStream << "<td>" << analysis->profile->getFrameEnergyMax(i) << "J</td>";
       messageTextStream << "</tr>";
     }
     messageTextStream << "</table>";

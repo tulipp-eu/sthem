@@ -59,7 +59,21 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS frames (time INT, delay INT)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS meta ("
+                       "samples INT,mintime INT,maxtime INT,"
+                       "minpower1 REAL,minpower2 REAL,minpower3 REAL,minpower4 REAL,minpower5 REAL,minpower6 REAL,"
+                       "minpower7 REAL,maxpower1 REAL,maxpower2 REAL,maxpower3 REAL,maxpower4 REAL,maxpower5 REAL,"
+                       "maxpower6 REAL,maxpower7 REAL,runtime REAL,energy1 REAL,energy2 REAL,energy3 REAL,"
+                       "energy4 REAL,energy5 REAL,energy6 REAL,energy7 REAL,"
+                       "frameRuntimeMin REAL,frameRuntimeAvg REAL,frameRuntimeMax REAl,"
+                       "frameEnergyMin1 REAL,frameEnergyAvg1 REAL,frameEnergyMax1 REAl,"
+                       "frameEnergyMin2 REAL,frameEnergyAvg2 REAL,frameEnergyMax2 REAl,"
+                       "frameEnergyMin3 REAL,frameEnergyAvg3 REAL,frameEnergyMax3 REAl,"
+                       "frameEnergyMin4 REAL,frameEnergyAvg4 REAL,frameEnergyMax4 REAl,"
+                       "frameEnergyMin5 REAL,frameEnergyAvg5 REAL,frameEnergyMax5 REAl,"
+                       "frameEnergyMin6 REAL,frameEnergyAvg6 REAL,frameEnergyMax6 REAl,"
+                       "frameEnergyMin7 REAL,frameEnergyAvg7 REAL,frameEnergyMax7 REAl"
+                       ")");
   assert(success);
 
   success = query.exec("SELECT mintime,maxtime,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7 FROM meta");
@@ -344,6 +358,78 @@ double Profile::getMinPower(unsigned sensor) {
 double Profile::getMaxPower(unsigned sensor) {
   QSqlQuery query;
   QString queryString = QString() + "SELECT maxpower" + QString::number(sensor+1) + " FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getFrameRuntimeMin() {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT frameRuntimeMin FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getFrameRuntimeAvg() {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT frameRuntimeAvg FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getFrameRuntimeMax() {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT frameRuntimeMax FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getFrameEnergyMin(unsigned sensor) {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT frameEnergyMin" + QString::number(sensor+1) + " FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getFrameEnergyAvg(unsigned sensor) {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT frameEnergyAvg" + QString::number(sensor+1) + " FROM meta";
+
+  query.exec(queryString);
+
+  if(query.next()) {
+    return query.value(0).toDouble();
+  }
+  return 0;
+}
+
+double Profile::getFrameEnergyMax(unsigned sensor) {
+  QSqlQuery query;
+  QString queryString = QString() + "SELECT frameEnergyMax" + QString::number(sensor+1) + " FROM meta";
 
   query.exec(queryString);
 

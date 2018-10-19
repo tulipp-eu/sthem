@@ -113,11 +113,7 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
   FILE *fp;
   char buf[1024];
 
-  printf("Looking up %s\n", symbol.toUtf8().constData());
-
   for(auto elfFile : elfFiles) {
-    printf("Trying %s\n", elfFile.toUtf8().constData());
-
     // create command line
     QString cmd = QString("nm ") + elfFile;
 
