@@ -345,11 +345,8 @@ int main(void) {
             if(readPc(0) == frameBp) {
               coreClearBp(startCore, FRAME_BP);
               coresResume();
-
               halted = false;
-
               samplePtr->flags = SAMPLE_REPLY_FLAG_FRAME_DONE;
-
               coreSetBp(startCore, FRAME_BP, frameBp);
             }
           }
@@ -400,6 +397,8 @@ int main(void) {
 #endif
         samples++;
         currentSample++;
+
+        if(samplePtr->flags & SAMPLE_REPLY_FLAG_FRAME_DONE) samplePtr->pc[0] = calculateTime();
 
         if((currentSample >= MAX_SAMPLES) || halted) {
           sendSamples(sampleBuf, currentSample);

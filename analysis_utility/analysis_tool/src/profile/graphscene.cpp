@@ -33,9 +33,9 @@ GraphScene::GraphScene(QObject *parent) : QGraphicsScene(parent) {
 }
 
 void GraphScene::addGanttLineSegments(int line, QVector<Measurement> *measurements) {
-  int64_t startTime = ~0;
-  int64_t lastTime = ~0;
-  uint64_t lastSeq = ~0;
+  int64_t startTime = -1;
+  int64_t lastTime = -1;
+  uint64_t lastSeq = -2;
   for(auto measurement : *measurements) {
     int64_t time = measurement.time;
     uint64_t seq = measurement.sequence;
@@ -161,14 +161,15 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
         }
 
         queryString = QString() +
-          "SELECT time FROM frames" +
+          "SELECT time,delay FROM frames" +
           " WHERE time BETWEEN " + QString::number(minTime) + " AND " + QString::number(maxTime);
 
         query.exec(queryString);
 
         while(query.next()) {
           int64_t time = query.value("time").toLongLong();
-          addFrameLine(time, ganttSize, Qt::red);
+          int64_t delay = query.value("delay").toLongLong();
+          addFrameLine(time, time + delay, ganttSize, Qt::red);
         }
       }
     }
@@ -204,8 +205,8 @@ void GraphScene::addPoint(int64_t time, double value) {
   graph->addPoint(scaleTime(time), scalePower(value));
 }
 
-void GraphScene::addFrameLine(int64_t time, unsigned depth, QColor color) {
-  FrameLine *line = new FrameLine(scaleTime(time), scaleFactorPower, depth, color);
+void GraphScene::addFrameLine(int64_t timeStart, int64_t timeEnd, unsigned depth, QColor color) {
+  FrameLine *line = new FrameLine(scaleTime(timeStart), scaleTime(timeEnd), scaleFactorPower, depth, color);
   line->setPos(0, GRAPH_SIZE-GANTT_SPACING);
   addItem(line);
 }

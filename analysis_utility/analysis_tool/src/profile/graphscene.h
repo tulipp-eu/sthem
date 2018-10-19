@@ -101,7 +101,7 @@ private:
   int addGanttLine(QString id, QColor color);
   void addGanttLineSegment(unsigned lineNum, int64_t start, int64_t stop);
   void addPoint(int64_t time, double value);
-  void addFrameLine(int64_t time, unsigned depth, QColor color);
+  void addFrameLine(int64_t timeStart, int64_t timeEnd, unsigned depth, QColor color);
 
 public:
   int64_t minTime;

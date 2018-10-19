@@ -29,14 +29,16 @@
 
 class FrameLine : public QGraphicsItem {
 
-  int64_t time;
+  int64_t timeStart;
+  int64_t timeEnd;
   unsigned lineHeight;
   unsigned lineDepth;
   QColor color;
 
 public:
-  FrameLine(int64_t time, unsigned lineHeight, unsigned lineDepth, QColor color, QGraphicsItem *parent = NULL) : QGraphicsItem(parent) {
-    this->time = time;
+  FrameLine(int64_t timeStart, int64_t timeEnd, unsigned lineHeight, unsigned lineDepth, QColor color, QGraphicsItem *parent = NULL) : QGraphicsItem(parent) {
+    this->timeStart = timeStart;
+    this->timeEnd = timeEnd;
     this->lineHeight = lineHeight;
     this->lineDepth = lineDepth;
     this->color = color;
@@ -45,12 +47,13 @@ public:
   ~FrameLine() {}
 
   QRectF boundingRect() const {
-    return QRectF(time, -(int)lineHeight, 1, lineHeight + lineDepth);
+    return QRectF(timeStart, -(int)lineHeight, timeEnd - timeStart, lineHeight + lineDepth);
   }
 
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     painter->setPen(QPen(color));
-    painter->drawLine(QPoint(time, -lineHeight), QPoint(time, lineDepth));
+    painter->setBrush(QBrush(color, Qt::SolidPattern));
+    painter->drawRect(timeStart, -(int)lineHeight, timeEnd - timeStart, lineHeight + lineDepth);
   }
 
 };

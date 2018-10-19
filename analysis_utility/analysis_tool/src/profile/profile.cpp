@@ -56,7 +56,7 @@ Profile::Profile() {
   success = query.exec("CREATE TABLE IF NOT EXISTS arc (fromid INT, selfid INT, num INT)");
   assert(success);
 
-  success = query.exec("CREATE TABLE IF NOT EXISTS frames (time INT)");
+  success = query.exec("CREATE TABLE IF NOT EXISTS frames (time INT, delay INT)");
   assert(success);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS meta (samples INT, mintime INT, maxtime INT, minpower1 REAL, minpower2 REAL, minpower3 REAL, minpower4 REAL, minpower5 REAL, minpower6 REAL, minpower7 REAL, maxpower1 REAL, maxpower2 REAL, maxpower3 REAL, maxpower4 REAL, maxpower5 REAL, maxpower6 REAL, maxpower7 REAL, runtime REAL, energy1 REAL, energy2 REAL, energy3 REAL, energy4 REAL, energy5 REAL, energy6 REAL, energy7 REAL)");
@@ -132,8 +132,12 @@ void Profile::setMeasurements(QVector<Measurement> *measurements) {
     measurementsPerBb[core].clear();
   }
   this->measurements.clear();
-  for(auto measurement : *measurements) {
-    addMeasurement(measurement);
+  // for(int i = 1; i < measurements->size(); i++) {
+  //   auto measurement = (*measurements)[i];
+  //   addMeasurement(measurement);
+  // }
+  for(auto m : *measurements) {
+    addMeasurement(m);
   }
 }
 
@@ -284,8 +288,7 @@ void Profile::getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement
     mments = it->second;
   }
 
-  for(unsigned i = 1; i < mments->size(); i++) {
-    Measurement m = (*mments)[i];
+  for(auto m : *mments) {
     measurements->push_back(m);
   }
 }

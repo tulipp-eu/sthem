@@ -193,9 +193,10 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   if(sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE) {
     QSqlQuery frameQuery;
 
-    frameQuery.prepare("INSERT INTO frames (time) VALUES (:time)");
+    frameQuery.prepare("INSERT INTO frames (time,delay) VALUES (:time,:delay)");
 
     frameQuery.bindValue(":time", (qint64)sample->time);
+    frameQuery.bindValue(":delay", (qint64)sample->pc[0] - (qint64)sample->time);
 
     bool success = frameQuery.exec();
     assert(success);
@@ -376,10 +377,14 @@ void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool useBp, bool sam
       } else {
         int64_t timeSinceLast = 0;
 
-        if(!(sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
+        if((sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
+          if(lastTime != -1) timeSinceLast = sample->pc[0] - lastTime;
+
+        } else {
           if(lastTime != -1) timeSinceLast = sample->time - lastTime;
-          lastTime = sample->time;
         }
+
+        lastTime = sample->time;
 
         storeRawSample(sample, timeSinceLast, minPower, maxPower, energy);
       }
