@@ -25,6 +25,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <argp.h>
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -386,7 +387,7 @@ void adcSet(uint32_t val) {
   sendBytes((uint8_t*)&req, sizeof(struct AdcSetRequestPacket));
 }
 
-bool testAdc(unsigned channel, double val, double rl) {
+bool testAdc(unsigned channel, double val, double rl, double acceptance) {
   // get cal value
   struct RequestPacket initRequest;
   initRequest.cmd = USB_CMD_INIT;
@@ -421,7 +422,9 @@ bool testAdc(unsigned channel, double val, double rl) {
     i = vs / rl;
   }
 
-  if((i < (val * 0.99)) || (i > (val * 1.01))) {
+  printf("Current measured to %f, should be %f\n", i, val);
+
+  if((i < (val * (1 - acceptance))) || (i > (val * (1 + acceptance)))) {
     printf("Calibration error: Current measured to %f, should be %f\n", i, val);
     return false;
   }
@@ -429,7 +432,7 @@ bool testAdc(unsigned channel, double val, double rl) {
   return true;
 }
 
-void calibrateSensor(int sensor) {
+void calibrateSensor(int sensor, double acceptance) {
   if((sensor < 0) || (sensor > 6)) {
     printf("Incorrect sensor number: %d\n", sensor+1);
     exit(-1);
@@ -467,7 +470,7 @@ void calibrateSensor(int sensor) {
     printf("Calibrating sensor %d with calibration current %f\n", sensor+1, calCurrentVal);
 
     adcCalibrate(sensor, calCurrentVal, maxCurrentVal, sensor == 0);
-    if(!testAdc(sensor, calCurrentVal, shuntSizeVal)) exit(-1);
+    if(!testAdc(sensor, calCurrentVal, shuntSizeVal, acceptance)) exit(-1);
   }
 }
 
@@ -515,7 +518,7 @@ void automaticTests(bool withJtag) {
   printf("\nAll tests OK.\n");
 }
 
-void programTestAndCalibrate(void) {
+void programTestAndCalibrate(double acceptance) {
   printf("This procedure programs, tests and calibrates the Lynsyn board.\n"
          "All lines starting with '***' requires you to do a certain action, and then press enter to continue.\n\n");
 
@@ -596,7 +599,7 @@ void programTestAndCalibrate(void) {
     printf("Not doing sensor calibration for this HW version.\n");
   } else {
     for(int i = 0; i < 7; i++) {
-      calibrateSensor(i);
+      calibrateSensor(i, acceptance);
     }
   }
 
@@ -605,7 +608,7 @@ void programTestAndCalibrate(void) {
   printf("\nAll tests OK and all calibrations done.\n");
 }
 
-void calSensor(void) {
+void calSensor(double acceptance) {
   if(!initLynsyn()) exit(-1);
 
   if(hwVersion == HW_VERSION_2_0) {
@@ -619,7 +622,7 @@ void calSensor(void) {
         printf("I/O error\n");
         exit(-1);
       }
-      if((sensor[0] != 'x') && (sensor[0] != 'X'))  calibrateSensor(strtol(sensor, NULL, 10)-1);
+      if((sensor[0] != 'x') && (sensor[0] != 'X'))  calibrateSensor(strtol(sensor, NULL, 10)-1, acceptance);
     }
   }
 
@@ -715,14 +718,64 @@ void uploadCalData(void) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static char doc[] = "A test and calibration tool for Lynsyn boards";
+static char args_doc[] = "";
+
+static struct argp_option options[] = {
+  {"board-version",  'b', "version",      0,  "Board version" },
+  {"procedure",    'p', "procedure",      0,  "Which procedure to run" },
+  {"acceptance",   'a', "value",      0, "Maximum allowed error in percentage (0.01 default" },
+  { 0 }
+};
+
+struct arguments {
+  int board_version;
+  int procedure;
+  double acceptance;
+};
+
+static error_t parse_opt (int key, char *arg, struct argp_state *state) {
+  /* Get the input argument from argp_parse, which we
+     know is a pointer to our arguments structure. */
+  struct arguments *arguments = state->input;
+
+  switch (key) {
+    case 'b':
+      arguments->board_version = strtol(arg, NULL, 10);
+      break;
+    case 'p':
+      arguments->procedure = strtol(arg, NULL, 10);
+      break;
+    case 'a':
+      arguments->acceptance = strtod(arg, NULL);
+      break;
+
+    case ARGP_KEY_ARG:
+      if (state->arg_num >= 0)
+        argp_usage (state);
+      break;
+
+    default:
+      return ARGP_ERR_UNKNOWN;
+    }
+
+  return 0;
+}
+
+static struct argp argp = { options, parse_opt, args_doc, doc };
+
 int main(int argc, char *argv[]) {
-  char *versionChoice;
-  char *choice;
+  struct arguments arguments;
 
-  char versionChoiceBuf[80];
-  char choiceBuf[80];
+  arguments.board_version = -1;
+  arguments.procedure = -1;
+  arguments.acceptance = 0.01;
 
-  if(argc == 1) {
+  argp_parse (&argp, argc, argv, 0, 0, &arguments);
+
+  if(arguments.board_version < 1) {
+    char versionChoiceBuf[80];
+
     printf("Which HW version is the board?\n");
     printf("Enter '1' for V2.0\n");
     printf("Enter '2' for V2.1\n");
@@ -731,6 +784,11 @@ int main(int argc, char *argv[]) {
       printf("I/O error\n");
       exit(-1);
     }
+
+    arguments.board_version = strtol(versionChoiceBuf, NULL, 10);
+  }
+  if(arguments.procedure < 1) { 
+    char choiceBuf[80];
 
     printf("Which procedure do you want to perform?\n");
     printf("Enter '1' for complete programming, test and calibration.\n");
@@ -744,56 +802,47 @@ int main(int argc, char *argv[]) {
       exit(-1);
     }
 
-    versionChoice = versionChoiceBuf;
-    choice = choiceBuf;
-
-  } else if(argc == 3) {
-    versionChoice = argv[1];
-    choice = argv[2];
-
-  } else {
-    printf("Usage: %s <hw-version (1-3)> <procedure (1-6)>\n", argv[0]);
-    exit(1);
+    arguments.procedure = strtol(choiceBuf, NULL, 10);
   }
     
-  switch(versionChoice[0]) {
-    case '1': hwVersion = HW_VERSION_2_0; printf("Using HW V2.0\n"); break;
-    case '2': hwVersion = HW_VERSION_2_1; printf("Using HW V2.1\n"); break;
+  switch(arguments.board_version) {
+    case 1: hwVersion = HW_VERSION_2_0; printf("Using HW V2.0\n"); break;
+    case 2: hwVersion = HW_VERSION_2_1; printf("Using HW V2.1\n"); break;
     default:
-    case '3': hwVersion = HW_VERSION_2_2; printf("Using HW V2.2\n"); break;
+    case 3: hwVersion = HW_VERSION_2_2; printf("Using HW V2.2\n"); break;
   }
 
   printf("\n");
 
-  switch(choice[0]) {
-    case '1':
-      programTestAndCalibrate();
+  switch(arguments.procedure) {
+    case 1:
+      programTestAndCalibrate(arguments.acceptance);
       break;
-    case '2':
+    case 2:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
-      calSensor();
+      calSensor(arguments.acceptance);
       break;
-    case '3':
+    case 3:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
       automaticTests(true);
       break;
-    case '4':
+    case 4:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
       downloadCalData();
       break;
-    case '5':
+    case 5:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
       uploadCalData();
       break;
-    case'6':
+    case 6:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
