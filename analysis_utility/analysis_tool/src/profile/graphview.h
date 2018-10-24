@@ -69,6 +69,14 @@ protected:
       if(event->delta() > 0) zoomInEvent();
       else zoomOutEvent();
       event->accept();
+    } else if(event->modifiers() & Qt::ShiftModifier) {
+      if(event->delta() > 0) powerMaxDecEvent();
+      else powerMaxIncEvent();
+      event->accept();
+    } else if(event->modifiers() & Qt::AltModifier) {
+      if(event->delta() > 0) powerMinDecEvent();
+      else powerMinIncEvent();
+      event->accept();
     } else {
       QGraphicsView::wheelEvent(event);
     }
@@ -114,6 +122,38 @@ public slots:
       viewport()->update();
 
       centerOn(centerPoint.x() * SCALE_OUT_FACTOR, centerPoint.y());
+    }
+  }
+  void powerMaxDecEvent() {
+    if(scene->profile) {
+      double increment = (scene->maxPower - scene->minPower) / 10;
+      scene->maxPowerIncrement -= increment;
+      scene->redraw();
+      viewport()->update();
+    }
+  }
+  void powerMaxIncEvent() {
+    if(scene->profile) {
+      double increment = (scene->maxPower - scene->minPower) / 10;
+      scene->maxPowerIncrement += increment;
+      scene->redraw();
+      viewport()->update();
+    }
+  }
+  void powerMinDecEvent() {
+    if(scene->profile) {
+      double increment = (scene->maxPower - scene->minPower) / 10;
+      scene->minPowerIncrement -= increment;
+      scene->redraw();
+      viewport()->update();
+    }
+  }
+  void powerMinIncEvent() {
+    if(scene->profile) {
+      double increment = (scene->maxPower - scene->minPower) / 10;
+      scene->minPowerIncrement += increment;
+      scene->redraw();
+      viewport()->update();
     }
   }
 };

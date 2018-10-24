@@ -27,9 +27,11 @@
 
 GraphScene::GraphScene(QObject *parent) : QGraphicsScene(parent) {
   scaleFactorTime = 1000;
-  scaleFactorPower = 100;
+  scaleFactorPower = 200;
   profile = NULL;
   graph = NULL;
+  minPowerIncrement = 0;
+  maxPowerIncrement = 0;
 }
 
 void GraphScene::addGanttLineSegments(int line, QVector<Measurement> *measurements) {
@@ -75,8 +77,8 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
 
     if(query.next()) {
       uint64_t samples = query.value(4).toDouble();
-      minPower = query.value(2).toDouble();
-      maxPower = query.value(3).toDouble();
+      minPower = query.value(2).toDouble() + minPowerIncrement;
+      maxPower = query.value(3).toDouble() + maxPowerIncrement;
       int64_t minTimeDb = query.value(0).toLongLong();
       int64_t maxTimeDb = query.value(1).toLongLong();
 
@@ -93,6 +95,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
                           minPower, maxPower, Pmu::cyclesToSeconds(minTime-minTimeDb), Pmu::cyclesToSeconds(maxTime-minTimeDb));
         graph->setPos(0, GRAPH_SIZE-GANTT_SPACING);
         addItem(graph);
+        graph->setZValue(10);
 
         unsigned ticksPerSample = (maxTimeDb - minTimeDb) / samples;
         int64_t ticks = maxTime - minTime;
@@ -169,7 +172,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
         while(query.next()) {
           int64_t time = query.value("time").toLongLong();
           int64_t delay = query.value("delay").toLongLong();
-          addFrameLine(time, time + delay, ganttSize, Qt::red);
+          addFrameLine(time, time + delay, ganttSize, NTNU_YELLOW);
         }
       }
     }

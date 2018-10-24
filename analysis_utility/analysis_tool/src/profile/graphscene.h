@@ -92,8 +92,6 @@ private:
   unsigned currentCore;
   unsigned currentSensor;
   Cfg *cfg;
-  double minPower;
-  double maxPower;
 
   void addGanttLineSegments(int line, QVector<Measurement> *measurements);
   int64_t scaleTime(int64_t time);
@@ -106,10 +104,14 @@ private:
 public:
   int64_t minTime;
   int64_t maxTime;
+  double minPower;
+  double maxPower;
 
   Profile *profile;
   unsigned scaleFactorTime;
   unsigned scaleFactorPower;
+  double minPowerIncrement;
+  double maxPowerIncrement;
 
   GraphScene(QObject *parent = 0);
   ~GraphScene() {}

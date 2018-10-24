@@ -52,11 +52,11 @@ public:
   }
 
   virtual bool isVisibleInGantt() {
-    return true;
+    return false;
   }
 
   virtual QString getTableName() {
-    return getModule()->id + ":" + getFunction()->id + "():" + name;
+    return getModule()->id + ":" + getFunction()->name + "():" + name;
   }
 
   virtual QString getGanttName() {

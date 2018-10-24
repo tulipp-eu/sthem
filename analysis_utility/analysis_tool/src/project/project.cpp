@@ -1017,7 +1017,7 @@ bool Project::runProfiler() {
   double runtime;
   double energy[LYNSYN_SENSORS];
 
-  // // collect samples
+  // collect samples
   {
     emit advance(1, "Collecting samples");
 
@@ -1047,7 +1047,7 @@ bool Project::runProfiler() {
 
   // find all frames
   QVector<int64_t> frames;
-  unsigned frameCount;
+  unsigned frameCount = 0;
   {
     int64_t lastTime = 0;
     QSqlQuery query;
@@ -1069,7 +1069,7 @@ bool Project::runProfiler() {
     }
   }
 
-  frameRuntimeAvg /= frameCount;
+  if(frameCount) frameRuntimeAvg /= frameCount;
   
   double frameEnergyMin[LYNSYN_SENSORS];
   double frameEnergyMax[LYNSYN_SENSORS];
@@ -1185,8 +1185,10 @@ bool Project::runProfiler() {
       assert(success);
     }
 
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
-      frameEnergyAvg[i] /= frameCount;
+    if(frameCount) {
+      for(int i = 0; i < LYNSYN_SENSORS; i++) {
+        frameEnergyAvg[i] /= frameCount;
+      }
     }
 
     printf("Processed %d samples...\n", counter);

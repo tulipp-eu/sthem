@@ -891,26 +891,37 @@ void MainWindow::showFrameSummary() {
     messageTextStream << "<h4>Frame Summary:</h4><table border=\"1\" cellpadding=\"5\">";
 
     messageTextStream << "<tr>";
-    messageTextStream << "<td><b>Min runtime</b></td><td><b>Average runtime</b></td><td><b>Max runtime</b></td>";
+    messageTextStream << "<td><b>Average frame rate</b></td><td><b>Min runtime</b></td><td><b>Average runtime</b></td><td><b>Max runtime</b></td>";
     messageTextStream << "</tr>";
 
     messageTextStream << "<tr>";
+    messageTextStream << "<td>" << (1 / analysis->profile->getFrameRuntimeAvg()) << " Hz</td>";
     messageTextStream << "<td>" << analysis->profile->getFrameRuntimeMin() << " s</td>";
     messageTextStream << "<td>" << analysis->profile->getFrameRuntimeAvg() << " s</td>";
     messageTextStream << "<td>" << analysis->profile->getFrameRuntimeMax() << " s</td>";
     messageTextStream << "</tr>";
 
     messageTextStream << "<tr>";
+    messageTextStream << "<td><b>Sensor</b></td>";
     messageTextStream << "<td><b>Min energy</b></td>";
     messageTextStream << "<td><b>Average energy</b></td>";
     messageTextStream << "<td><b>Max energy</b></td>";
     messageTextStream << "</tr>";
 
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+      double min = analysis->profile->getFrameEnergyMin(i);
+      double avg = analysis->profile->getFrameEnergyAvg(i);
+      double max = analysis->profile->getFrameEnergyMax(i);
+
+      if(min < 0.05) min = 0;
+      if(avg < 0.05) avg = 0;
+      if(max < 0.05) max = 0;
+
       messageTextStream << "<tr>";
-      messageTextStream << "<td>" << analysis->profile->getFrameEnergyMin(i) << "J</td>";
-      messageTextStream << "<td>" << analysis->profile->getFrameEnergyAvg(i) << "J</td>";
-      messageTextStream << "<td>" << analysis->profile->getFrameEnergyMax(i) << "J</td>";
+      messageTextStream << "<td>" << (i+1) << "</td>";
+      messageTextStream << "<td>" << min << "J</td>";
+      messageTextStream << "<td>" << avg << "J</td>";
+      messageTextStream << "<td>" << max << "J</td>";
       messageTextStream << "</tr>";
     }
     messageTextStream << "</table>";

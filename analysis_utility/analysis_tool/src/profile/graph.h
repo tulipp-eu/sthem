@@ -27,6 +27,8 @@
 
 #include "profile.h"
 
+#define TOP_MARGIN 20
+
 #define GRAPH_TEXT_SPACING 20
 
 class Graph : public QGraphicsItem {
@@ -79,9 +81,9 @@ public:
   QRectF boundingRect() const {
     qreal penWidth = 1;
     return QRectF(-penWidth/2 - textWidth-GRAPH_TEXT_SPACING,
-                  -(double)highPower,
+                  -(double)highPower - TOP_MARGIN,
                   highTime + penWidth/2 + textWidth + GRAPH_TEXT_SPACING,
-                  highPower + textHeight);
+                  highPower + textHeight + TOP_MARGIN);
   }
 
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
