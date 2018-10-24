@@ -75,9 +75,17 @@ enum DBG_MOE_T {UNKNOWN=0, BREAKPOINT, NUM_MOE_TYPES};
 #define BCR_BAS_ANY           (0xf << 5)
 #define BCR_EN                (1 << 0)
 
+#define MCR 0xee000010
+#define CPREG(coproc, opc1, rt, crn, crm, opc2) \
+	(((opc1) << 21) | ((crn) << 16) | ((rt) << 12) | \
+        ((coproc) << 8) | ((opc2) << 5) | (crm))
+#define DTRTXint CPREG(14, 0, 0, 0, 5, 0)
+
 #define A9_DIDR    0
+#define A9_ITR     33
 #define A9_PCSR    33
 #define A9_DSCR    34
+#define A9_DTRTX   35
 #define A9_DRCR    36
 #define A9_BVR(i)  (64+(i))
 #define A9_BCR(i)  (80+(i))
@@ -99,11 +107,9 @@ enum DBG_MOE_T {UNKNOWN=0, BREAKPOINT, NUM_MOE_TYPES};
 #define A53_DTRTX       35
 #define A53_DTRRX       32
 
-#define MCR 0xee000010
-#define CPREG(coproc, opc1, rt, crn, crm, opc2) \
-	(((opc1) << 21) | ((crn) << 16) | ((rt) << 12) | \
-        ((coproc) << 8) | ((opc2) << 5) | (crm))
-#define DTRTXint CPREG(14, 0, 0, 0, 5, 0)
+#define ARMV8_MRS_DLR(Rt)	(0xd53b4520 | (Rt))
+#define ARMV8_MSR_GP(System, Rt) (0xd5100000 | ((System) << 5) | (Rt))
+#define SYSTEM_DBG_DBGDTR_EL0	0b1001100000100000
 
 #define CHANNEL_0 1
 #define CHANNEL_1 2

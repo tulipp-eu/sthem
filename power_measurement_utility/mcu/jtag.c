@@ -188,15 +188,28 @@ uint8_t coreReadStatus(unsigned core) {
   return coreReadReg(&cores[core], A53_SCR) & 0x3f;
 }
 
-#define ARMV8_MRS_DLR(Rt)	(0xd53b4520 | (Rt))
-#define ARMV8_MSR_GP(System, Rt) (0xd5100000 | ((System) << 5) | (Rt))
-#define SYSTEM_DBG_DBGDTR_EL0	0b1001100000100000
-
 uint64_t readPc(unsigned core) {
-	coreWriteReg(&cores[core], A53_ITR, ARMV8_MRS_DLR(0));
-	coreWriteReg(&cores[core], A53_ITR, ARMV8_MSR_GP(SYSTEM_DBG_DBGDTR_EL0, 0));
+  if(zynqUltrascale) {
+    coreWriteReg(&cores[core], A53_ITR, ARMV8_MRS_DLR(0));
 
-  return (((uint64_t)coreReadReg(&cores[core], A53_DTRRX)) << 32) | (uint64_t)coreReadReg(&cores[core], A53_DTRTX);
+    coreWriteReg(&cores[core], A53_ITR, ARMV8_MSR_GP(SYSTEM_DBG_DBGDTR_EL0, 0));
+
+    return (((uint64_t)coreReadReg(&cores[core], A53_DTRRX)) << 32) | (uint64_t)coreReadReg(&cores[core], A53_DTRTX);
+
+  } else {
+    uint32_t dbgdscr;
+
+    dbgdscr = coreReadReg(&cores[0], A9_DSCR);
+    dbgdscr |= DSCR_ITREN;
+    coreWriteReg(&cores[0], A9_DSCR, dbgdscr);
+
+    coreWriteReg(&cores[core], A9_ITR, 0xe1a0000f);
+    uint32_t regno = 0;
+    uint32_t instr = MCR | DTRTXint | ((regno & 0xf) << 12);
+    coreWriteReg(&cores[core], A9_ITR, instr);
+
+    return coreReadReg(&cores[core], A9_DTRTX) - 8;
+  }
 }
 
 uint64_t calcOffset(uint64_t dbgpcsr) {
@@ -251,8 +264,6 @@ void coreClearBp(unsigned core, unsigned bpNum) {
 }
 
 void coresResume(void) {
-  uint32_t dbgdscr;
-
   if(zynqUltrascale) {
     for(int i = 0; i < numCores; i++) {
       if(cores[i].enabled) {
@@ -268,6 +279,8 @@ void coresResume(void) {
     while(!(coreReadReg(&cores[0], A53_PRSR) & (1<<11)));
 
   } else {
+    uint32_t dbgdscr;
+
     // enable halting debug mode for controlling breakpoints
     dbgdscr = coreReadReg(&cores[0], A9_DSCR);
     dbgdscr |= DSCR_HDBGEN;
@@ -321,6 +334,7 @@ struct Core coreInit(uint32_t baddr) {
     }
 
   } else {
+
     core.enabled = true;
   }
 
