@@ -104,12 +104,18 @@ bool Pmu::init() {
     struct InitReplyPacket initReply;
     getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
 
-    if((initReply.swVersion != SW_VERSION_1_0) && (initReply.swVersion != SW_VERSION_1_1) && (initReply.swVersion != SW_VERSION_1_2) && (initReply.swVersion != SW_VERSION_1_3)) {
+    if((initReply.swVersion != SW_VERSION_1_0) &&
+       (initReply.swVersion != SW_VERSION_1_1) &&
+       (initReply.swVersion != SW_VERSION_1_2) &&
+       (initReply.swVersion != SW_VERSION_1_3) &&
+       (initReply.swVersion != SW_VERSION_1_4)) {
       printf("Unsupported Lynsyn SW Version\n");
       return false;
     }
 
-    if((initReply.hwVersion != HW_VERSION_2_0) && (initReply.hwVersion != HW_VERSION_2_1) && (initReply.hwVersion != HW_VERSION_2_2)) {
+    if((initReply.hwVersion != HW_VERSION_2_0) &&
+       (initReply.hwVersion != HW_VERSION_2_1) &&
+       (initReply.hwVersion != HW_VERSION_2_2)) {
       printf("Unsupported Lynsyn HW Version: %x\n", initReply.hwVersion);
       return false;
     }
@@ -119,12 +125,26 @@ bool Pmu::init() {
 
     printf("Lynsyn Hardware %x Firmware %x\n", hwVersion, swVersion);
 
-    for(unsigned i = 0; i < MAX_SENSORS; i++) {
-      if((initReply.calibration[i] < 0.8) || (initReply.calibration[i] > 1.2)) {
-        printf("Suspect calibration values\n");
-        return false;
+    if(swVersion <= SW_VERSION_1_3) {
+      for(unsigned i = 0; i < MAX_SENSORS; i++) {
+        if((initReply.calibration[i] < 0.8) || (initReply.calibration[i] > 1.2)) {
+          printf("Suspect calibration values\n");
+          return false;
+        }
+        sensorCalibration[i] = initReply.calibration[i];
       }
-      sensorCalibration[i] = initReply.calibration[i];
+
+    } else {
+      struct CalInfoPacket calInfo;
+      getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
+      for(unsigned i = 0; i < MAX_SENSORS; i++) {
+        if((calInfo.gain[i] < 0.8) || (calInfo.gain[i] > 1.2)) {
+          printf("Suspect calibration values\n");
+          return false;
+        }
+        sensorOffset[i] = calInfo.offset[i];
+        sensorGain[i] = calInfo.gain[i];
+      }
     }
   }
 
@@ -401,14 +421,20 @@ void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool useBp, bool sam
 }
 
 double Pmu::currentToPower(unsigned sensor, double current) {
+  double v = 0;
+
+  if(swVersion <= SW_VERSION_1_3) {
+    v = (current * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
+  } else {
+    v = (((double)current-sensorOffset[sensor]) * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorGain[sensor];
+  }
+
   switch(hwVersion) {
     case HW_VERSION_2_0: {
-      double vo = (current * (double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE;
-      double i = (1000 * vo) / (LYNSYN_RS * rl[sensor]);
+      double i = (1000 * v) / (LYNSYN_RS * rl[sensor]);
       return i * supplyVoltage[sensor];
     }
     case HW_VERSION_2_1: {
-      double v = (current * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
       double vs = v / 20;
       double i = vs / rl[sensor];
       return i * supplyVoltage[sensor];
@@ -417,9 +443,10 @@ double Pmu::currentToPower(unsigned sensor, double current) {
   return 0;
 }
 
-double Pmu::currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorCalibration) {
-  double v = (current * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorCalibration[sensor];
+double Pmu::currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorOffset, double *sensorGain) {
+  double v = (((double)current-sensorOffset[sensor]) * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * sensorGain[sensor];
   double vs = v / 20;
   double i = vs / rl[sensor];
   return i * supplyVoltage[sensor];
 }
+

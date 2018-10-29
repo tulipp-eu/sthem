@@ -67,7 +67,7 @@ static uint8_t i2cSensors;
 static int16_t i2cCurrent[7];
 static int16_t i2cCurrentAvg[7];
 static int16_t i2cCurrentInstant[7];
-static double i2cCalData[7];
+static double i2cCalData[14];
 static uint8_t *i2cSendBufPtr;
 
 static int i2cIdx;
@@ -293,13 +293,20 @@ int main(void) {
   while(DWT->CYCCNT < BOOT_DELAY);
   i2cInit();
 
-  i2cCalData[0] = getDouble("cal0");
-  i2cCalData[1] = getDouble("cal1");
-  i2cCalData[2] = getDouble("cal2");
-  i2cCalData[3] = getDouble("cal3");
-  i2cCalData[4] = getDouble("cal4");
-  i2cCalData[5] = getDouble("cal5");
-  i2cCalData[6] = getDouble("cal6");
+  i2cCalData[0] = getDouble("offset0");
+  i2cCalData[1] = getDouble("gain0");
+  i2cCalData[2] = getDouble("offset1");
+  i2cCalData[3] = getDouble("gain1");
+  i2cCalData[4] = getDouble("offset2");
+  i2cCalData[5] = getDouble("gain2");
+  i2cCalData[6] = getDouble("offset3");
+  i2cCalData[7] = getDouble("gain3");
+  i2cCalData[8] = getDouble("offset4");
+  i2cCalData[9] = getDouble("gain4");
+  i2cCalData[10] = getDouble("offset5");
+  i2cCalData[11] = getDouble("gain5");
+  i2cCalData[12] = getDouble("offset6");
+  i2cCalData[13] = getDouble("gain6");
 #endif
 
   clearLed(0);

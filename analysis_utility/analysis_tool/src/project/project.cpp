@@ -823,7 +823,8 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   unsigned core = 0;
   unsigned sensor = 0;
-  double calData[7];
+  double offsetData[7];
+  double gainData[7];
   double period = 0;
   double unknownPower = 0;
   double unknownRuntime = 0;
@@ -832,14 +833,15 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   file.read((char*)&core, sizeof(uint8_t));
   file.read((char*)&sensor, sizeof(uint8_t));
   for(int i = 0; i < 7; i++) {
-    file.read((char*)&calData[i], sizeof(double));
+    file.read((char*)&offsetData[i], sizeof(double));
+    file.read((char*)&gainData[i], sizeof(double));
   }
   file.read((char*)&period, sizeof(double));
   file.read((char*)&unknownPower, sizeof(double));
   file.read((char*)&unknownRuntime, sizeof(double));
   file.read((char*)&count, sizeof(uint32_t));
 
-  unknownPower = Pmu::currentToPower(sensor, unknownPower, pmu.rl, pmu.supplyVoltage, calData);
+  unknownPower = Pmu::currentToPower(sensor, unknownPower, pmu.rl, pmu.supplyVoltage, offsetData, gainData);
 
   QSqlDatabase::database().transaction();
 
@@ -885,7 +887,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
     Location *location = getLocation(core, pc, &elfSupport, &locations);
 
-    power = Pmu::currentToPower(sensor, power, pmu.rl, pmu.supplyVoltage, calData);
+    power = Pmu::currentToPower(sensor, power, pmu.rl, pmu.supplyVoltage, offsetData, gainData);
 
     if(runtime) {
       location->energy[sensor] += power * runtime;

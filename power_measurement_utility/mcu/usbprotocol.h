@@ -24,8 +24,8 @@
 
 #include <stdint.h>
 
-#define SW_VERSION        SW_VERSION_1_3
-#define SW_VERSION_STRING "V1.3"
+#define SW_VERSION        SW_VERSION_1_4
+#define SW_VERSION_STRING "V1.4"
 
 #define HW_VERSION_2_0 0x20
 #define HW_VERSION_2_1 0x21
@@ -35,6 +35,7 @@
 #define SW_VERSION_1_1 0x11
 #define SW_VERSION_1_2 0x12
 #define SW_VERSION_1_3 0x13
+#define SW_VERSION_1_4 0x14
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -45,8 +46,9 @@
 #define USB_CMD_START_SAMPLING 's'
 #define USB_CMD_CAL            'l'
 #define USB_CMD_CAL_SET        'c'
-#define USB_CMD_ADC_SET        'a'
 #define USB_CMD_TEST           't'
+
+#define USB_CMD_ADC_SET        'a'  // deprecated
 
 #define BP_TYPE_START 0
 #define BP_TYPE_STOP  1
@@ -70,6 +72,9 @@
 #define SAMPLING_FLAG_PERIOD    8
 
 #define SAMPLE_REPLY_FLAG_FRAME_DONE 1
+
+#define CALREQ_FLAG_LOW  1
+#define CALREQ_FLAG_HIGH 2
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -103,20 +108,34 @@ struct __attribute__((__packed__)) HwInitRequestPacket {
   uint8_t hwVersion;
 };
 
-struct __attribute__((__packed__)) CalibrateRequestPacket {
+struct __attribute__((__packed__)) CalibrateRequestPacketV1_0 {
   struct RequestPacket request;
   uint8_t channel;
   int32_t calVal;
   bool hw;
 };
 
-struct __attribute__((__packed__)) CalSetRequestPacket {
+struct __attribute__((__packed__)) CalibrateRequestPacket {
+  struct RequestPacket request;
+  uint8_t channel;
+  int32_t calVal;
+  uint32_t flags;
+};
+
+struct __attribute__((__packed__)) CalSetRequestPacketV1_0 {
   struct RequestPacket request;
   uint8_t channel;
   double cal;
 };
 
-struct __attribute__((__packed__)) AdcSetRequestPacket {
+struct __attribute__((__packed__)) CalSetRequestPacket {
+  struct RequestPacket request;
+  uint8_t channel;
+  double offset;
+  double gain;
+};
+
+struct __attribute__((__packed__)) AdcSetRequestPacketV1_0 {
   struct RequestPacket request;
   uint32_t cal;
 };
@@ -131,8 +150,13 @@ struct __attribute__((__packed__)) TestRequestPacket {
 struct __attribute__((__packed__)) InitReplyPacket {
   uint8_t hwVersion;
   uint8_t swVersion;
-  double calibration[7];
-  uint32_t adcCal;
+  double calibration[7]; // deprecated after V1.4
+  uint32_t adcCal;       // deprecated after V1.4
+};
+
+struct __attribute__((__packed__)) CalInfoPacket {
+  double offset[7];
+  double gain[7];
 };
 
 struct __attribute__((__packed__)) TestReplyPacket {

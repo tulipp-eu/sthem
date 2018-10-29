@@ -6,10 +6,10 @@ all:
 	mkdir -p bin
 	cd mcu && $(MAKE)
 	cp mcu/lynsyn.bin bin
-	cd fpga && $(MAKE)
-	cp fpga/build/lynsyn.mcs bin
 	cd lynsyn_tester && $(MAKE)
 	cp lynsyn_tester/lynsyn_tester bin
+	cd fpga && $(MAKE)
+	cp fpga/build/lynsyn.mcs bin
 
 .PHONY: install_hw
 install_hw:

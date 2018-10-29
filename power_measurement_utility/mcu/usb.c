@@ -39,6 +39,9 @@ uint8_t startCore;
 uint8_t stopCore;
 uint64_t frameBp;
 
+static uint32_t lowWanted[7];
+static uint32_t lowActual[7];
+
 static uint8_t inBuffer[MAX_PACKET_SIZE + 3];
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -70,6 +73,36 @@ int UsbDataSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
   return USB_STATUS_OK;
 }
 
+int InitSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
+  (void)remaining;
+
+  struct CalInfoPacket calInfo __attribute__((__aligned__(4)));
+
+  calInfo.offset[0] = getDouble("offset0");
+  calInfo.offset[1] = getDouble("offset1");
+  calInfo.offset[2] = getDouble("offset2");
+  calInfo.offset[3] = getDouble("offset3");
+  calInfo.offset[4] = getDouble("offset4");
+  calInfo.offset[5] = getDouble("offset5");
+  calInfo.offset[6] = getDouble("offset6");
+
+  calInfo.gain[0] = getDouble("gain0");
+  calInfo.gain[1] = getDouble("gain1");
+  calInfo.gain[2] = getDouble("gain2");
+  calInfo.gain[3] = getDouble("gain3");
+  calInfo.gain[4] = getDouble("gain4");
+  calInfo.gain[5] = getDouble("gain5");
+  calInfo.gain[6] = getDouble("gain6");
+
+  while(USBD_EpIsBusy(CDC_EP_DATA_IN));
+  int ret = USBD_Write(CDC_EP_DATA_IN, &calInfo, sizeof(struct CalInfoPacket), UsbDataSent);
+  if(ret != USB_STATUS_OK) printf("USB write error: %d\n", ret);
+
+  jtagExt();
+
+  return USB_STATUS_OK;
+}
+
 int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
   if((status == USB_STATUS_OK) && (xf > 0)) {
     struct RequestPacket *req = (struct RequestPacket *)inBuffer;
@@ -77,23 +110,22 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
     switch(req->cmd) {
 
       case USB_CMD_INIT: {
-        struct InitReplyPacket initReply;
+        struct InitReplyPacket initReply __attribute__((__aligned__(4)));
         initReply.hwVersion = getUint32("hwver");
         initReply.swVersion = SW_VERSION;
-        initReply.calibration[0] = getDouble("cal0");
-        initReply.calibration[1] = getDouble("cal1");
-        initReply.calibration[2] = getDouble("cal2");
-        initReply.calibration[3] = getDouble("cal3");
-        initReply.calibration[4] = getDouble("cal4");
-        initReply.calibration[5] = getDouble("cal5");
-        initReply.calibration[6] = getDouble("cal6");
-        initReply.adcCal = getUint32("adcCal");
+
+        initReply.calibration[0] = 0;
+        initReply.calibration[1] = 0;
+        initReply.calibration[2] = 0;
+        initReply.calibration[3] = 0;
+        initReply.calibration[4] = 0;
+        initReply.calibration[5] = 0;
+        initReply.calibration[6] = 0;
+        initReply.adcCal = 0;
 
         while(USBD_EpIsBusy(CDC_EP_DATA_IN));
-        int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket), UsbDataSent);
+        int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket), InitSent);
         if(ret != USB_STATUS_OK) printf("USB write error: %d\n", ret);
-
-        jtagExt();
 
         break;
       }
@@ -106,13 +138,21 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         clearConfig();
         setUint32("hwver", hwInitReq->hwVersion);
 
-        setDouble("cal0", 1);
-        setDouble("cal1", 1);
-        setDouble("cal2", 1);
-        setDouble("cal3", 1);
-        setDouble("cal4", 1);
-        setDouble("cal5", 1);
-        setDouble("cal6", 1);
+        setDouble("offset0", 0);
+        setDouble("offset1", 0);
+        setDouble("offset2", 0);
+        setDouble("offset3", 0);
+        setDouble("offset4", 0);
+        setDouble("offset5", 0);
+        setDouble("offset6", 0);
+
+        setDouble("gain0", 1);
+        setDouble("gain1", 1);
+        setDouble("gain2", 1);
+        setDouble("gain3", 1);
+        setDouble("gain4", 1);
+        setDouble("gain5", 1);
+        setDouble("gain6", 1);
 
         break;
       }
@@ -187,12 +227,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_CAL: {
         struct CalibrateRequestPacket *cal = (struct CalibrateRequestPacket *)req;
 
-        printf("Calibrating ADC channel %d (val %x) hw: %d\n", cal->channel, (unsigned)cal->calVal, cal->hw);
-
-        if(cal->hw) {
-          adcCalibrate(cal->channel, cal->calVal);
-        }
-
         int16_t current[7];
 
         uint32_t currentAvg = 0;
@@ -203,14 +237,52 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         }
         currentAvg /= CAL_AVERAGE_SAMPLES;
 
-        switch(cal->channel) {
-          case 0: setDouble("cal0", (cal->calVal >> 1) / (double)currentAvg); break;
-          case 1: setDouble("cal1", (cal->calVal >> 1) / (double)currentAvg); break;
-          case 2: setDouble("cal2", (cal->calVal >> 1) / (double)currentAvg); break;
-          case 3: setDouble("cal3", (cal->calVal >> 1) / (double)currentAvg); break;
-          case 4: setDouble("cal4", (cal->calVal >> 1) / (double)currentAvg); break;
-          case 5: setDouble("cal5", (cal->calVal >> 1) / (double)currentAvg); break;
-          case 6: setDouble("cal6", (cal->calVal >> 1) / (double)currentAvg); break;
+        if(cal->flags & CALREQ_FLAG_HIGH) {
+          printf("Calibrating ADC channel %d (val %x) %s\n",
+                 cal->channel, (unsigned)cal->calVal, cal->flags & CALREQ_FLAG_HIGH ? "High" : "Low");
+
+          uint32_t highWanted = cal->calVal >> 1;
+          uint32_t highActual = currentAvg;
+
+          double slope = ((double)highActual - (double)lowActual[cal->channel]) / ((double)highWanted - (double)lowWanted[cal->channel]);
+          double offset = (double)lowActual[cal->channel] - slope * (double)lowWanted[cal->channel];
+
+          double gain = 1 / slope;
+
+          switch(cal->channel) {
+            case 0:
+              setDouble("offset0", offset);
+              setDouble("gain0", gain);
+              break;
+            case 1:
+              setDouble("offset1", offset);
+              setDouble("gain1", gain);
+              break;
+            case 2:
+              setDouble("offset2", offset);
+              setDouble("gain2", gain);
+              break;
+            case 3:
+              setDouble("offset3", offset);
+              setDouble("gain3", gain);
+              break;
+            case 4:
+              setDouble("offset4", offset);
+              setDouble("gain4", gain);
+              break;
+            case 5:
+              setDouble("offset5", offset);
+              setDouble("gain5", gain);
+              break;
+            case 6:
+              setDouble("offset6", offset);
+              setDouble("gain6", gain);
+              break;
+          }
+
+        } else {
+          lowWanted[cal->channel] = cal->calVal >> 1;
+          lowActual[cal->channel] = currentAvg;
         }
 
         break;
@@ -219,27 +291,38 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_CAL_SET: {
         struct CalSetRequestPacket *cal = (struct CalSetRequestPacket *)req;
 
-        printf("Setting ADC channel %d (val %f)\n", (int)cal->channel, cal->cal);
+        printf("Setting ADC channel %d (val %f %f)\n", (int)cal->channel, cal->offset, cal->gain);
 
         switch(cal->channel) {
-          case 0: setDouble("cal0", cal->cal); break;
-          case 1: setDouble("cal1", cal->cal); break;
-          case 2: setDouble("cal2", cal->cal); break;
-          case 3: setDouble("cal3", cal->cal); break;
-          case 4: setDouble("cal4", cal->cal); break;
-          case 5: setDouble("cal5", cal->cal); break;
-          case 6: setDouble("cal6", cal->cal); break;
+          case 0:
+            setDouble("offset0", cal->offset);
+            setDouble("gain0", cal->gain);
+            break;
+          case 1:
+            setDouble("offset1", cal->offset);
+            setDouble("gain1", cal->gain);
+            break;
+          case 2:
+            setDouble("offset2", cal->offset);
+            setDouble("gain2", cal->gain);
+            break;
+          case 3:
+            setDouble("offset3", cal->offset);
+            setDouble("gain3", cal->gain);
+            break;
+          case 4:
+            setDouble("offset4", cal->offset);
+            setDouble("gain4", cal->gain);
+            break;
+          case 5:
+            setDouble("offset5", cal->offset);
+            setDouble("gain5", cal->gain);
+            break;
+          case 6:
+            setDouble("offset6", cal->offset);
+            setDouble("gain6", cal->gain);
+            break;
         }
-
-        break;
-      }
-
-      case USB_CMD_ADC_SET: {
-        struct AdcSetRequestPacket *cal = (struct AdcSetRequestPacket *)req;
-
-        printf("Setting ADC CAL (val %x)\n", (unsigned)cal->cal);
-
-        setUint32("adcCal", cal->cal); break;
 
         break;
       }
@@ -307,8 +390,22 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
             sendStatus = false;
 
-            adcScan(testReply.current);
-            adcScanWait();
+            int16_t current[7];
+            uint32_t currentAvg[7];
+
+            for(int sensor = 0; sensor < 7; sensor++) {
+              currentAvg[sensor] = 0;
+            }
+            for(int i = 0; i < CAL_AVERAGE_SAMPLES; i++) {
+              adcScan(current);
+              adcScanWait();
+              for(int sensor = 0; sensor < 7; sensor++) {
+                currentAvg[sensor] += current[sensor];
+              }
+            }
+            for(int sensor = 0; sensor < 7; sensor++) {
+              testReply.current[sensor] = currentAvg[sensor] / CAL_AVERAGE_SAMPLES;
+            }
 
             while(USBD_EpIsBusy(CDC_EP_DATA_IN));
             int ret = USBD_Write(CDC_EP_DATA_IN, &testReply, sizeof(struct AdcTestReplyPacket), UsbDataSent);

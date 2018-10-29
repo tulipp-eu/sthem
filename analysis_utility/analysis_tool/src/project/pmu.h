@@ -48,7 +48,9 @@ private:
 	libusb_device **devs;
   uint8_t swVersion;
   uint8_t hwVersion;
-  double sensorCalibration[LYNSYN_SENSORS];
+  double sensorCalibration[LYNSYN_SENSORS]; // V1.0 - V1.3
+  double sensorOffset[LYNSYN_SENSORS];      // V1.4
+  double sensorGain[LYNSYN_SENSORS];        // V1.4
 
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
@@ -75,7 +77,7 @@ public:
   void release();
 
   double currentToPower(unsigned sensor, double current);
-  static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorCalibration);
+  static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorOffset, double *sensorGain);
 
   void collectSamples(bool useFrame, uint64_t frameAddr, bool useBp, bool samplePc, bool samplingModeGpio, bool usePeriod, 
                       int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 

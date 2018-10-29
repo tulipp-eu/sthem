@@ -56,6 +56,23 @@ unsigned hwVersion = HW_VERSION_2_2;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+double calculateCurrent(int16_t current, double offset, double gain, double rl) {
+  double v;
+  double vs;
+  double i;
+
+  v = (((double)current-offset) * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * gain;
+
+  if(hwVersion == HW_VERSION_2_0) {
+    i = (1000 * v) / (LYNSYN_RS * rl);
+  } else {
+    vs = v / 20;
+    i = vs / rl;
+  }
+
+  return i;
+}
+
 void sendBytes(uint8_t *bytes, int numBytes) {
   int remaining = numBytes;
   int transfered = 0;
@@ -363,28 +380,23 @@ void ledsOff(void) {
   return;
 }
 
-void adcCalibrate(uint8_t channel, double current, double maxCurrent, bool hw) {
+void adcCalibrate(uint8_t channel, double current, double maxCurrent, bool high) {
   struct CalibrateRequestPacket req;
   req.request.cmd = USB_CMD_CAL;
   req.channel = channel;
   req.calVal = (current / maxCurrent) * 0xffd0;
-  req.hw = hw;
+  if(high) req.flags = CALREQ_FLAG_HIGH;
+  else req.flags = CALREQ_FLAG_LOW;
   sendBytes((uint8_t*)&req, sizeof(struct CalibrateRequestPacket));
 }
 
-void calSet(uint8_t channel, double val) {
+void calSet(uint8_t channel, double offset, double gain) {
   struct CalSetRequestPacket req;
   req.request.cmd = USB_CMD_CAL_SET;
   req.channel = channel;
-  req.cal = val;
+  req.offset = offset;
+  req.gain = gain;
   sendBytes((uint8_t*)&req, sizeof(struct CalSetRequestPacket));
-}
-
-void adcSet(uint32_t val) {
-  struct AdcSetRequestPacket req;
-  req.request.cmd = USB_CMD_ADC_SET;
-  req.cal = val;
-  sendBytes((uint8_t*)&req, sizeof(struct AdcSetRequestPacket));
 }
 
 bool testAdc(unsigned channel, double val, double rl, double acceptance) {
@@ -394,9 +406,11 @@ bool testAdc(unsigned channel, double val, double rl, double acceptance) {
   sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
   struct InitReplyPacket initReply;
   getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
+  struct CalInfoPacket calInfo;
+  getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
 
-  if((initReply.calibration[channel] < 0.8) || (initReply.calibration[channel] > 1.2)) {
-    printf("Calibration error: Calibration value is %f\n", initReply.calibration[channel]);
+  if((calInfo.gain[channel] < 0.8) || (calInfo.gain[channel] > 1.2)) {
+    printf("Calibration error: Gain value is %f\n", calInfo.gain[channel]);
     return false;
   }
 
@@ -408,19 +422,7 @@ bool testAdc(unsigned channel, double val, double rl, double acceptance) {
   struct AdcTestReplyPacket reply;
   getBytes((uint8_t*)&reply, sizeof(struct AdcTestReplyPacket));
 
-  // calculate current
-  double v;
-  double vs;
-  double i;
-
-  if(hwVersion == HW_VERSION_2_0) {
-    v = (reply.current[channel] * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * initReply.calibration[channel];
-    i = (1000 * v) / (LYNSYN_RS * rl);
-  } else {
-    v = (reply.current[channel] * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * initReply.calibration[channel];
-    vs = v / 20;
-    i = vs / rl;
-  }
+  double i = calculateCurrent(reply.current[channel], calInfo.offset[channel], calInfo.gain[channel], rl);
 
   printf("Current measured to %f, should be %f\n", i, val);
 
@@ -457,9 +459,11 @@ void calibrateSensor(int sensor, double acceptance) {
 
     printf("%f ohm shunt resistor gives a maximum current of %fA\n\n", shuntSizeVal, maxCurrentVal);
 
-    printf("*** Enter the exact value of the calibration current source connected to the sensor.\n"
-           "This value should be slightly less than the max, %.4fA would be a good choice.\n"
-           "Do not trust the current source display, use a multimeter to confirm:\n", maxCurrentVal*0.96);
+    ///////////////////////////////////////////////////////////////////////////////
+
+    printf("*** Connect a calibration current source with a low value.\n"
+           "This value should be slightly higher than 0, %.4fA would be a good choice.\n"
+           "Do not trust the current source display, use a multimeter to confirm:\n", maxCurrentVal*0.04);
     if(!fgets(calCurrent, 80, stdin)) {
       printf("I/O error\n");
       exit(-1);
@@ -467,10 +471,31 @@ void calibrateSensor(int sensor, double acceptance) {
 
     double calCurrentVal = strtod(calCurrent, NULL);
 
-    printf("Calibrating sensor %d with calibration current %f\n", sensor+1, calCurrentVal);
+    printf("Calibrating sensor %d with low calibration current %f\n\n", sensor+1, calCurrentVal);
 
-    adcCalibrate(sensor, calCurrentVal, maxCurrentVal, sensor == 0);
+    adcCalibrate(sensor, calCurrentVal, maxCurrentVal, false);
+
+    ///////////////////////////////////////////////////////////////////////////////
+
+    printf("*** Connect a calibration current source with a high value.\n"
+           "This value should be slightly less than the max, %.4fA would be a good choice.\n"
+           "Do not trust the current source display, use a multimeter to confirm:\n", maxCurrentVal*0.96);
+    if(!fgets(calCurrent, 80, stdin)) {
+      printf("I/O error\n");
+      exit(-1);
+    }
+
+    calCurrentVal = strtod(calCurrent, NULL);
+
+    printf("Calibrating sensor %d with high calibration current %f\n", sensor+1, calCurrentVal);
+
+    adcCalibrate(sensor, calCurrentVal, maxCurrentVal, true);
+
+    ///////////////////////////////////////////////////////////////////////////////
+
     if(!testAdc(sensor, calCurrentVal, shuntSizeVal, acceptance)) exit(-1);
+
+    printf("\n");
   }
 }
 
@@ -654,14 +679,15 @@ void downloadCalData(void) {
   struct InitReplyPacket initReply;
   getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
 
-  fwrite(initReply.calibration, 1, sizeof(initReply.calibration), fp);
+  struct CalInfoPacket calInfo;
+  getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
+
+  fwrite(calInfo.offset, 1, sizeof(calInfo.offset), fp);
+  fwrite(calInfo.gain, 1, sizeof(calInfo.gain), fp);
 
   for(int i = 0; i < 7; i++) {
-    printf("Calibration sensor %d: %f\n", i+1, initReply.calibration[i]);
+    printf("Calibration sensor %d: %f %f\n", i+1, calInfo.offset[i], calInfo.gain[i]);
   }
-
-  fwrite(&initReply.adcCal, 1, sizeof(initReply.adcCal), fp);
-  printf("ADC CAL: %x\n", (unsigned)initReply.adcCal);
 
   fclose(fp);
 
@@ -686,34 +712,66 @@ void uploadCalData(void) {
     exit(-1);
   }
 
-  double calibration[7];
-  uint32_t adcCal;
+  double offset[7];
+  double gain[7];
 
-  r = fread(calibration, 1, sizeof(calibration), fp);
+  r = fread(offset, 1, sizeof(offset), fp);
+  if(r != sizeof(offset)) {
+    printf("Can't read file: %d\n", r);
+    exit(-1);
+  }
 
-  if(r != sizeof(calibration)) {
+  r = fread(gain, 1, sizeof(gain), fp);
+  if(r != sizeof(gain)) {
     printf("Can't read file: %d\n", r);
     exit(-1);
   }
 
   for(int i = 0; i < 7; i++) {
-    printf("Calibration sensor %d: %f\n", i+1, calibration[i]);
-    calSet(i, calibration[i]);
+    printf("Calibration sensor %d: %f %f\n", i+1, offset[i], gain[i]);
+    calSet(i, offset[i], gain[i]);
   }
-
-  r = fread(&adcCal, 1, sizeof(adcCal), fp);
-
-  if(r != sizeof(adcCal)) {
-    printf("Can't read file: %d\n", r);
-    exit(-1);
-  }
-
-  printf("ADC CAL: %x\n", adcCal);
-  adcSet(adcCal);
 
   fclose(fp);
 
   releaseLynsyn();
+}
+
+bool live(void) {
+  if(!initLynsyn()) exit(-1);
+
+  // get cal value
+  struct RequestPacket initRequest;
+  initRequest.cmd = USB_CMD_INIT;
+  sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+  struct InitReplyPacket initReply;
+  getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
+  struct CalInfoPacket calInfo;
+  getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
+
+  while(true) {
+    // get adc value
+    struct TestRequestPacket req;
+    req.request.cmd = USB_CMD_TEST;
+    req.testNum = TEST_ADC;
+    sendBytes((uint8_t*)&req, sizeof(struct TestRequestPacket));
+    struct AdcTestReplyPacket reply;
+    getBytes((uint8_t*)&reply, sizeof(struct AdcTestReplyPacket));
+
+    printf("Current measured to ");
+
+    for(int sensor = 0; sensor < 7; sensor++) {
+      double rl = rlDefault[sensor];
+      double i = calculateCurrent(reply.current[sensor], calInfo.offset[sensor], calInfo.gain[sensor], rl);
+      printf("%f ", i);
+    }
+
+    printf("\n");
+
+    sleep(1);
+  }
+
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -797,6 +855,7 @@ int main(int argc, char *argv[]) {
     printf("Enter '4' for downloading cal data\n");
     printf("Enter '5' for uploading cal data\n");
     printf("Enter '6' for only MCU and FPGA flashing\n");
+    printf("Enter '7' for live measurements\n");
     if(!fgets(choiceBuf, 80, stdin)) {
       printf("I/O error\n");
       exit(-1);
@@ -848,6 +907,12 @@ int main(int argc, char *argv[]) {
 
       program();
       automaticTests(false);
+      break;
+    case 7:
+      printf("*** Connect Lynsyn to the PC USB port.\n");
+      getchar();
+
+      live();
       break;
     default:
       return 0;

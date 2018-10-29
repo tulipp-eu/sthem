@@ -403,8 +403,8 @@ void stopProfiler(char *filename) {
   printf("PROFILER: Writing to file %s\n", filename);
 
   iicSetCommand(I2C_GET_CAL, 0);
-  double calData[7];
-  iicReadData((uint8_t*)&calData, 7 * sizeof(double));
+  double calData[14];
+  iicReadData((uint8_t*)&calData, 14 * sizeof(double));
 
   uint8_t core = 0;
   uint8_t sensor = 1;
@@ -414,7 +414,7 @@ void stopProfiler(char *filename) {
 
   fwrite(&core, sizeof(uint8_t), 1, fp);
   fwrite(&sensor, sizeof(uint8_t), 1, fp);
-  for(int i = 0; i < 7; i++) {
+  for(int i = 0; i < 14; i++) {
     fwrite(&(calData[i]), sizeof(double), 1, fp);
   }
   fwrite(&pcSamplerPeriod, sizeof(double), 1, fp);
