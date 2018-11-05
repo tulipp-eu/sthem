@@ -118,17 +118,24 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
 
   count *= scaling;
 
-  assert(runtimeTop >= runtime);
-  assert(runtimeTopFrame >= runtimeFrame);
-  for(int i = 0; i < 7; i++) {
-    assert(energyTop[i] >= energy[i]);
-    assert(energyTopFrame[i] >= energyFrame[i]);
+  if(runtimeTop < runtime) {
+    runtimeTop = runtime;
+    //printf("Runtime inconsistency: %f %f\n", runtimeTop, runtime);
   }
-
-  // if(runtimeTop < runtime) runtimeTop = runtime;
-  // for(int i = 0; i < 7; i++) {
-  //   if(energyTop[i] < energy[i]) energyTop[i] = energy[i];
-  // }
+  if(runtimeTopFrame < runtimeFrame) {
+    runtimeTopFrame = runtimeFrame;
+    //printf("Runtime frame inconsistency: %f %f\n", runtimeTopFrame, runtimeFrame);
+  }
+  for(int i = 0; i < 7; i++) {
+    if(energyTop[i] < energy[i]) {
+      energyTop[i] = energy[i];
+      //printf("Energy inconsistency: %f %f\n", energyTop[i], energy[i]);
+    }
+    if(energyTopFrame[i] < energyFrame[i]) {
+      energyTopFrame[i] = energyFrame[i];
+      //printf("Energy frame inconsistency: %f %f\n", energyTopFrame[i], energyFrame[i]);
+    }
+  }
 
   switch(Config::colorMode) {
     case Config::STRUCT:
