@@ -44,6 +44,12 @@ static uint32_t lowActual[7];
 
 static uint8_t inBuffer[MAX_PACKET_SIZE + 3];
 
+struct UsbTestReplyPacket usbTestReply __attribute__((__aligned__(4)));
+struct CalInfoPacket calInfo __attribute__((__aligned__(4)));
+struct InitReplyPacket initReply __attribute__((__aligned__(4)));
+struct TestReplyPacket testReply __attribute__((__aligned__(4)));
+struct AdcTestReplyPacket adcTestReply __attribute__((__aligned__(4)));
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void UsbStateChange(USBD_State_TypeDef oldState, USBD_State_TypeDef newState);
@@ -75,8 +81,6 @@ int UsbDataSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
 
 int InitSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
   (void)remaining;
-
-  struct CalInfoPacket calInfo __attribute__((__aligned__(4)));
 
   calInfo.offset[0] = getDouble("offset0");
   calInfo.offset[1] = getDouble("offset1");
@@ -110,7 +114,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
     switch(req->cmd) {
 
       case USB_CMD_INIT: {
-        struct InitReplyPacket initReply __attribute__((__aligned__(4)));
         initReply.hwVersion = getUint32("hwver");
         initReply.swVersion = SW_VERSION;
 
@@ -236,18 +239,19 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
           currentAvg += current[cal->channel];
         }
         currentAvg /= CAL_AVERAGE_SAMPLES;
+        
+        printf("cal %lx\n", currentAvg);
 
         if(cal->flags & CALREQ_FLAG_HIGH) {
-          printf("Calibrating ADC channel %d (val %x) %s\n",
-                 cal->channel, (unsigned)cal->calVal, cal->flags & CALREQ_FLAG_HIGH ? "High" : "Low");
-
           uint32_t highWanted = cal->calVal >> 1;
           uint32_t highActual = currentAvg;
 
           double slope = ((double)highActual - (double)lowActual[cal->channel]) / ((double)highWanted - (double)lowWanted[cal->channel]);
-          double offset = (double)lowActual[cal->channel] - slope * (double)lowWanted[cal->channel];
+          double offset = (double)highActual - slope * (double)highWanted;
 
           double gain = 1 / slope;
+
+          printf("Calibrating ADC channel %d (offset %f gain %f)\n", cal->channel, offset, gain);
 
           switch(cal->channel) {
             case 0:
@@ -329,7 +333,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
       case USB_CMD_TEST: {
         struct TestRequestPacket *testReq = (struct TestRequestPacket *)req;
-        struct TestReplyPacket testReply __attribute__((__aligned__(4)));
 
         testReply.testStatus = 0;
 
@@ -337,8 +340,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
         switch(testReq->testNum) {
           case TEST_USB: { // USB communication
-            struct UsbTestReplyPacket usbTestReply __attribute__((__aligned__(4)));
-
             sendStatus = false;
 
             for(int i = 0; i < 256; i++) {
@@ -386,8 +387,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
             break;
           }
           case TEST_ADC: { // ADC channel test
-            struct AdcTestReplyPacket testReply __attribute__((__aligned__(4)));
-
             sendStatus = false;
 
             int16_t current[7];
@@ -404,11 +403,11 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
               }
             }
             for(int sensor = 0; sensor < 7; sensor++) {
-              testReply.current[sensor] = currentAvg[sensor] / CAL_AVERAGE_SAMPLES;
+              adcTestReply.current[sensor] = currentAvg[sensor] / CAL_AVERAGE_SAMPLES;
             }
 
             while(USBD_EpIsBusy(CDC_EP_DATA_IN));
-            int ret = USBD_Write(CDC_EP_DATA_IN, &testReply, sizeof(struct AdcTestReplyPacket), UsbDataSent);
+            int ret = USBD_Write(CDC_EP_DATA_IN, &adcTestReply, sizeof(struct AdcTestReplyPacket), UsbDataSent);
             if(ret != USB_STATUS_OK) printf("USB write error: %d\n", ret);
 
             break;

@@ -232,9 +232,10 @@ bool cleanNonVolatile(void) {
   struct RequestPacket initRequest;
   initRequest.cmd = USB_CMD_INIT;
   sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
-
   struct InitReplyPacket initReply;
   getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
+  struct CalInfoPacket calInfo;
+  getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
 
   if(initReply.hwVersion != hwVersion) {
     printf("Non-volatile not OK\n");
@@ -408,6 +409,8 @@ bool testAdc(unsigned channel, double val, double rl, double acceptance) {
   getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
   struct CalInfoPacket calInfo;
   getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
+
+  printf("Calibration for channel %d: Offset %f Gain %f\n", channel, calInfo.offset[channel], calInfo.gain[channel]);
 
   if((calInfo.gain[channel] < 0.8) || (calInfo.gain[channel] > 1.2)) {
     printf("Calibration error: Gain value is %f\n", calInfo.gain[channel]);
@@ -678,7 +681,6 @@ void downloadCalData(void) {
 
   struct InitReplyPacket initReply;
   getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
-
   struct CalInfoPacket calInfo;
   getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
 
