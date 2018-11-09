@@ -331,3 +331,7 @@ Loop *Vertex::getLoop() {
   if(parent) return parent->getLoop();
   else return NULL;
 }
+
+uint64_t Vertex::getCount() {
+  return parent->getCount();
+}

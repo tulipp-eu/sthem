@@ -79,6 +79,10 @@ public:
     return this;
   }
 
+  virtual uint64_t getCount() {
+    return count;
+  }
+
 };
 
 #endif

@@ -372,6 +372,8 @@ public:
 
   virtual void clearCachedProfilingData() {}
 
+  virtual uint64_t getCount();
+
   //---------------------------------------------------------------------------
   // HLS compatibility
 

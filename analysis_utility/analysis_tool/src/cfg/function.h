@@ -154,6 +154,10 @@ public:
 
   BasicBlock *getFirstBb();
 
+  uint64_t getCount() {
+    return cachedCount;
+  }
+
 };
 
 #endif

@@ -889,6 +889,8 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
     power = Pmu::currentToPower(sensor, power, pmu.rl, pmu.supplyVoltage, offsetData, gainData);
 
+    printf("%ld %s %s %s %f %f\n", pc, location->moduleId.toUtf8().constData(), location->funcId.toUtf8().constData(), location->bbId.toUtf8().constData(), power, runtime);
+
     if(runtime) {
       location->energy[sensor] += power * runtime;
       location->runtime += runtime;

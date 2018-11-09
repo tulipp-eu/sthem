@@ -218,9 +218,9 @@ void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &dummyCount);
   if(runtime > 0) {
     printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
-           (function->id + "-" + loop->id).toUtf8().constData(),
-           loop->count, runtime, energy[sensor],
-           runtime / loop->count, energy[sensor] / loop->count, energy[sensor] / runtime);
+           (function->id + ":" + loop->id).toUtf8().constData(),
+           loop->parent->getCount(), runtime, energy[sensor],
+           runtime / loop->parent->getCount(), energy[sensor] / loop->parent->getCount(), energy[sensor] / runtime);
   }
 
   QVector<Loop*> loops;
@@ -232,6 +232,8 @@ void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
 
 void Analysis::dump(unsigned core, unsigned sensor) {
   Cfg *cfg = project->cfg;
+
+  printf("ID count runtime energy runtime/count energy/count energy/runtime\n");
 
   for(auto cfgChild : cfg->children) {
     Module *module = static_cast<Module*>(cfgChild);
