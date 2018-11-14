@@ -19,7 +19,7 @@
  *
  *****************************************************************************/
 
-#include "lynsyn.h"
+#include "lynsyn_main.h"
 #include "adc.h"
 #include "config.h"
 

@@ -22,26 +22,12 @@
 #ifndef LYNSYN_H
 #define LYNSYN_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <assert.h>
-
 #include "efm32gg332f1024.h"
 
-#include "em_device.h"
-#include "em_cmu.h"
-#include "em_gpio.h"
-#include "em_i2c.h"
-#include "em_system.h"
-#include "em_chip.h"
- 
 ///////////////////////////////////////////////////////////////////////////////
 // firmware settings
 
-//#define SWO
-
-#define CAL_AVERAGE_SAMPLES 1024
+#define SWO
 
 ///////////////////////////////////////////////////////////////////////////////
 // lynsyn settings
@@ -110,22 +96,6 @@
 
 void setLed(int led);
 void clearLed(int led);
-
-int64_t calculateTime();
-
 void panic(const char *fmt, ...);
-
-///////////////////////////////////////////////////////////////////////////////
-// global variables
-
-extern volatile bool sampleMode;
-extern volatile bool samplePc;
-extern volatile bool gpioMode;
-extern volatile bool useStartBp;
-extern volatile bool useStopBp;
-extern volatile int64_t sampleStop;
-extern uint8_t startCore;
-extern uint8_t stopCore;
-extern uint64_t frameBp;
 
 #endif

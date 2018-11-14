@@ -48,6 +48,11 @@
 #define USB_CMD_CAL_SET        'c'
 #define USB_CMD_TEST           't'
 
+#define USB_CMD_BootMode       'o'
+#define USB_CMD_FlashErase     'x'
+#define USB_CMD_FLASH_Save     'e'
+#define USB_CMD_RESET          'r'
+
 #define USB_CMD_ADC_SET        'a'  // deprecated
 
 #define BP_TYPE_START 0
@@ -78,7 +83,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define MAX_PACKET_SIZE (sizeof(struct BreakpointRequestPacket))
+#define USB_Data_length        64
+
+#define MAX_PACKET_SIZE (sizeof(struct FlashBootPackage))
 #define MAX_SAMPLES 32
 
 struct __attribute__((__packed__)) RequestPacket {
@@ -112,7 +119,7 @@ struct __attribute__((__packed__)) CalibrateRequestPacketV1_0 {
   struct RequestPacket request;
   uint8_t channel;
   int32_t calVal;
-  bool hw;
+  uint8_t hw;
 };
 
 struct __attribute__((__packed__)) CalibrateRequestPacket {
@@ -143,6 +150,30 @@ struct __attribute__((__packed__)) AdcSetRequestPacketV1_0 {
 struct __attribute__((__packed__)) TestRequestPacket {
   struct RequestPacket request;
   uint8_t testNum;
+};
+
+struct __attribute__((__packed__)) FlashBootPackage {
+	struct RequestPacket request;
+  uint16_t index;
+  uint32_t flash_address;
+  uint8_t end;
+  uint8_t Data[USB_Data_length];
+};
+
+struct __attribute__((__packed__)) FlashErasePackage {
+	struct RequestPacket request;
+  uint32_t flash_address_start;
+  uint32_t flash_address_end;
+};
+
+struct __attribute__((__packed__)) FlashResetPackage {
+	struct RequestPacket request;
+  uint8_t Reserve[3];
+  uint32_t version;
+  uint32_t crc;
+  uint32_t dataLength;
+  uint32_t flashAddress;
+  uint32_t crc_header;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -189,6 +220,28 @@ struct __attribute__((__packed__)) SampleReplyPacket {
   uint64_t pc[4];
   int16_t current[7];
   uint16_t flags;
+};
+
+struct __attribute__((__packed__)) BootReplyPackage {
+	struct RequestPacket reply;
+  uint16_t ready;
+  uint16_t hardware_version;
+  uint16_t software_version;
+  uint16_t NANDflash_version;
+  uint16_t boot_version1;
+  uint16_t boot_version2;
+};
+
+struct __attribute__((__packed__)) FlashResultPackage {
+	struct RequestPacket reply;
+  uint16_t result;
+  uint32_t data_length;
+  uint32_t flash_address;
+};
+
+struct __attribute__((__packed__)) ResetReplyPackage {
+	struct RequestPacket reply;
+  uint16_t result;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

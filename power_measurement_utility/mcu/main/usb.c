@@ -19,7 +19,6 @@
  *
  *****************************************************************************/
 
-#include "lynsyn.h"
 #include "usb.h"
 #include "adc.h"
 #include "config.h"
@@ -29,9 +28,12 @@
 #include <stdio.h>
 #include <em_usb.h>
 
+#include "usbBoot.h"
 #include "jtag.h"
 #include "fpga.h"
 #include "usbprotocol.h"
+
+#define FIRMWARE_TEMP 0x80000
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -113,17 +115,30 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
     switch(req->cmd) {
 
+      case USB_CMD_BootMode:
+        USB_BootMode(req);
+        break;
+
+      case USB_CMD_FlashErase:
+        USB_FlashErase((struct FlashErasePackage *)inBuffer);
+        break;
+
+      case USB_CMD_FLASH_Save:
+        USB_FLASH_SAVE((struct FlashBootPackage *)inBuffer);
+        break;
+
+      case USB_CMD_RESET:
+        USB_BootReset((struct FlashResetPackage *)inBuffer);
+        break;
+
       case USB_CMD_INIT: {
         initReply.hwVersion = getUint32("hwver");
         initReply.swVersion = SW_VERSION;
 
-        initReply.calibration[0] = 0;
-        initReply.calibration[1] = 0;
-        initReply.calibration[2] = 0;
-        initReply.calibration[3] = 0;
-        initReply.calibration[4] = 0;
-        initReply.calibration[5] = 0;
-        initReply.calibration[6] = 0;
+        for(int i = 0; i < 7; i++) {
+          initReply.calibration[i] = 0;
+        }
+
         initReply.adcCal = 0;
 
         while(USBD_EpIsBusy(CDC_EP_DATA_IN));

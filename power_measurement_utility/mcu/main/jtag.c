@@ -24,7 +24,7 @@
 
 #include <em_usart.h>
 
-#include "lynsyn.h"
+#include "lynsyn_main.h"
 #include "jtag.h"
 #include "fpga.h"
 

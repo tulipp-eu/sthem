@@ -19,7 +19,7 @@
  *
  *****************************************************************************/
 
-#include "lynsyn.h"
+#include "lynsyn_main.h"
 #include "config.h"
 
 #include <em_msc.h>

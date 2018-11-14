@@ -9,19 +9,21 @@ CFLAGS = \
 	-g -O2 -Wall -std=gnu99 \
 	-mcpu=cortex-m3 -mthumb \
 	-D${PART} \
+	-I../common/ \
+	-I../boot/ \
 	-I${SDK}/platform/Device/SiliconLabs/EFM32GG/Include/ \
 	-I${SDK}/hardware/kit/common/drivers/ \
 	-I${SDK}/platform/CMSIS/Include/ \
 	-I${SDK}/platform/emlib/inc/ \
 	-I${SDK}/platform/middleware/usb_gecko/inc/ \
 	-I.
-LDFLAGS = -mcpu=cortex-m3 -mthumb -Wl,-T${SDK}/platform/Device/SiliconLabs/EFM32GG/Source/GCC/efm32gg.ld --specs=nosys.specs 
+LDFLAGS = -mcpu=cortex-m3 -mthumb -Wl,-Tmain.ld --specs=nosys.specs 
 ASFLAGS =
 
 CFLAGS += -DUSE_FPGA_JTAG_CONTROLLER
 
 .PHONY: default
-default: lynsyn.bin
+default: lynsyn_main.bin
 
 %.bin : %.elf
 	${OBJCOPY} -O binary $< $@
@@ -29,8 +31,8 @@ default: lynsyn.bin
 %.dis : %.elf
 	${OBJDUMP} -l -S -D $< > $@
 
-lynsyn.elf: \
-	adc.o config.o descriptors.o fpga.o jtag.o main.o swo.o usb.o jtag_fpga.o jtag_usart.o \
+lynsyn_main.elf: \
+	../common/lynsyn.o adc.o config.o descriptors.o fpga.o jtag.o main.o ../common/swo.o usb.o usbboot.o flash_interface.o jtag_fpga.o jtag_usart.o \
 	${SDK}/platform/emlib/src/em_cmu.o \
 	${SDK}/platform/emlib/src/em_core.o \
 	${SDK}/platform/emlib/src/em_gpio.o \
@@ -63,10 +65,6 @@ lynsyn.elf: \
 
 %.o : %.S
 	${AS} ${ASFLAGS} -c $< -o $@
-
-.PHONY: upload
-upload: lynsyn.bin
-	JLinkExe jlink.cmd
 
 .PHONY: clean
 clean:

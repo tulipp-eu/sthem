@@ -35,7 +35,7 @@
 
 #include <libusb.h>
 
-#include "../mcu/usbprotocol.h"
+#include "../mcu/common/usbprotocol.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 

@@ -19,7 +19,7 @@
  *
  *****************************************************************************/
 
-#include "lynsyn.h"
+#include "lynsyn_main.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -78,39 +78,6 @@ static uint64_t i2cCurrentAcc[7];
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
-
-void clearLed(int led) {
-  switch(led) {
-    case 0:
-      GPIO_PinOutSet(LED0_PORT, LED0_BIT);
-      break;
-    case 1:
-      GPIO_PinOutSet(LED1_PORT, LED1_BIT);
-      break;
-  }
-}
-
-void setLed(int led) {
-  switch(led) {
-    case 0:
-      GPIO_PinOutClear(LED0_PORT, LED0_BIT);
-      break;
-    case 1:
-      GPIO_PinOutClear(LED1_PORT, LED1_BIT);
-      break;
-  }
-}
-
-void panic(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  printf("\nPanic: ");
-  vprintf(fmt, args);
-  printf("\n");
-  va_end(args);
-  jtagExt();
-  while(true);
-}
 
 #ifndef SWO
 
@@ -248,14 +215,11 @@ void I2C0_IRQHandler(void) {
 ///////////////////////////////////////////////////////////////////////////////
 
 int main(void) {
-  CHIP_Init();
-   
   sampleMode = false;
 
+  printf("Lynsyn initializing...\n");
+
   // setup clocks
-  CMU_OscillatorEnable(cmuOsc_HFXO, true, true);
-  CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
-  CMU_ClockEnable(cmuClock_GPIO, true);
   CMU_ClockEnable(cmuClock_HFPER, true);
   CMU_ClockEnable(cmuClock_USB, true);
   CMU_ClockEnable(cmuClock_ADC0, true);
@@ -263,16 +227,6 @@ int main(void) {
   CMU_ClockEnable(cmuClock_I2C0, true);
   CMU_ClockEnable(cmuClock_CORELE, true);
 #endif
-
-  // setup LEDs
-  GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
-  GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
-
-#ifdef SWO
-  swoInit();
-#endif
-
-  printf("Lynsyn initializing...\n");
 
   // Enable cycle counter
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;

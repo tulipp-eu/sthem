@@ -19,17 +19,44 @@
  *
  *****************************************************************************/
 
-#ifndef USB_H
-#define USB_H
+#ifndef LYNSYN_MAIN_H
+#define LYNSYN_MAIN_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <assert.h>
 
 #include "lynsyn.h"
-#include "usbprotocol.h"
 
-#define START_BP 0
-#define STOP_BP  1
-#define FRAME_BP 0
+#include "em_device.h"
+#include "em_cmu.h"
+#include "em_gpio.h"
+#include "em_i2c.h"
+#include "em_system.h"
+#include "em_chip.h"
+ 
+///////////////////////////////////////////////////////////////////////////////
+// firmware settings
 
-void usbInit(void);
-void sendSamples(struct SampleReplyPacket *sample, unsigned n);
+#define CAL_AVERAGE_SAMPLES 1024
+
+///////////////////////////////////////////////////////////////////////////////
+// global functions
+
+int64_t calculateTime();
+
+///////////////////////////////////////////////////////////////////////////////
+// global variables
+
+extern volatile bool sampleMode;
+extern volatile bool samplePc;
+extern volatile bool gpioMode;
+extern volatile bool useStartBp;
+extern volatile bool useStopBp;
+extern volatile int64_t sampleStop;
+extern uint8_t startCore;
+extern uint8_t stopCore;
+extern uint64_t frameBp;
 
 #endif
