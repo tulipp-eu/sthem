@@ -32,6 +32,7 @@
 
 #include "analysis_tool.h"
 #include "project.h"
+#include "pmu.h"
 #include "location.h"
 
 struct gmonhdr {
@@ -313,16 +314,19 @@ void Project::loadProjectFile() {
   pmu.rl[4] = settings.value("rl4", 0.1).toDouble();
   pmu.rl[5] = settings.value("rl5", 1).toDouble();
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
-  useCustomElf = settings.value("useCustomElf", false).toBool();
-  samplePc = settings.value("samplePc", true).toBool();
-  useBp = settings.value("useBp", true).toBool();
+
   samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
-  samplePeriod = settings.value("samplePeriod", 0).toLongLong();
-  customElfFile = settings.value("customElfFile", "").toString();
+  runTcf = settings.value("runTcf", true).toBool();
+  samplePc = settings.value("samplePc", true).toBool();
+
+  startAtBp = settings.value("startAtBp", true).toBool();
   startFunc = settings.value("startFunc", "main").toString();
-  startCore = settings.value("startCore", 0).toUInt();
+
+  stopAt = settings.value("stopAt", 0).toUInt();
   stopFunc = settings.value("stopFunc", "_exit").toString();
-  stopCore = settings.value("stopCore", 0).toUInt();
+  samplePeriod = settings.value("samplePeriod", 0).toLongLong();
+
+  customElfFile = settings.value("customElfFile", "").toString();
   instrument = settings.value("instrument", false).toBool();
 
   if(!isSdSocProject()) {
@@ -360,16 +364,20 @@ void Project::saveProjectFile() {
   }
   settings.setValue("ultrascale", ultrascale);
   settings.setValue("tcfUploadScript", tcfUploadScript);
-  settings.setValue("useCustomElf", useCustomElf);
+
   settings.setValue("customElfFile", customElfFile);
-  settings.setValue("samplePc", samplePc);
-  settings.setValue("useBp", useBp);
+
   settings.setValue("samplingModeGpio", samplingModeGpio);
-  settings.setValue("samplePeriod", (qint64)samplePeriod);
+  settings.setValue("runTcf", runTcf);
+  settings.setValue("samplePc", samplePc);
+
+  settings.setValue("startAtBp", startAtBp);
   settings.setValue("startFunc", startFunc);
-  settings.setValue("startCore", startCore);
+  settings.setValue("samplePeriod", (qint64)samplePeriod);
+
+  settings.setValue("stopAt", stopAt);
   settings.setValue("stopFunc", stopFunc);
-  settings.setValue("stopCore", stopCore);
+
   settings.setValue("instrument", instrument);
 
   settings.setValue("sources", sources);
@@ -512,11 +520,8 @@ void Project::copy(Project *p) {
   //pmu = p->pmu;
   ultrascale = p->ultrascale;
   startFunc = p->startFunc;
-  startCore = p->startCore;
   stopFunc = p->stopFunc;
-  stopCore = p->stopCore;
   createBbInfo = p->createBbInfo;
-  useCustomElf = p->useCustomElf;
   
   // settings from either sdsoc project or user
   sources = p->sources;
@@ -592,7 +597,7 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   BasicBlock *bb = NULL;
   Function *func = NULL;
 
-  if(!useCustomElf && elfSupport->isBb(pc)) {
+  if(elfSupport->isBb(pc)) {
     Module *mod = cfg->getModuleById(elfSupport->getModuleId(pc));
     if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport->getLineNumber(pc)));
 
@@ -804,7 +809,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlQuery query;
 
   ElfSupport elfSupport;
-  if(!useCustomElf) elfSupport.addElf(elfFile);
+  elfSupport.addElf(elfFile);
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -976,7 +981,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 bool Project::runProfiler() {
 
   ElfSupport elfSupport;
-  if(!useCustomElf) elfSupport.addElf(elfFile);
+  elfSupport.addElf(elfFile);
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -987,7 +992,7 @@ bool Project::runProfiler() {
     return false;
   }
 
-  if(!useBp) {
+  if(!runTcf) {
     emit advance(0, "Skipping upload");
 
   } else {
@@ -1028,18 +1033,19 @@ bool Project::runProfiler() {
     uint64_t startAddr = 0;
     uint64_t stopAddr = 0;
 
-    if(useBp) {
+    if(startAtBp) {
       startAddr = elfSupport.lookupSymbol(startFunc);
-      stopAddr = elfSupport.lookupSymbol(stopFunc);
     }
 
-    bool usePeriod = samplePeriod != 0;
+    if(stopAt == STOP_AT_BREAKPOINT) {
+      stopAddr = elfSupport.lookupSymbol(stopFunc);
+    }
 
     bool useFrame = true;
     uint64_t frameAddr = elfSupport.lookupSymbol("__tulippFrameDone");
 
-    pmu.collectSamples(useFrame, frameAddr, useBp, samplePc, samplingModeGpio, usePeriod, 
-                       samplePeriod, startCore, startAddr, stopCore, stopAddr,
+    pmu.collectSamples(useFrame, frameAddr, startAtBp, stopAt, samplePc, samplingModeGpio, 
+                       samplePeriod, startAddr, stopAddr,
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }
 

@@ -70,19 +70,22 @@ public slots:
   void setDefaultUs(bool checked);
 
 public:
+  QPlainTextEdit *tcfUploadScriptEdit;
   QLineEdit *rlEdit[7];
   QLineEdit *supplyVoltageEdit[7];
-  QLineEdit *startFuncEdit;
-  QLineEdit *startCoreEdit;
-  QLineEdit *stopFuncEdit;
-  QLineEdit *stopCoreEdit;
-  QPlainTextEdit *tcfUploadScriptEdit;
-  QCheckBox *customElfCheckBox;
-  QLineEdit *customElfEdit;
-  QCheckBox *samplePcCheckBox;
-  QCheckBox *useBpCheckBox;
+
   QCheckBox *samplingModeGpioCheckBox;
+  QCheckBox *runTcfCheckBox;
+  QCheckBox *samplePcCheckBox;
+
+  QCheckBox *startAtBpCheckBox;
+  QLineEdit *startFuncEdit;
+
+  QComboBox *stopAtCombo;
+  QLineEdit *stopFuncEdit;
   QLineEdit *samplePeriodEdit;
+
+  QLineEdit *customElfEdit;
 
   ProjectProfPage(Project *project, QWidget *parent = 0);
 };
