@@ -319,7 +319,6 @@ void Project::loadProjectFile() {
   runTcf = settings.value("runTcf", true).toBool();
   samplePc = settings.value("samplePc", true).toBool();
 
-  startAtBp = settings.value("startAtBp", true).toBool();
   startFunc = settings.value("startFunc", "main").toString();
 
   stopAt = settings.value("stopAt", 0).toUInt();
@@ -371,7 +370,6 @@ void Project::saveProjectFile() {
   settings.setValue("runTcf", runTcf);
   settings.setValue("samplePc", samplePc);
 
-  settings.setValue("startAtBp", startAtBp);
   settings.setValue("startFunc", startFunc);
   settings.setValue("samplePeriod", (qint64)samplePeriod);
 
@@ -1033,7 +1031,7 @@ bool Project::runProfiler() {
     uint64_t startAddr = 0;
     uint64_t stopAddr = 0;
 
-    if(startAtBp) {
+    if(runTcf) {
       startAddr = elfSupport.lookupSymbol(startFunc);
     }
 
@@ -1041,10 +1039,9 @@ bool Project::runProfiler() {
       stopAddr = elfSupport.lookupSymbol(stopFunc);
     }
 
-    bool useFrame = true;
     uint64_t frameAddr = elfSupport.lookupSymbol("__tulippFrameDone");
 
-    pmu.collectSamples(useFrame, frameAddr, startAtBp, stopAt, samplePc, samplingModeGpio, 
+    pmu.collectSamples(runTcf, frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 
                        samplePeriod, startAddr, stopAddr,
                        &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
   }

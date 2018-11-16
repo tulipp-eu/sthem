@@ -72,7 +72,6 @@ public:
   bool runTcf;
   bool samplePc;
 
-  bool startAtBp;
   QString startFunc;
 
   unsigned stopAt;

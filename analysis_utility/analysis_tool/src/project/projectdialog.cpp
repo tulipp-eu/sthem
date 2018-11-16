@@ -23,6 +23,46 @@
 #include "config/config.h"
 #include "analysis_tool.h"
 
+void ProjectProfPage::updateGui() {
+  // sample pc
+  if(runTcfCheckBox->checkState() != Qt::Checked) {
+    samplePcCheckBox->setCheckState(Qt::Unchecked);
+    samplePcCheckBox->setDisabled(1);
+  } else {
+    samplePcCheckBox->setEnabled(1);
+  }
+
+  // stop at combo
+  if((samplePcCheckBox->checkState() != Qt::Checked) ||
+     (runTcfCheckBox->checkState() != Qt::Checked)) {
+    stopAtCombo->setCurrentIndex(STOP_AT_TIME);
+    stopAtCombo->setDisabled(1);
+  } else {
+    stopAtCombo->setEnabled(1);
+  }
+
+  // start func
+  if(runTcfCheckBox->checkState() != Qt::Checked) {
+    startFuncEdit->setDisabled(1);
+  } else {
+    startFuncEdit->setEnabled(1);
+  }
+
+  // stop func
+  if(stopAtCombo->currentIndex() == STOP_AT_BREAKPOINT) {
+    stopFuncEdit->setEnabled(1);
+  } else {
+    stopFuncEdit->setDisabled(1);
+  }
+
+  // sample period
+  if(stopAtCombo->currentIndex() == STOP_AT_BREAKPOINT) {
+    samplePeriodEdit->setDisabled(1);
+  } else {
+    samplePeriodEdit->setEnabled(1);
+  }
+}
+
 ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(parent) {
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
@@ -312,12 +352,11 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
 
   runTcfCheckBox = new QCheckBox("Upload binary and reset");
   runTcfCheckBox->setCheckState(project->runTcf ? Qt::Checked : Qt::Unchecked);
+  connect(runTcfCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
 
   samplePcCheckBox = new QCheckBox("Sample PC");
   samplePcCheckBox->setCheckState(project->samplePc ? Qt::Checked : Qt::Unchecked);
-
-  startAtBpCheckBox = new QCheckBox("Start at location");
-  startAtBpCheckBox->setCheckState(project->startAtBp ? Qt::Checked : Qt::Unchecked);
+  connect(samplePcCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
 
   QHBoxLayout *startLayout = new QHBoxLayout;
   QLabel *startFuncLabel = new QLabel("Start location:");
@@ -335,6 +374,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   stopAtLayout->addWidget(stopAtLabel);
   stopAtLayout->addWidget(stopAtCombo);
   stopAtLayout->addStretch(1);
+  connect(stopAtCombo, SIGNAL(activated(int)), this, SLOT(updateGui()));
 
   QHBoxLayout *stopLayout = new QHBoxLayout;
   QLabel *stopFuncLabel = new QLabel("Stop location:");
@@ -354,7 +394,6 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   measurementsLayout->addWidget(samplingModeGpioCheckBox);
   measurementsLayout->addWidget(runTcfCheckBox);
   measurementsLayout->addWidget(samplePcCheckBox);
-  measurementsLayout->addWidget(startAtBpCheckBox);
   measurementsLayout->addLayout(startLayout);
   measurementsLayout->addLayout(stopAtLayout);
   measurementsLayout->addLayout(stopLayout);
@@ -371,6 +410,8 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   mainLayout->addWidget(measurementsGroup);
   mainLayout->addStretch(1);
   setLayout(mainLayout);
+
+  updateGui();
 }
 
 ProjectDialog::ProjectDialog(Project *project) {
@@ -503,7 +544,6 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->runTcf = profPage->runTcfCheckBox->checkState() == Qt::Checked;
   project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
 
-  project->startAtBp = profPage->startAtBpCheckBox->checkState() == Qt::Checked;
   project->startFunc = profPage->startFuncEdit->text();
 
   project->stopAt = profPage->stopAtCombo->currentIndex();

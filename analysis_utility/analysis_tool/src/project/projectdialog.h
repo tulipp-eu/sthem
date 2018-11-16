@@ -68,6 +68,7 @@ class ProjectProfPage : public QWidget {
 public slots:
   void setDefault(bool checked);
   void setDefaultUs(bool checked);
+  void updateGui();
 
 public:
   QPlainTextEdit *tcfUploadScriptEdit;
