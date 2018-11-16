@@ -132,6 +132,7 @@ bool Pmu::init() {
           return false;
         }
         sensorCalibration[i] = initReply.calibration[i];
+        printf("Cal: %f\n", sensorCalibration[i]);
       }
 
     } else {
@@ -144,6 +145,7 @@ bool Pmu::init() {
         }
         sensorOffset[i] = calInfo.offset[i];
         sensorGain[i] = calInfo.gain[i];
+        printf("Offset: %f Gain: %f\n", sensorOffset[i], sensorGain[i]);
       }
     }
   }
@@ -435,7 +437,8 @@ double Pmu::currentToPower(unsigned sensor, double current) {
       double i = (1000 * v) / (LYNSYN_RS * rl[sensor]);
       return i * supplyVoltage[sensor];
     }
-    case HW_VERSION_2_1: {
+    case HW_VERSION_2_1:
+    case HW_VERSION_2_2: {
       double vs = v / 20;
       double i = vs / rl[sensor];
       return i * supplyVoltage[sensor];
