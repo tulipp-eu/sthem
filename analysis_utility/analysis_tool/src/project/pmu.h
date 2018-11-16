@@ -82,7 +82,8 @@ public:
   double currentToPower(unsigned sensor, double current);
   static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorOffset, double *sensorGain);
 
-  void collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
+  bool collectSamples(bool useFrame, bool useStartBp,
+                      uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
                       int64_t samplePeriod, uint64_t startAddr, uint64_t stopAddr, 
                       uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                       double *runtime, double *energy);

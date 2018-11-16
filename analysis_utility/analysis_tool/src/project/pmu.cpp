@@ -106,10 +106,9 @@ bool Pmu::init() {
 
     if((initReply.swVersion != SW_VERSION_1_0) &&
        (initReply.swVersion != SW_VERSION_1_1) &&
-       (initReply.swVersion != SW_VERSION_1_2) &&
        (initReply.swVersion != SW_VERSION_1_3) &&
        (initReply.swVersion != SW_VERSION_1_4)) {
-      printf("Unsupported Lynsyn SW Version\n");
+      printf("Unsupported Lynsyn SW Version: %x\n", initReply.swVersion);
       return false;
     }
 
@@ -132,7 +131,6 @@ bool Pmu::init() {
           return false;
         }
         sensorCalibration[i] = initReply.calibration[i];
-        printf("Cal: %f\n", sensorCalibration[i]);
       }
 
     } else {
@@ -145,7 +143,6 @@ bool Pmu::init() {
         }
         sensorOffset[i] = calInfo.offset[i];
         sensorGain[i] = calInfo.gain[i];
-        printf("Offset: %f Gain: %f\n", sensorOffset[i], sensorGain[i]);
       }
     }
   }
@@ -212,7 +209,7 @@ bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsR
 
 void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy) {
 
-  if(sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE) {
+  if((swVersion >= SW_VERSION_1_3) && (sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
     QSqlQuery frameQuery;
 
     frameQuery.prepare("INSERT INTO frames (time,delay) VALUES (:time,:delay)");
@@ -259,12 +256,17 @@ void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, doubl
   }
 }
 
-void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
+bool Pmu::collectSamples(bool useFrame, bool useStartBp,
+                         uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
                          int64_t samplePeriod, uint64_t startAddr, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
 
-  bool useBp = startAtBp || (stopAt == STOP_AT_BREAKPOINT) || useFrame;
+  bool useBp = startAtBp | (stopAt == STOP_AT_BREAKPOINT);
+
+  if(swVersion >= SW_VERSION_1_3) {
+    useBp |= useFrame;
+  }
 
   if(useBp || samplePc) {
     struct RequestPacket req;
@@ -292,38 +294,38 @@ void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsi
     sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
   }
 
-  if(useFrame) {
-    struct BreakpointRequestPacket req;
-    req.request.cmd = USB_CMD_BREAKPOINT;
-    req.core = 0;
-    req.bpType = BP_TYPE_FRAME;
-    req.addr = frameAddr;
+  if(swVersion >= SW_VERSION_1_3) {
+    if(useFrame) {
+      struct BreakpointRequestPacket req;
+      req.request.cmd = USB_CMD_BREAKPOINT;
+      req.core = 0;
+      req.bpType = BP_TYPE_FRAME;
+      req.addr = frameAddr;
 
-    sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+      sendBytes((uint8_t*)&req, sizeof(struct BreakpointRequestPacket));
+    }
   }
 
   if(swVersion <= SW_VERSION_1_1) {
     struct RequestPacket req;
     req.cmd = USB_CMD_START_SAMPLING;
-    if(!samplePc) printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
-    if(!useBp) {
-      printf("PMU does not support measuring without breakpoints. Update firmware!\n");
-      return;
-    }
-    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
-
-  } else if(swVersion == SW_VERSION_1_1) {
-    struct StartSamplingRequestPacketV1_1 req;
-    req.request.cmd = USB_CMD_START_SAMPLING;
-    req.samplePeriod = samplePeriod;
     if(samplingModeGpio) {
       printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
+      return false;
     }
-    if(!useBp) {
+    if(!useStartBp) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
-      return;
+      return false;
     }
-    sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacketV1_1));
+    if(!samplePc) {
+      printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
+      return false;
+    }
+    if(stopAt == STOP_AT_TIME) {
+      printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      return false;
+    }
+    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
 
   } else {
     struct StartSamplingRequestPacket req;
@@ -371,6 +373,7 @@ void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsi
 
     if(swVersion <= SW_VERSION_1_1) {
       getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
+
     } else {
       bool transferOk = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket), &n);
       if(!transferOk) {
@@ -400,7 +403,7 @@ void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsi
       } else {
         int64_t timeSinceLast = 0;
 
-        if((sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
+        if((swVersion >= SW_VERSION_1_3) && (sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
           if(lastTime != -1) timeSinceLast = sample->pc[0] - lastTime;
 
         } else {
@@ -421,6 +424,8 @@ void Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsi
   *runtime = cyclesToSeconds(*maxTime - *minTime);
 
   free(buf);
+
+  return true;
 }
 
 double Pmu::currentToPower(unsigned sensor, double current) {

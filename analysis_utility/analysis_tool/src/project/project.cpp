@@ -1041,9 +1041,15 @@ bool Project::runProfiler() {
 
     uint64_t frameAddr = elfSupport.lookupSymbol("__tulippFrameDone");
 
-    pmu.collectSamples(runTcf, frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 
-                       samplePeriod, startAddr, stopAddr,
-                       &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
+    bool ret = pmu.collectSamples(runTcf, runTcf,
+                                  frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 
+                                  samplePeriod, startAddr, stopAddr,
+                                  &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
+    if(!ret) {
+      emit finished(1, "Invalid profile settings for PMU firmware version, upgrade firmware");
+      pmu.release();
+      return false;
+    }
   }
 
   pmu.release();
