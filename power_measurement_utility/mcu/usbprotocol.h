@@ -85,14 +85,9 @@ struct __attribute__((__packed__)) RequestPacket {
   uint8_t cmd;
 };
 
-struct __attribute__((__packed__)) StartSamplingRequestPacketV1_1 {
-  struct RequestPacket request;
-  int64_t samplePeriod; // set to 0 for PC sampling, any other number for current sampling only
-};
-
 struct __attribute__((__packed__)) StartSamplingRequestPacket {
   struct RequestPacket request;
-  int64_t samplePeriod; // set to 0 for PC sampling, any other number for current sampling only
+  int64_t samplePeriod;
   uint64_t flags;
 };
 
@@ -108,13 +103,6 @@ struct __attribute__((__packed__)) HwInitRequestPacket {
   uint8_t hwVersion;
 };
 
-struct __attribute__((__packed__)) CalibrateRequestPacketV1_0 {
-  struct RequestPacket request;
-  uint8_t channel;
-  int32_t calVal;
-  bool hw;
-};
-
 struct __attribute__((__packed__)) CalibrateRequestPacket {
   struct RequestPacket request;
   uint8_t channel;
@@ -122,22 +110,11 @@ struct __attribute__((__packed__)) CalibrateRequestPacket {
   uint32_t flags;
 };
 
-struct __attribute__((__packed__)) CalSetRequestPacketV1_0 {
-  struct RequestPacket request;
-  uint8_t channel;
-  double cal;
-};
-
 struct __attribute__((__packed__)) CalSetRequestPacket {
   struct RequestPacket request;
   uint8_t channel;
   double offset;
   double gain;
-};
-
-struct __attribute__((__packed__)) AdcSetRequestPacketV1_0 {
-  struct RequestPacket request;
-  uint32_t cal;
 };
 
 struct __attribute__((__packed__)) TestRequestPacket {
@@ -175,13 +152,6 @@ struct __attribute__((__packed__)) SampleReplyPacketV1_0 {
   int64_t time;
   uint64_t pc[4];
   int16_t current[7];
-};
-
-struct __attribute__((__packed__)) SampleReplyPacketV1_1 {
-  int64_t time;
-  uint64_t pc[4];
-  int16_t current[7];
-  int16_t : 16;
 };
 
 struct __attribute__((__packed__)) SampleReplyPacket {
