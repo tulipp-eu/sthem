@@ -599,13 +599,22 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
     Module *mod = cfg->getModuleById(elfSupport->getModuleId(pc));
     if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport->getLineNumber(pc)));
 
-  } else {
+  }
+
+  if(!bb) {
     QString functionId;
+    QString funcName;
+
+    if(elfSupport->isBb(pc)) {
+      funcName = "Unknown";
+    } else {
+      funcName = elfSupport->getFunction(pc);
+    }
 
     if(core != 0) {
-      functionId = QString("CPU") + QString::number(core) + "_" + elfSupport->getFunction(pc);
+      functionId = QString("CPU") + QString::number(core) + "_" + funcName;
     } else {
-      functionId = elfSupport->getFunction(pc);
+      functionId = funcName;
     }
 
     func = cfg->getFunctionById(functionId);
