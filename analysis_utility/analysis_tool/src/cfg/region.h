@@ -31,10 +31,7 @@ class Region : public Container {
   std::vector<Exit*> exitNodes;
 
 public:
-  bool isSuperBb;
-
-  Region(QString id, Container *parent, unsigned treeviewRow, bool isSuperBb) : Container(id, id, parent, treeviewRow) {
-    this->isSuperBb =isSuperBb;
+  Region(QString id, Container *parent, unsigned treeviewRow) : Container(id, id, parent, treeviewRow) {
     entryNode = NULL;
   }
   virtual ~Region() {
@@ -45,30 +42,16 @@ public:
   }
 
   virtual QString getCfgName() {
-    QString ret = "";
-
-    if(isSuperBb) {
-      ret = "BasicBlock*";
-    } else {
-      ret = "Region";
-    }
-
-    return ret;
+    return "Region";
   }
 
   virtual QColor getColor() {
-    if(isSuperBb) {
-      return BASICBLOCK_COLOR;
-    } else {
-      return REGION_COLOR;
-    }
+    return REGION_COLOR;
   }
 
   virtual QString getTypeName() {
     return getCfgName();
   }
-
-  virtual void appendLocalItems(int startX, int yy, Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling);
 
 };
 

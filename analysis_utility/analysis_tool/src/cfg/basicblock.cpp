@@ -26,6 +26,56 @@
 #include "function.h"
 #include "profile/profline.h"
 
+int BasicBlock::appendInstructions(QGraphicsItem *parent, int xx, int yy, unsigned *width,
+                                   Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling) {
+  for(auto child : children) {
+    Instruction *instr = dynamic_cast<Instruction*>(child);
+    Vertex *visibleItem = NULL;
+    float childScaling = scaling;
+    if(instr) {
+      QVector<BasicBlock*> callStackFunc = callStack;
+
+      if(instr->name == INSTR_ID_CALL) {
+        if(callStack.contains(this)) {
+          instr->recursive = true;
+          visibleItem = instr;
+        } else {
+          instr->recursive = false;
+          Function *func = getModule()->getFunctionById(instr->target);
+          if(!func) {
+            func = getTop()->getFunctionById(instr->target);
+          }
+          if(func) {
+            visibleItem = func;
+            assert(func->callers >= 1);
+            double ratio = getTop()->getProfile()->getArcRatio(Config::core, this, func);
+            childScaling *= ratio;
+            callStackFunc.push_back(this);
+          } else {
+            visibleItem = instr;
+          }
+        }
+      } else if(Config::includeAllInstructions) {
+        visibleItem = instr;
+      }
+
+      if(visibleItem) {
+        visibleItem->appendItems(parent, visualTop, callStackFunc, scaling);
+        visibleItem->setPos(xx, yy);
+
+        yy += visibleItem->height + TEXT_CLEARANCE;
+
+        if(visibleItem->width + (TEXT_CLEARANCE*2) > *width) *width = visibleItem->width + (TEXT_CLEARANCE*2);
+        height += visibleItem->height;
+
+        visibleItem->closeItems();
+      }
+    }
+  }
+
+  return yy;
+}
+
 void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling) {
   unsigned xx = startX + LINE_CLEARANCE;
 
@@ -43,50 +93,7 @@ void BasicBlock::appendLocalItems(int startX, int yy, Vertex *visualTop, QVector
   entryNode->closeItems();
 
   if(expanded) {
-    for(auto child : children) {
-      Instruction *instr = dynamic_cast<Instruction*>(child);
-      Vertex *visibleItem = NULL;
-      float childScaling = scaling;
-      if(instr) {
-        QVector<BasicBlock*> callStackFunc = callStack;
-
-        if(instr->name == INSTR_ID_CALL) {
-          if(callStack.contains(this)) {
-            instr->recursive = true;
-            visibleItem = instr;
-          } else {
-            instr->recursive = false;
-            Function *func = getModule()->getFunctionById(instr->target);
-            if(!func) {
-              func = getTop()->getFunctionById(instr->target);
-            }
-            if(func) {
-              visibleItem = func;
-              assert(func->callers >= 1);
-              double ratio = getTop()->getProfile()->getArcRatio(Config::core, this, func);
-              childScaling *= ratio;
-              callStackFunc.push_back(this);
-            } else {
-              visibleItem = instr;
-            }
-          }
-        } else if(Config::includeAllInstructions) {
-          visibleItem = instr;
-        }
-
-        if(visibleItem) {
-          visibleItem->appendItems(getBaseItem(), visualTop, callStackFunc, scaling);
-          visibleItem->setPos(xx, yy);
-
-          yy += visibleItem->height + TEXT_CLEARANCE;
-
-          if(visibleItem->width + (TEXT_CLEARANCE*2) > width) width = visibleItem->width + (TEXT_CLEARANCE*2);
-          height += visibleItem->height;
-
-          visibleItem->closeItems();
-        }
-      }
-    }
+    yy = appendInstructions(getBaseItem(), xx, yy, &width, visualTop, callStack, scaling);
   }
 
   // exits
@@ -125,7 +132,6 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
             if(func) {
               if(!callStack.contains(this)) {
                 if(func->callers == 1) {
-                  if(getModule()->id == "bzip2" && id == "102") printf("One caller\n");
                   double runtimeChild;
                   double runtimeChildFrame;
                   double energyChild[Pmu::MAX_SENSORS];
@@ -149,7 +155,6 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
                   callStack.push_back(this);
                   func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
                   double ratio = profile->getArcRatio(core, this, func);
-                  if(getModule()->id == "bzip2" && id == "102") printf("%d callers, ratio %f\n", func->callers, ratio);
 
                   cachedRuntime += runtimeChild * ratio;
                   cachedRuntimeFrame += runtimeChildFrame * ratio;

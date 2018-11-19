@@ -19,6 +19,48 @@
  *
  *****************************************************************************/
 
-#include "basicblock.h"
-#include "region.h"
+#ifndef SUPERBB_H
+#define SUPERBB_H
 
+#include "analysis_tool.h"
+#include "container.h"
+#include "basicblock.h"
+
+class SuperBB : public BasicBlock {
+
+  Entry *entryNode;
+  std::vector<Exit*> exitNodes;
+
+public:
+  SuperBB(QString id, Container *parent, unsigned treeviewRow) : BasicBlock(id, parent, treeviewRow) {
+    entryNode = NULL;
+  }
+  virtual ~SuperBB() {
+    if(entryNode) delete entryNode;
+    for(auto exitNode : exitNodes) {
+      delete exitNode;
+    }
+  }
+
+  virtual QString getCfgName() {
+    return "BasicBlock*";
+  }
+
+  virtual QColor getColor() {
+    return BASICBLOCK_COLOR;
+  }
+
+  virtual QString getTypeName() {
+    return getCfgName();
+  }
+
+  virtual void appendLocalItems(int startX, int yy, Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling);
+
+  virtual void calculateCallers() {
+    for(auto child : children) {
+      child->calculateCallers();
+    }
+  }
+};
+
+#endif
