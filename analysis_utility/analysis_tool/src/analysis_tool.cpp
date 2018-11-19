@@ -27,6 +27,30 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+bool getProfData(Analysis &analysis,
+                 QString moduleId, QString functionId, unsigned core, unsigned sensor,
+                 double *runtime, double *energy, uint64_t *count) {
+  Module *mod = analysis.project->cfg->getModuleById(moduleId);
+  if(!mod) {
+    printf("Can't find module %s\n", moduleId.toUtf8().constData());
+    return false;
+  }
+  Function *func = mod->getFunctionById(functionId);
+  if(!func) {
+    printf("Can't find function %s\n", functionId.toUtf8().constData());
+    return false;
+  }
+
+  double runtimeFrame;
+  double energyAll[LYNSYN_SENSORS];
+  double energyFrame[LYNSYN_SENSORS];
+
+  func->getProfData(core, QVector<BasicBlock*>(), runtime, energyAll, &runtimeFrame, energyFrame, count);
+  *energy = energyAll[sensor];
+
+  return true;
+}
+
 int main(int argc, char *argv[]) {
   Q_INIT_RESOURCE(application);
 
@@ -35,6 +59,8 @@ int main(int argc, char *argv[]) {
   app.setOrganizationDomain(ORG_DOMAIN);
   app.setApplicationName(APP_NAME);
   app.setApplicationVersion(QString("V") + QString::number(VERSION));
+
+  Analysis analysis;
 
   QCommandLineParser parser;
   parser.setApplicationDescription("Analysis Tool");
@@ -119,8 +145,6 @@ int main(int argc, char *argv[]) {
   QSettings settings;
   QString project = settings.value("currentProject", "").toString();
   QString buildConfig = settings.value("currentBuildConfig", "").toString();
-
-  Analysis analysis;
 
   if(parser.isSet(projectOption)) {
     project = parser.value(projectOption);
@@ -220,122 +244,39 @@ int main(int argc, char *argv[]) {
     }
 
     if(parser.isSet(getRuntimeOption)) {
-      QStringList arg = parser.value(getRuntimeOption).split(',');
-      QString moduleId = arg[0];
-      QString functionId = arg[1];
-      unsigned core = arg[2].toUInt();
-
-      Module *mod = analysis.project->cfg->getModuleById(moduleId);
-      if(!mod) {
-        printf("Can't find module %s\n", moduleId.toUtf8().constData());
-        return -1;
-      }
-      Function *func = mod->getFunctionById(functionId);
-      if(!func) {
-        printf("Can't find function %s\n", functionId.toUtf8().constData());
-        return -1;
-      }
-
-      double runtime;
-      double runtimeFrame;
-      double energy[LYNSYN_SENSORS];
-      double energyFrame[LYNSYN_SENSORS];
+      double runtime, energy;
       uint64_t count;
-
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
-
+      QStringList arg = parser.value(getRuntimeOption).split(',');
+      if(!getProfData(analysis, arg[0], arg[1], arg[2].toUInt(), 0, &runtime, &energy, &count)) return -1;
       printf("%f\n", runtime);
     }
 
     if(parser.isSet(getPowerOption)) {
-      QStringList arg = parser.value(getPowerOption).split(',');
-      QString moduleId = arg[0];
-      QString functionId = arg[1];
-      unsigned core = arg[2].toUInt();
-      unsigned sensor = arg[3].toUInt();
-
-      Module *mod = analysis.project->cfg->getModuleById(moduleId);
-      if(!mod) {
-        printf("Can't find module %s\n", moduleId.toUtf8().constData());
-        return -1;
-      }
-      Function *func = mod->getFunctionById(functionId);
-      if(!func) {
-        printf("Can't find function %s\n", functionId.toUtf8().constData());
-        return -1;
-      }
-
-      double runtime;
-      double runtimeFrame;
-      double energy[LYNSYN_SENSORS];
-      double energyFrame[LYNSYN_SENSORS];
+      double runtime, energy;
       uint64_t count;
-
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
-
-      printf("%f\n", energy[sensor] / runtime);
+      QStringList arg = parser.value(getRuntimeOption).split(',');
+      if(!getProfData(analysis, arg[0], arg[1], arg[2].toUInt(), 0, &runtime, &energy, &count)) return -1;
+      printf("%f\n", energy / runtime);
     }
 
     if(parser.isSet(getTotalEnergyOption)) {
       unsigned sensor = parser.value(getTotalEnergyOption).toUInt();
-
       printf("%f\n", analysis.profile->getEnergy(sensor));
     }
 
     if(parser.isSet(getEnergyOption)) {
-      QStringList arg = parser.value(getEnergyOption).split(',');
-      QString moduleId = arg[0];
-      QString functionId = arg[1];
-      unsigned core = arg[2].toUInt();
-      unsigned sensor = arg[3].toUInt();
-
-      Module *mod = analysis.project->cfg->getModuleById(moduleId);
-      if(!mod) {
-        printf("Can't find module %s\n", moduleId.toUtf8().constData());
-        return -1;
-      }
-      Function *func = mod->getFunctionById(functionId);
-      if(!func) {
-        printf("Can't find function %s\n", functionId.toUtf8().constData());
-        return -1;
-      }
-
-      double runtime;
-      double runtimeFrame;
-      double energy[LYNSYN_SENSORS];
-      double energyFrame[LYNSYN_SENSORS];
+      double runtime, energy;
       uint64_t count;
-
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
-
-      printf("%f\n", energy[sensor]);
+      QStringList arg = parser.value(getRuntimeOption).split(',');
+      if(!getProfData(analysis, arg[0], arg[1], arg[2].toUInt(), 0, &runtime, &energy, &count)) return -1;
+      printf("%f\n", energy);
     }
 
     if(parser.isSet(getCountOption)) {
-      QStringList arg = parser.value(getCountOption).split(',');
-      QString moduleId = arg[0];
-      QString functionId = arg[1];
-      unsigned core = arg[2].toUInt();
-
-      Module *mod = analysis.project->cfg->getModuleById(moduleId);
-      if(!mod) {
-        printf("Can't find module %s\n", moduleId.toUtf8().constData());
-        return -1;
-      }
-      Function *func = mod->getFunctionById(functionId);
-      if(!func) {
-        printf("Can't find function %s\n", functionId.toUtf8().constData());
-        return -1;
-      }
-
-      double runtime;
-      double runtimeFrame;
-      double energy[LYNSYN_SENSORS];
-      double energyFrame[LYNSYN_SENSORS];
+      double runtime, energy;
       uint64_t count;
-
-      func->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
-
+      QStringList arg = parser.value(getRuntimeOption).split(',');
+      if(!getProfData(analysis, arg[0], arg[1], arg[2].toUInt(), 0, &runtime, &energy, &count)) return -1;
       printf("%ld\n", count);
     }
 

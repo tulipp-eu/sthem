@@ -72,8 +72,8 @@ public slots:
 
 public:
   QPlainTextEdit *tcfUploadScriptEdit;
-  QLineEdit *rlEdit[7];
-  QLineEdit *supplyVoltageEdit[7];
+  QLineEdit *rlEdit[LYNSYN_SENSORS];
+  QLineEdit *supplyVoltageEdit[LYNSYN_SENSORS];
 
   QCheckBox *samplingModeGpioCheckBox;
   QCheckBox *runTcfCheckBox;
