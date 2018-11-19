@@ -4,7 +4,7 @@ LDFLAGS = -lusb-1.0
 CC = gcc
 LD = gcc
 
-lynsyn_tester : main.o
+lynsyn_tester : main.o boot_pc.o
 	${LD} $^ ${LDFLAGS} -o $@
 
 %.o : %.c
