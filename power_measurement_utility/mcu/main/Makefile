@@ -32,7 +32,6 @@ default: lynsyn_main.bin
 lynsyn_main.elf: \
 	adc.o config.o descriptors.o fpga.o jtag.o main.o usb.o jtag_fpga.o jtag_usart.o \
 	../common/swo.o ../common/lynsyn.o \
-	../external/flash.o \
 	${SDK}/platform/emlib/src/em_cmu.o \
 	${SDK}/platform/emlib/src/em_core.o \
 	${SDK}/platform/emlib/src/em_gpio.o \

@@ -32,11 +32,11 @@ default: lynsyn_boot.bin
 lynsyn_boot.elf: \
 	main.o \
 	../common/swo.o \
-	../external/flash.o \
 	${SDK}/platform/emlib/src/em_cmu.o \
 	${SDK}/platform/emlib/src/em_core.o \
 	${SDK}/platform/emlib/src/em_gpio.o \
 	${SDK}/platform/emlib/src/em_system.o \
+	${SDK}/platform/emlib/src/em_msc.o \
 	${SDK}/platform/Device/SiliconLabs/EFM32GG/Source/GCC/startup_efm32gg.o \
 	${SDK}/platform/Device/SiliconLabs/EFM32GG/Source/system_efm32gg.o
 	${CC} ${LDFLAGS} $^ -o $@

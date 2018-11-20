@@ -19,20 +19,20 @@
  *
  *****************************************************************************/
 
+#include <stdio.h>
+
+#include <em_usb.h>
+#include <em_msc.h>
+
 #include "lynsyn_main.h"
 #include "usb.h"
 #include "adc.h"
 #include "config.h"
-
-#include "descriptors.h"
-
-#include <stdio.h>
-#include <em_usb.h>
-
 #include "jtag.h"
 #include "fpga.h"
 #include "../common/usbprotocol.h"
-#include "../external/flash.h"
+
+#include "descriptors.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -149,13 +149,12 @@ void Send_Data2PC(uint8_t *inBuffer, int length) {
 
 void Flash_erase()
 {
-	FLASH_init();
 	int i;
 	uint8_t * pointer_internal= (uint8_t *)FLASH_NEW_APPLICATION_START;
 	for(i=(uint32_t)pointer_internal;i<FLASH_SIZE;i+=4096)
 	 {
 		 // erace internal flash
-		 FLASH_eraseOneBlock(i);
+		 MSC_ErasePage((uint32_t*)i);
 	 }
 	// erace nand flash from flash_address_start to flash_address_end
 }
@@ -225,6 +224,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
       case USB_CMD_BootMode: {
         // ack to host command for Boot info and Version
+        MSC_Init();
         struct BootInitReplyPackage boot_reply_package;
         Fill_boot_reply_package( &boot_reply_package ) ;
         boot_reply_package.reply.cmd= USB_CMD_BootMode;
@@ -232,20 +232,24 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         Flash_erase();
         crc_mcu = 0;
         printf("Receiving new firmware...\n");
+        MSC_Deinit();
         break;
       }
 
       case USB_CMD_FLASH_Save: {
+        MSC_Init();
+
         struct FlashBootPackage *flash_boot_package = (struct FlashBootPackage *)req;
 
-        uint32_t base_add = flash_boot_package->flash_address ;
-        uint32_t *pointer_inbuffer = (uint32_t*)flash_boot_package->Data ;
+        uint32_t *base_add = (uint32_t*)flash_boot_package->flash_address;
+        uint32_t *pointer_inbuffer = (uint32_t*)flash_boot_package->Data;
 
-        for(int j = 0; j < FLASH_BUFFER_SIZE/4; j++) {
-          // copy to internal flash
-          FLASH_writeWord(base_add + 4*j, pointer_inbuffer[j]);
-        }
+        MSC_WriteWord(base_add, pointer_inbuffer, FLASH_BUFFER_SIZE);
+
         crc_mcu=CRC32(crc_mcu,(uint32_t * )flash_boot_package->Data,FLASH_BUFFER_SIZE/4);
+
+        MSC_Deinit();
+
         break;
       }
 
@@ -259,7 +263,13 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
           printf("Incorrect CRC, not upgrading\n");
 
         } else {
-          FLASH_writeWord(FLASH_NEW_APPLICATION_END, NEW_APP_MAGIC);
+          MSC_Init();
+
+          uint32_t buf = NEW_APP_MAGIC;
+
+          MSC_WriteWord((uint32_t*)FLASH_NEW_APPLICATION_END, &buf, 4);
+
+          MSC_Deinit();
 
           DWT->CYCCNT = 0;
           while(DWT->CYCCNT < 24000000);

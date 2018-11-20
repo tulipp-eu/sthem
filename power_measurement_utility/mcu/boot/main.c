@@ -28,74 +28,27 @@
 #include <em_chip.h>
 #include <em_cmu.h>
 #include <em_gpio.h>
+#include <em_msc.h>
 
 #include "../common/swo.h"
 
-#include "../external/flash.h"
-
 ///////////////////////////////////////////////////////////////////////////////
 
-int Copy_UpgradeApplication()
-{
-	FLASH_init();
+int Copy_UpgradeApplication() {
 	uint8_t * pointer_internal= (uint8_t *)FLASH_BOOT_END;
 	uint32_t i;
-  //int res;
- //uint32_t crc = 0 ;
- // int nPage = 0 ;
- //res =  Read_Page( Flash_ofset/512 ,inBuffer) ;
-// if(res<1)return -1 ;
- //NANDflashInit();
-/* struct Flash_Struct * header =( struct Flash_Struct * ) inBuffer ;
- uint32_t Header_dataCRC=header->DataCRC;
- uint16_t Header_version=header->version;
- if( header->version == 0xffff )
- {
-	 // versin not valid 
-  return -2;
- }
- //check  header->HeaderCRC
- crc = CRC32(  crc , (uint32_t * )inBuffer , sizeof(struct Flash_Struct)/sizeof(uint32_t )-1 ) ;
- if( crc != header->HeaderCRC )
- {
-	 // header crc not valid
-  return -3 ;
- }
- if( header->Datalength > 0x200000 )
- {
-	 // data length is too big , not support
-  return -4 ;
- } */
-// long length  = header->Datalength ;//+sizeof(struct Flash_Struct) ;
- //nPage = (  length + 512 - 1  ) / 512 ;
-  // crc = 0 ;
- for(i=(uint32_t)pointer_internal;i<FLASH_NEW_APPLICATION_START;i+=4096)
- {
-	 // erace internal flash
-	 FLASH_eraseOneBlock(i);
- }
-// crc = CRC32( crc , (uint32_t * )inBuffer , 512  ) ;
- //for( i  =  1 ; i<= nPage ; i++ )
-  //{
-   //res =  Read_Page( Flash_ofset/512 +  i  ,inBuffer) ;
-  // if(res<1)return -1 ;
-   uint32_t base_add = (uint32_t )FLASH_BOOT_END ;
-   uint32_t *pointer_inbuffer = (uint32_t*)FLASH_NEW_APPLICATION_START ;
-   for(int j = 0 ; j < (FLASH_NEW_APPLICATION_END-FLASH_NEW_APPLICATION_START)/4 ; j++ )
-   {
-	   // cope to internal flash
-     FLASH_writeWord(base_add  + 4*j, pointer_inbuffer[j]);
-   }
-  // crc = CRC32( crc , (uint32_t * )inBuffer , 512/4  ) ;
- // }
 
-// if( crc != Header_dataCRC )
-// {
-	 //check data crc 
- // return -5 ;
- //}
- //BOOT_boot();
- return 1;
+  // erase flash
+  for(i=(uint32_t)pointer_internal;i<FLASH_NEW_APPLICATION_START;i+=4096) {
+    MSC_ErasePage((void*)i);
+  }
+  uint32_t *base_add = (uint32_t *)FLASH_BOOT_END ;
+  uint32_t *pointer_inbuffer = (uint32_t *)FLASH_NEW_APPLICATION_START ;
+
+  // copy to internal flash
+  MSC_WriteWord(base_add, pointer_inbuffer, FLASH_NEW_APPLICATION_END-FLASH_NEW_APPLICATION_START);
+
+  return 1;
 }
 
 int check_for_NewUpgrade()
@@ -131,10 +84,16 @@ void Select_Application()
 	int32_t NewApp = check_for_NewUpgrade();
 	if(NewApp==NEW_APP_MAGIC)
 	{
+    MSC_Init();
+
     printf("Upgrading firmware...\n");
 		Copy_UpgradeApplication();
-		uint32_t base_add =  FLASH_NEW_APPLICATION_END;
-		FLASH_writeWord(base_add , 0);
+		uint32_t *base_add =  (uint32_t*)FLASH_NEW_APPLICATION_END;
+
+    MSC_ErasePage(base_add);
+    MSC_WriteWord(base_add, 0, 4);
+
+    MSC_Deinit();
 	}
 //	uint32_t App = check_for_Application();
 	//if(App==0xffffffff)
