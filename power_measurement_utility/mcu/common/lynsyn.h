@@ -41,9 +41,14 @@
 
 #define SWO
 
-#define FLASH_BOOT_END                0x10000
-#define FLASH_NEW_APPLICATION_START   0x80000
-#define FLASH_NEW_APPLICATION_END     0xf0000
+///////////////////////////////////////////////////////////////////////////////
+//  flash layout
+
+#define FLASH_BOOT_START              0x000000
+#define FLASH_APP_START               0x010000
+#define FLASH_NEW_APPLICATION_START   0x080000
+#define FLASH_PARAMETERS_START        0x0f0000
+#define FLASH_NEW_APP_FLAG            0x0f0000
 
 #define NEW_APP_MAGIC 0x3821a0b3
 

@@ -35,25 +35,25 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 int Copy_UpgradeApplication() {
-	uint8_t * pointer_internal= (uint8_t *)FLASH_BOOT_END;
+	uint8_t * pointer_internal= (uint8_t *)FLASH_APP_START;
 	uint32_t i;
 
   // erase flash
   for(i=(uint32_t)pointer_internal;i<FLASH_NEW_APPLICATION_START;i+=4096) {
     MSC_ErasePage((void*)i);
   }
-  uint32_t *base_add = (uint32_t *)FLASH_BOOT_END ;
+  uint32_t *base_add = (uint32_t *)FLASH_APP_START ;
   uint32_t *pointer_inbuffer = (uint32_t *)FLASH_NEW_APPLICATION_START ;
 
   // copy to internal flash
-  MSC_WriteWord(base_add, pointer_inbuffer, FLASH_NEW_APPLICATION_END-FLASH_NEW_APPLICATION_START);
+  MSC_WriteWord(base_add, pointer_inbuffer, FLASH_PARAMETERS_START-FLASH_NEW_APPLICATION_START);
 
   return 1;
 }
 
 int check_for_NewUpgrade()
 {
-	uint32_t *inBuffer = (uint32_t*)FLASH_NEW_APPLICATION_END;
+	uint32_t *inBuffer = (uint32_t*)FLASH_PARAMETERS_START;
  return inBuffer[0];
 }
 
@@ -65,11 +65,11 @@ void boot(void) {
   NVIC->ICER[1] = 0xFFFFFFFF;
 
   /* set vector table pointer */
-  SCB->VTOR = (uint32_t)FLASH_BOOT_END;
+  SCB->VTOR = (uint32_t)FLASH_APP_START;
 
   /* read SP and PC from vector table */
-  sp = *((uint32_t *)FLASH_BOOT_END);
-  pc = *((uint32_t *)FLASH_BOOT_END + 1);
+  sp = *((uint32_t *)FLASH_APP_START);
+  pc = *((uint32_t *)FLASH_APP_START + 1);
 
   /* set MSP and PSP based on SP */
   asm("msr msp, %[sp]" :: [sp] "r" (sp));
@@ -88,7 +88,7 @@ void Select_Application()
 
     printf("Upgrading firmware...\n");
 		Copy_UpgradeApplication();
-		uint32_t *base_add =  (uint32_t*)FLASH_NEW_APPLICATION_END;
+		uint32_t *base_add =  (uint32_t*)FLASH_NEW_APP_FLAG;
 
     MSC_ErasePage(base_add);
     MSC_WriteWord(base_add, 0, 4);

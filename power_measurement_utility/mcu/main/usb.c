@@ -41,6 +41,7 @@ uint8_t stopCore;
 uint64_t frameBp;
 
 static uint32_t crc_mcu;
+static uint32_t flashPackageCounter;
 
 static uint32_t lowWanted[7];
 static uint32_t lowActual[7];
@@ -114,29 +115,8 @@ void Fill_boot_reply_package( struct BootInitReplyPackage  * boot_reply_package)
 {
 	boot_reply_package->hwVersion=getUint32("hwver");        // hardware_version
 	boot_reply_package->swVersion=SW_VERSION;// software_version
-	//BootInit_reply_package->NANDflash_version=0x7520; // nan versian
 	boot_reply_package->BlVersion=2102;
-	/*
- int res1 = check_flash_for_Framework(Flash_offset1 ,  inBuffer );// check nand flash Flash_offset1 section
- int res2 = check_flash_for_Framework(Flash_offset2 ,  inBuffer );// check nand flash Flash_offset2 section
- if((res1 == -1)||(res2 == -1) )
- {
-	 // if none of flash section valid , return not ready
-  boot_reply_package->ready = 0 ;
-  return ;
- }
- if(res1<0)
- {
-	 res1=0;
- }
- if(res2<0)
- {
-	 res2=0;
- }
- */
 	boot_reply_package->ready = 1 ;// raedy
- //boot_reply_package->boot_version1 = res1 ;
-// boot_reply_package->boot_version2 = res2 ;
  return ;
 }
 
@@ -153,10 +133,8 @@ void Flash_erase()
 	uint8_t * pointer_internal= (uint8_t *)FLASH_NEW_APPLICATION_START;
 	for(i=(uint32_t)pointer_internal;i<FLASH_SIZE;i+=4096)
 	 {
-		 // erace internal flash
 		 MSC_ErasePage((uint32_t*)i);
 	 }
-	// erace nand flash from flash_address_start to flash_address_end
 }
 
 uint32_t CRC32(uint32_t CRC , uint32_t *data , int length )
@@ -178,15 +156,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_INIT: {
         initReply.hwVersion = getUint32("hwver");
         initReply.swVersion = SW_VERSION;
-
-        initReply.calibration[0] = 0;
-        initReply.calibration[1] = 0;
-        initReply.calibration[2] = 0;
-        initReply.calibration[3] = 0;
-        initReply.calibration[4] = 0;
-        initReply.calibration[5] = 0;
-        initReply.calibration[6] = 0;
-        initReply.adcCal = 0;
+        initReply.bootVersion = 1;
 
         while(USBD_EpIsBusy(CDC_EP_DATA_IN));
         int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket), InitSent);
@@ -231,6 +201,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         Send_Data2PC((uint8_t *)&boot_reply_package,sizeof (struct BootInitReplyPackage));
         Flash_erase();
         crc_mcu = 0;
+        flashPackageCounter = 0;
         printf("Receiving new firmware...\n");
         MSC_Deinit();
         break;
@@ -241,7 +212,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
         struct FlashBootPackage *flash_boot_package = (struct FlashBootPackage *)req;
 
-        uint32_t *base_add = (uint32_t*)flash_boot_package->flash_address;
+        uint32_t *base_add = (uint32_t*)(FLASH_NEW_APPLICATION_START+flashPackageCounter*FLASH_BUFFER_SIZE);
         uint32_t *pointer_inbuffer = (uint32_t*)flash_boot_package->Data;
 
         MSC_WriteWord(base_add, pointer_inbuffer, FLASH_BUFFER_SIZE);
@@ -249,6 +220,8 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         crc_mcu=CRC32(crc_mcu,(uint32_t * )flash_boot_package->Data,FLASH_BUFFER_SIZE/4);
 
         MSC_Deinit();
+
+        flashPackageCounter++;
 
         break;
       }
@@ -267,7 +240,7 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
 
           uint32_t buf = NEW_APP_MAGIC;
 
-          MSC_WriteWord((uint32_t*)FLASH_NEW_APPLICATION_END, &buf, 4);
+          MSC_WriteWord((uint32_t*)FLASH_NEW_APP_FLAG, &buf, 4);
 
           MSC_Deinit();
 

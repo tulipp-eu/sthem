@@ -37,6 +37,8 @@
 #define SW_VERSION_1_3 0x13
 #define SW_VERSION_1_4 0x14
 
+#define BOOT_VERSION_1_0 0x10
+
 ///////////////////////////////////////////////////////////////////////////////
 
 #define USB_CMD_INIT           'i'
@@ -130,9 +132,6 @@ struct __attribute__((__packed__)) TestRequestPacket {
 
 struct __attribute__((__packed__)) FlashBootPackage {
 	struct RequestPacket request;
-  uint16_t index;
-  uint32_t flash_address;
-  uint8_t end;
   uint8_t Data[FLASH_BUFFER_SIZE];
 };
 
@@ -144,11 +143,18 @@ struct __attribute__((__packed__)) ResetPackage {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+struct __attribute__((__packed__)) InitReplyPacketV1_0 {
+  uint8_t hwVersion;
+  uint8_t swVersion;
+  double calibration[7];
+  uint32_t adcCal;
+};
+
 struct __attribute__((__packed__)) InitReplyPacket {
   uint8_t hwVersion;
   uint8_t swVersion;
-  double calibration[7]; // deprecated after V1.4
-  uint32_t adcCal;       // deprecated after V1.4
+  uint8_t bootVersion;
+  uint8_t reserved[59];
 };
 
 struct __attribute__((__packed__)) CalInfoPacket {

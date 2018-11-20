@@ -786,10 +786,6 @@ uint32_t CRC32(uint32_t CRC , uint32_t *data , int length )
  return CRC ;
 }
 
-#define FLASH_BOOT_END                0x10000
-#define FLASH_NEW_APPLICATION_START   0x80000
-#define FLASH_NEW_APPLICATION_END     0xf0000
-
 int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
 {
 	uint32_t crc_pc=0;
@@ -840,9 +836,7 @@ int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
 
   /*==========send firmware data ===========================*/
  
-  uint32_t Flash_offset;
   struct ResetPackage reset_package;
-  Flash_offset= FLASH_NEW_APPLICATION_START;
 
 	struct FlashBootPackage bootPack;
 	long i ;
@@ -862,9 +856,6 @@ int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
 	for(i=0;;i++)
     {
       bootPack.request.cmd=USB_CMD_FLASH_Save;
-      bootPack.index=i+1;
-      bootPack.flash_address=Flash_offset+i*FLASH_BUFFER_SIZE;//+i/21*8;
-      bootPack.end=0;
       r = fread(bootPack.Data, 1, FLASH_BUFFER_SIZE, fp);
       if (r==0) break;
       crc_pc=CRC32(crc_pc,(uint32_t *)bootPack.Data,FLASH_BUFFER_SIZE/4);
