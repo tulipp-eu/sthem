@@ -187,14 +187,6 @@ struct __attribute__((__packed__)) SampleReplyPacket {
   uint16_t flags;
 };
 
-struct __attribute__((__packed__)) BootInitReplyPackage {
-	struct RequestPacket reply;
-  uint16_t ready;
-  uint16_t hwVersion;
-  uint16_t swVersion;
-  uint16_t BlVersion;
-};
-
 ///////////////////////////////////////////////////////////////////////////////
 
 #endif

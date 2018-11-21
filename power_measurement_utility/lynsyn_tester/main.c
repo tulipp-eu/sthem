@@ -202,7 +202,10 @@ bool programFpga(void) {
 }
 
 bool programMcu(void) {
-  int ret = system("commander flash lynsyn.bin --device EFM32GG332F1024");
+  int ret = system("commander flash lynsyn_boot.bin --halt --device EFM32GG332F1024");
+  if(!ret) {
+    ret = system("commander flash lynsyn_main.bin --address 0x10000 --device EFM32GG332F1024");
+  }
 
   if(ret) {
     printf("Can't program the MCU.  Possible problems:\n");
@@ -786,7 +789,7 @@ uint32_t CRC32(uint32_t CRC , uint32_t *data , int length )
  return CRC ;
 }
 
-int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
+int Send_bit_TO_MCU(char* Add)//address for .bin ,)
 {
 	uint32_t crc_pc=0;
 	printf("*** Firmware Update.*** \n");
@@ -794,14 +797,11 @@ int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
   /*===========input file==========================*/
 
   FILE *fp = fopen(Add, "rb");
-	if(only_show==0)
-    {
-      if(!fp) {
-        printf("Can't open file '%s'\nnot valid or access deny", Add);
-        exit(-2);
-      }
-      printf("*** File Check.*** \n");
-    }
+  if(!fp) {
+    printf("Can't open file '%s'\nnot valid or access deny", Add);
+    exit(-2);
+  }
+  printf("*** File Check.*** \n");
 
   /*============check board=========================*/
 
@@ -816,23 +816,6 @@ int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
 	struct RequestPacket initRequest;
   initRequest.cmd = USB_CMD_BootMode;
   sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
-
-  // get data from MCU /// get byte
-  struct BootInitReplyPackage bootReply ;
-  getBytes((uint8_t*)&bootReply, sizeof(struct BootInitReplyPackage));
-  if( bootReply.ready !=1)
-    {
-    	printf("*** MCU is not ready to receiving firmware\n");
-    	exit(-5);
-    }
-  printf("*** MCU is ready to receiving data\n");
-  printf("*** MCU boot( hardware_version) %i\n" ,bootReply.hwVersion );
-  printf("*** MCU boot( software_version) %i\n" ,bootReply.swVersion );
-  printf("*** MCU boot( BOOT_Loader_version) %i\n" ,bootReply.BlVersion );
-  if(only_show==1)
-    {
-      return 1;
-    }
 
   /*==========send firmware data ===========================*/
  
@@ -874,8 +857,14 @@ int Send_bit_TO_MCU(char* Add,int only_show)//address for .bin ,)
   reset_package.crc=crc_pc;
   sendBytes((uint8_t*)&reset_package, sizeof(struct ResetPackage));
 
-  printf("*** Upgrading was successful \n");
   releaseLynsyn();
+  
+  sleep(1);
+
+  automaticTests(false);
+
+  printf("*** Upgrading was successful \n");
+
   return 1 ;
 }
 
@@ -888,7 +877,7 @@ void usbFirmwareUpgrade() {
     exit(-1);
   }
 
-  Send_bit_TO_MCU(filename, 0);
+  Send_bit_TO_MCU(filename);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -897,9 +886,9 @@ static char doc[] = "A test and calibration tool for Lynsyn boards";
 static char args_doc[] = "";
 
 static struct argp_option options[] = {
-  {"board-version",  'b', "version",      0,  "Board version" },
-  {"procedure",    'p', "procedure",      0,  "Which procedure to run" },
-  {"acceptance",   'a', "value",      0, "Maximum allowed error in percentage (0.01 default" },
+  {"board-version", 'b', "version",   0, "Board version" },
+  {"procedure",     'p', "procedure", 0, "Which procedure to run" },
+  {"acceptance",    'a', "value",     0, "Maximum allowed error in percentage (0.01 default" },
   { 0 }
 };
 
@@ -971,9 +960,10 @@ int main(int argc, char *argv[]) {
     printf("Enter '3' for only automatic testing\n");
     printf("Enter '4' for downloading cal data\n");
     printf("Enter '5' for uploading cal data\n");
-    printf("Enter '6' for only MCU and FPGA flashing\n");
-    printf("Enter '7' for live measurements\n");
-    printf("Enter '8' for USB firmware upgrade\n");
+    printf("Enter '6' for only MCU flashing\n");
+    printf("Enter '7' for only FPGA flashing\n");
+    printf("Enter '8' for live measurements\n");
+    printf("Enter '9' for USB firmware upgrade\n");
     if(!fgets(choiceBuf, 80, stdin)) {
       printf("I/O error\n");
       exit(-1);
@@ -1023,16 +1013,31 @@ int main(int argc, char *argv[]) {
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
-      program();
+      printf("*** Connect EFM32 programmer to Lynsyn.\n");
+      getchar();
+
+      programMcu();
+
       automaticTests(false);
       break;
     case 7:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
-      live();
+      printf("*** Connect the Xilinx USB cable to Lynsyn J5.\n");
+      getchar();
+
+      programFpga();
+
+      automaticTests(false);
       break;
     case 8:
+      printf("*** Connect Lynsyn to the PC USB port.\n");
+      getchar();
+
+      live();
+      break;
+    case 9:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 

@@ -50,7 +50,7 @@
 #define FLASH_PARAMETERS_START        0x0f0000
 #define FLASH_NEW_APP_FLAG            0x0f0000
 
-#define NEW_APP_MAGIC 0x3821a0b3
+#define NEW_APP_MAGIC 0x4e415050
 
 ///////////////////////////////////////////////////////////////////////////////
 // lynsyn settings

@@ -111,22 +111,6 @@ int InitSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
   return USB_STATUS_OK;
 }
 
-void Fill_boot_reply_package( struct BootInitReplyPackage  * boot_reply_package)
-{
-	boot_reply_package->hwVersion=getUint32("hwver");        // hardware_version
-	boot_reply_package->swVersion=SW_VERSION;// software_version
-	boot_reply_package->BlVersion=2102;
-	boot_reply_package->ready = 1 ;// raedy
- return ;
-}
-
-void Send_Data2PC(uint8_t *inBuffer, int length) {
-	// send data to host 
-  while(USBD_EpIsBusy(CDC_EP_DATA_IN));
-  int ret = USBD_Write(CDC_EP_DATA_IN, inBuffer, length , UsbDataSent);
-  if(ret != USB_STATUS_OK) printf("Data error send: %d\n", ret);
-}
-
 void Flash_erase()
 {
 	int i;
@@ -195,10 +179,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
       case USB_CMD_BootMode: {
         // ack to host command for Boot info and Version
         MSC_Init();
-        struct BootInitReplyPackage boot_reply_package;
-        Fill_boot_reply_package( &boot_reply_package ) ;
-        boot_reply_package.reply.cmd= USB_CMD_BootMode;
-        Send_Data2PC((uint8_t *)&boot_reply_package,sizeof (struct BootInitReplyPackage));
         Flash_erase();
         crc_mcu = 0;
         flashPackageCounter = 0;
@@ -333,8 +313,6 @@ int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
         }
         currentAvg /= CAL_AVERAGE_SAMPLES;
         
-        printf("cal %lx\n", currentAvg);
-
         if(cal->flags & CALREQ_FLAG_HIGH) {
           uint32_t highWanted = cal->calVal >> 1;
           uint32_t highActual = currentAvg;
