@@ -32,6 +32,8 @@
 
 #include "../common/swo.h"
 
+static uint32_t bootVersion __attribute__ ((section (".version"))) __attribute__ ((__used__)) = BOOT_VERSION;
+
 ///////////////////////////////////////////////////////////////////////////////
 
 int Copy_UpgradeApplication() {

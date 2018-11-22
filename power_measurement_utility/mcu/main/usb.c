@@ -114,7 +114,7 @@ static void Send_Data2PC(void *inBuffer, int length) {
 static void sendInitReply(void) {
   initReply.hwVersion = getUint32("hwver");
   initReply.swVersion = SW_VERSION;
-  initReply.bootVersion = 1;
+  initReply.bootVersion = (uint8_t)*(uint32_t*)FLASH_BOOT_VERSION;
 
   while(USBD_EpIsBusy(CDC_EP_DATA_IN));
   int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket) , InitSent);
