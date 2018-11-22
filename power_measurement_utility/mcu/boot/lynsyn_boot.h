@@ -36,6 +36,8 @@
 #include "em_system.h"
 #include "em_chip.h"
  
+#define USE_SWO
+
 #define BOOT_VERSION 0x10
 #define BOOT_VERSION_STRING "V1.0"
 

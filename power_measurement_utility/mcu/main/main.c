@@ -52,7 +52,7 @@ volatile uint32_t highWord = 0;
 static struct SampleReplyPacket sampleBuf1[MAX_SAMPLES] __attribute__((__aligned__(4)));
 static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned__(4)));
 
-#ifndef SWO
+#ifndef USE_SWO
 
 #define I2C_NO_CMD               0
 #define I2C_MAGIC                1
@@ -78,7 +78,7 @@ static uint64_t i2cCurrentAcc[7];
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SWO
+#ifndef USE_SWO
 
 void i2cInit(void) {
   CMU_ClockEnable(cmuClock_I2C0, true);  
@@ -220,7 +220,7 @@ int main(void) {
   CMU_ClockEnable(cmuClock_HFPER, true);
   CMU_ClockEnable(cmuClock_USB, true);
   CMU_ClockEnable(cmuClock_ADC0, true);
-#ifndef SWO
+#ifndef USE_SWO
   CMU_ClockEnable(cmuClock_I2C0, true);
   CMU_ClockEnable(cmuClock_CORELE, true);
 #endif
@@ -241,7 +241,7 @@ int main(void) {
   usbInit();
   jtagInit();
 
-#ifndef SWO
+#ifndef USE_SWO
   GPIO_PinModeSet(TRIGGER_IN_PORT, TRIGGER_IN_BIT, gpioModeInput, 0);
   while(DWT->CYCCNT < BOOT_DELAY);
   i2cInit();
@@ -283,7 +283,7 @@ int main(void) {
 
       bool halted = false;
 
-#ifndef SWO
+#ifndef USE_SWO
       bool send = !gpioMode;
 
       if(gpioMode && !GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
@@ -322,7 +322,7 @@ int main(void) {
 
         adcScanWait();
 
-#ifndef SWO
+#ifndef USE_SWO
         if(GPIO_PinInGet(TRIGGER_IN_PORT, TRIGGER_IN_BIT)) {
           send = true;
         }
@@ -330,7 +330,7 @@ int main(void) {
       }
 
       if(halted) {
-#ifndef SWO
+#ifndef USE_SWO
         send = true;
 #endif
         samplePtr->time = -1;
@@ -350,7 +350,7 @@ int main(void) {
         samples = 0;
       }
 
-#ifndef SWO
+#ifndef USE_SWO
       if(send) {
 #else
       {
@@ -367,7 +367,7 @@ int main(void) {
           currentSample = 0;
         }
       }
-#ifndef SWO
+#ifndef USE_SWO
     } else {
       adcScan(i2cCurrent);
       adcScanWait();
@@ -392,3 +392,13 @@ int64_t calculateTime() {
   __enable_irq();
   return ((uint64_t)highWord << 32) | lowWord;
 }
+
+int _write(int fd, char *str, int len) {
+#ifdef USE_SWO
+  for (int i = 0; i < len; i++) {
+    ITM_SendChar(str[i]);
+  }
+#endif
+  return len;
+}
+
