@@ -31,6 +31,9 @@
 
 #include "analysis_tool.h"
 
+#define STOP_AT_BREAKPOINT 0
+#define STOP_AT_TIME       1
+
 #define LYNSYN_MAX_CORES 4
 #define LYNSYN_SENSORS 7
 #define LYNSYN_FREQ 48000000
@@ -79,8 +82,9 @@ public:
   double currentToPower(unsigned sensor, double current);
   static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorOffset, double *sensorGain);
 
-  void collectSamples(bool useFrame, uint64_t frameAddr, bool useBp, bool samplePc, bool samplingModeGpio, bool usePeriod, 
-                      int64_t samplePeriod, unsigned startCore, uint64_t startAddr, unsigned stopCore, uint64_t stopAddr, 
+  bool collectSamples(bool useFrame, bool useStartBp,
+                      uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
+                      int64_t samplePeriod, uint64_t startAddr, uint64_t stopAddr, 
                       uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                       double *runtime, double *energy);
 

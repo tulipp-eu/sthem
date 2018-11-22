@@ -67,17 +67,19 @@ public:
   int cfgOptLevel;
   QString tcfUploadScript;
   Pmu pmu;
-  QString startFunc;
-  unsigned startCore;
-  QString stopFunc;
-  unsigned stopCore;
-  bool createBbInfo;
-  bool useCustomElf;
-  bool samplePc;
-  bool useBp;
+
   bool samplingModeGpio;
+  bool runTcf;
+  bool samplePc;
+
+  QString startFunc;
+
+  unsigned stopAt;
+  QString stopFunc;
   int64_t samplePeriod;
+
   bool instrument;
+  bool createBbInfo;
 
   // settings from either sdsoc project or user
   QStringList sources;

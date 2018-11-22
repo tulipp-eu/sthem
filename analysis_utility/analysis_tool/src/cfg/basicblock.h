@@ -54,6 +54,9 @@ public:
 
   virtual QString getCfgName();
 
+  virtual int appendInstructions(QGraphicsItem *parent, int xx, int yy, unsigned *width,
+                                 Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling);
+
   void appendEdge(QString edgeId) {
     Vertex::appendEdge(edgeId);
     exitNodes.push_back(new Exit("bb" + id + "exit" + exitNodes.size(), this));

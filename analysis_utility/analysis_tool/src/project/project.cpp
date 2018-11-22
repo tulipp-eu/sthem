@@ -32,6 +32,7 @@
 
 #include "analysis_tool.h"
 #include "project.h"
+#include "pmu.h"
 #include "location.h"
 
 struct gmonhdr {
@@ -313,16 +314,18 @@ void Project::loadProjectFile() {
   pmu.rl[4] = settings.value("rl4", 0.1).toDouble();
   pmu.rl[5] = settings.value("rl5", 1).toDouble();
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
-  useCustomElf = settings.value("useCustomElf", false).toBool();
-  samplePc = settings.value("samplePc", true).toBool();
-  useBp = settings.value("useBp", true).toBool();
+
   samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
-  samplePeriod = settings.value("samplePeriod", 0).toLongLong();
-  customElfFile = settings.value("customElfFile", "").toString();
+  runTcf = settings.value("runTcf", true).toBool();
+  samplePc = settings.value("samplePc", true).toBool();
+
   startFunc = settings.value("startFunc", "main").toString();
-  startCore = settings.value("startCore", 0).toUInt();
+
+  stopAt = settings.value("stopAt", 0).toUInt();
   stopFunc = settings.value("stopFunc", "_exit").toString();
-  stopCore = settings.value("stopCore", 0).toUInt();
+  samplePeriod = settings.value("samplePeriod", 0).toLongLong();
+
+  customElfFile = settings.value("customElfFile", "").toString();
   instrument = settings.value("instrument", false).toBool();
 
   if(!isSdSocProject()) {
@@ -360,16 +363,19 @@ void Project::saveProjectFile() {
   }
   settings.setValue("ultrascale", ultrascale);
   settings.setValue("tcfUploadScript", tcfUploadScript);
-  settings.setValue("useCustomElf", useCustomElf);
+
   settings.setValue("customElfFile", customElfFile);
-  settings.setValue("samplePc", samplePc);
-  settings.setValue("useBp", useBp);
+
   settings.setValue("samplingModeGpio", samplingModeGpio);
-  settings.setValue("samplePeriod", (qint64)samplePeriod);
+  settings.setValue("runTcf", runTcf);
+  settings.setValue("samplePc", samplePc);
+
   settings.setValue("startFunc", startFunc);
-  settings.setValue("startCore", startCore);
+  settings.setValue("samplePeriod", (qint64)samplePeriod);
+
+  settings.setValue("stopAt", stopAt);
   settings.setValue("stopFunc", stopFunc);
-  settings.setValue("stopCore", stopCore);
+
   settings.setValue("instrument", instrument);
 
   settings.setValue("sources", sources);
@@ -512,11 +518,8 @@ void Project::copy(Project *p) {
   //pmu = p->pmu;
   ultrascale = p->ultrascale;
   startFunc = p->startFunc;
-  startCore = p->startCore;
   stopFunc = p->stopFunc;
-  stopCore = p->stopCore;
   createBbInfo = p->createBbInfo;
-  useCustomElf = p->useCustomElf;
   
   // settings from either sdsoc project or user
   sources = p->sources;
@@ -592,17 +595,26 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   BasicBlock *bb = NULL;
   Function *func = NULL;
 
-  if(!useCustomElf && elfSupport->isBb(pc)) {
+  if(elfSupport->isBb(pc)) {
     Module *mod = cfg->getModuleById(elfSupport->getModuleId(pc));
     if(mod) bb = mod->getBasicBlockById(QString::number(elfSupport->getLineNumber(pc)));
 
-  } else {
+  }
+
+  if(!bb) {
     QString functionId;
+    QString funcName;
+
+    if(elfSupport->isBb(pc)) {
+      funcName = "Unknown";
+    } else {
+      funcName = elfSupport->getFunction(pc);
+    }
 
     if(core != 0) {
-      functionId = QString("CPU") + QString::number(core) + "_" + elfSupport->getFunction(pc);
+      functionId = QString("CPU") + QString::number(core) + "_" + funcName;
     } else {
-      functionId = elfSupport->getFunction(pc);
+      functionId = funcName;
     }
 
     func = cfg->getFunctionById(functionId);
@@ -804,7 +816,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlQuery query;
 
   ElfSupport elfSupport;
-  if(!useCustomElf) elfSupport.addElf(elfFile);
+  elfSupport.addElf(elfFile);
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -823,8 +835,8 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   unsigned core = 0;
   unsigned sensor = 0;
-  double offsetData[7];
-  double gainData[7];
+  double offsetData[LYNSYN_SENSORS];
+  double gainData[LYNSYN_SENSORS];
   double period = 0;
   double unknownPower = 0;
   double unknownRuntime = 0;
@@ -832,7 +844,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   file.read((char*)&core, sizeof(uint8_t));
   file.read((char*)&sensor, sizeof(uint8_t));
-  for(int i = 0; i < 7; i++) {
+  for(int i = 0; i < LYNSYN_SENSORS; i++) {
     file.read((char*)&offsetData[i], sizeof(double));
     file.read((char*)&gainData[i], sizeof(double));
   }
@@ -846,7 +858,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlDatabase::database().transaction();
 
   if((unknownPower != 0) || (unknownRuntime != 0)) {
-    double energy[7] = {0, 0, 0, 0, 0, 0, 0};
+    double energy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
     if(unknownRuntime) {
       energy[sensor] = unknownPower * unknownRuntime;
     }
@@ -874,7 +886,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   }
 
   double totalRuntime = 0;
-  double totalEnergy[7] = {0, 0, 0, 0, 0, 0, 0};
+  double totalEnergy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
 
   for(uint32_t i = 0; i < count; i++) {
     uint64_t pc;
@@ -976,7 +988,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 bool Project::runProfiler() {
 
   ElfSupport elfSupport;
-  if(!useCustomElf) elfSupport.addElf(elfFile);
+  elfSupport.addElf(elfFile);
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -987,7 +999,7 @@ bool Project::runProfiler() {
     return false;
   }
 
-  if(!useBp) {
+  if(!runTcf) {
     emit advance(0, "Skipping upload");
 
   } else {
@@ -1028,19 +1040,25 @@ bool Project::runProfiler() {
     uint64_t startAddr = 0;
     uint64_t stopAddr = 0;
 
-    if(useBp) {
+    if(runTcf) {
       startAddr = elfSupport.lookupSymbol(startFunc);
+    }
+
+    if(stopAt == STOP_AT_BREAKPOINT) {
       stopAddr = elfSupport.lookupSymbol(stopFunc);
     }
 
-    bool usePeriod = samplePeriod != 0;
-
-    bool useFrame = true;
     uint64_t frameAddr = elfSupport.lookupSymbol("__tulippFrameDone");
 
-    pmu.collectSamples(useFrame, frameAddr, useBp, samplePc, samplingModeGpio, usePeriod, 
-                       samplePeriod, startCore, startAddr, stopCore, stopAddr,
-                       &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
+    bool ret = pmu.collectSamples(runTcf, runTcf,
+                                  frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 
+                                  samplePeriod, startAddr, stopAddr,
+                                  &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
+    if(!ret) {
+      emit finished(1, "Invalid profile settings for PMU firmware version, upgrade firmware");
+      pmu.release();
+      return false;
+    }
   }
 
   pmu.release();
@@ -1126,7 +1144,7 @@ bool Project::runProfiler() {
 
           } else {
             // next frame
-            for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
+            for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
             for(int i = 0; i < LYNSYN_SENSORS; i++) {
               if(currentFrameEnergy[i] > frameEnergyMax[i]) frameEnergyMax[i] = currentFrameEnergy[i];
               if((frameEnergyMin[i] == 0) || (currentFrameEnergy[i] < frameEnergyMin[i])) frameEnergyMin[i] = currentFrameEnergy[i];
@@ -1135,14 +1153,14 @@ bool Project::runProfiler() {
             }
           }
 
-          for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->clearFrameData();
+          for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->clearFrameData();
         }
       }
 
-      QString bbText[4];
-      QString modText[4];
+      QString bbText[LYNSYN_MAX_CORES];
+      QString modText[LYNSYN_MAX_CORES];
 
-      uint64_t pc[4];
+      uint64_t pc[LYNSYN_MAX_CORES];
       pc[0] = query.value("pc1").toULongLong();
       pc[1] = query.value("pc2").toULongLong();
       pc[2] = query.value("pc3").toULongLong();
@@ -1150,7 +1168,7 @@ bool Project::runProfiler() {
 
       int64_t timeSinceLast = query.value("timeSinceLast").toLongLong();
 
-      double power[7];
+      double power[LYNSYN_SENSORS];
       power[0] = query.value("power1").toDouble();
       power[1] = query.value("power2").toDouble();
       power[2] = query.value("power3").toDouble();
@@ -1161,14 +1179,14 @@ bool Project::runProfiler() {
 
       for(int i = 0; i < LYNSYN_SENSORS; i++) currentFrameEnergy[i] += power[i] * Pmu::cyclesToSeconds(timeSinceLast);
 
-      for(int core = 0; core < 4; core++) {
+      for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
         Location *location = getLocation(core, pc[core], &elfSupport, &locations[core]);
 
         bbText[core] = location->bbId;
         modText[core] = location->moduleId;
 
         location->updateRuntime(Pmu::cyclesToSeconds(timeSinceLast));
-        for(int sensor = 0; sensor < 7; sensor++) {
+        for(int sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
           location->updateEnergy(sensor, power[sensor] * Pmu::cyclesToSeconds(timeSinceLast));
         }
       }

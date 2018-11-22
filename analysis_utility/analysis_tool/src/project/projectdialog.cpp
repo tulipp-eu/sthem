@@ -23,6 +23,46 @@
 #include "config/config.h"
 #include "analysis_tool.h"
 
+void ProjectProfPage::updateGui() {
+  // sample pc
+  if(runTcfCheckBox->checkState() != Qt::Checked) {
+    samplePcCheckBox->setCheckState(Qt::Unchecked);
+    samplePcCheckBox->setDisabled(1);
+  } else {
+    samplePcCheckBox->setEnabled(1);
+  }
+
+  // stop at combo
+  if((samplePcCheckBox->checkState() != Qt::Checked) ||
+     (runTcfCheckBox->checkState() != Qt::Checked)) {
+    stopAtCombo->setCurrentIndex(STOP_AT_TIME);
+    stopAtCombo->setDisabled(1);
+  } else {
+    stopAtCombo->setEnabled(1);
+  }
+
+  // start func
+  if(runTcfCheckBox->checkState() != Qt::Checked) {
+    startFuncEdit->setDisabled(1);
+  } else {
+    startFuncEdit->setEnabled(1);
+  }
+
+  // stop func
+  if(stopAtCombo->currentIndex() == STOP_AT_BREAKPOINT) {
+    stopFuncEdit->setEnabled(1);
+  } else {
+    stopFuncEdit->setDisabled(1);
+  }
+
+  // sample period
+  if(stopAtCombo->currentIndex() == STOP_AT_BREAKPOINT) {
+    samplePeriodEdit->setDisabled(1);
+  } else {
+    samplePeriodEdit->setEnabled(1);
+  }
+}
+
 ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(parent) {
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
@@ -299,29 +339,49 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
 
   //---------------------------------------------------------------------------
 
-  QGroupBox *breakpointsGroup = new QGroupBox("Measurements");
+  QGroupBox *measurementsGroup = new QGroupBox("Measurements");
 
   QHBoxLayout *customElfLayout = new QHBoxLayout;
-  customElfCheckBox = new QCheckBox("Use custom elf");
-  customElfCheckBox->setCheckState(project->useCustomElf ? Qt::Checked : Qt::Unchecked);
+  QLabel *customElfLabel = new QLabel("Custom elf files:");
   customElfEdit = new QLineEdit(project->customElfFile);
-  customElfLayout->addWidget(customElfCheckBox);
+  customElfLayout->addWidget(customElfLabel);
   customElfLayout->addWidget(customElfEdit);
 
-  QHBoxLayout *startLayout = new QHBoxLayout;
-  QLabel *startFuncLabel = new QLabel("Start at function:");
-  startLayout->addWidget(startFuncLabel);
-  startFuncEdit = new QLineEdit(project->startFunc);
-  startLayout->addWidget(startFuncEdit);
-  QLabel *startCoreLabel = new QLabel("On core:");
-  startLayout->addWidget(startCoreLabel);
-  startCoreEdit = new QLineEdit(QString::number(project->startCore));
-  startCoreEdit->setValidator(new QIntValidator(0, Pmu::MAX_CORES, this));
-  startLayout->addWidget(startCoreEdit);
-  startLayout->addStretch(1);
+  samplingModeGpioCheckBox = new QCheckBox("GPIO controlled sampling");
+  samplingModeGpioCheckBox->setCheckState(project->samplingModeGpio ? Qt::Checked : Qt::Unchecked);
+
+  runTcfCheckBox = new QCheckBox("Upload binary and reset");
+  runTcfCheckBox->setCheckState(project->runTcf ? Qt::Checked : Qt::Unchecked);
+  connect(runTcfCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
 
   samplePcCheckBox = new QCheckBox("Sample PC");
   samplePcCheckBox->setCheckState(project->samplePc ? Qt::Checked : Qt::Unchecked);
+  connect(samplePcCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
+
+  QHBoxLayout *startLayout = new QHBoxLayout;
+  QLabel *startFuncLabel = new QLabel("Start location:");
+  startLayout->addWidget(startFuncLabel);
+  startFuncEdit = new QLineEdit(project->startFunc);
+  startLayout->addWidget(startFuncEdit);
+  startLayout->addStretch(1);
+
+  QHBoxLayout *stopAtLayout = new QHBoxLayout;
+  QLabel *stopAtLabel = new QLabel("Stop at:");
+  stopAtCombo = new QComboBox();
+  stopAtCombo->addItem("Location");
+  stopAtCombo->addItem("Time");
+  stopAtCombo->setCurrentIndex(project->stopAt);
+  stopAtLayout->addWidget(stopAtLabel);
+  stopAtLayout->addWidget(stopAtCombo);
+  stopAtLayout->addStretch(1);
+  connect(stopAtCombo, SIGNAL(activated(int)), this, SLOT(updateGui()));
+
+  QHBoxLayout *stopLayout = new QHBoxLayout;
+  QLabel *stopFuncLabel = new QLabel("Stop location:");
+  stopLayout->addWidget(stopFuncLabel);
+  stopFuncEdit = new QLineEdit(project->stopFunc);
+  stopLayout->addWidget(stopFuncEdit);
+  stopLayout->addStretch(1);
 
   QHBoxLayout *samplePeriodLayout = new QHBoxLayout;
   QLabel *samplePeriodLabel = new QLabel("Sample period:");
@@ -329,34 +389,17 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   samplePeriodLayout->addWidget(samplePeriodLabel);
   samplePeriodLayout->addWidget(samplePeriodEdit);
 
-  samplingModeGpioCheckBox = new QCheckBox("GPIO controlled sampling");
-  samplingModeGpioCheckBox->setCheckState(project->samplingModeGpio ? Qt::Checked : Qt::Unchecked);
-
-  useBpCheckBox = new QCheckBox("Use breakpoints");
-  useBpCheckBox->setCheckState(project->useBp ? Qt::Checked : Qt::Unchecked);
-
-  QHBoxLayout *stopLayout = new QHBoxLayout;
-  QLabel *stopFuncLabel = new QLabel("Stop at function:");
-  stopLayout->addWidget(stopFuncLabel);
-  stopFuncEdit = new QLineEdit(project->stopFunc);
-  stopLayout->addWidget(stopFuncEdit);
-  QLabel *stopCoreLabel = new QLabel("On core:");
-  stopLayout->addWidget(stopCoreLabel);
-  stopCoreEdit = new QLineEdit(QString::number(project->stopCore));
-  stopCoreEdit->setValidator(new QIntValidator(0, Pmu::MAX_CORES, this));
-  stopLayout->addWidget(stopCoreEdit);
-  stopLayout->addStretch(1);
-
-  QVBoxLayout *breakpointsLayout = new QVBoxLayout;
-  breakpointsLayout->addLayout(customElfLayout);
-  breakpointsLayout->addWidget(useBpCheckBox);
-  breakpointsLayout->addLayout(startLayout);
-  breakpointsLayout->addWidget(samplePcCheckBox);
-  breakpointsLayout->addLayout(samplePeriodLayout);
-  breakpointsLayout->addWidget(samplingModeGpioCheckBox);
-  breakpointsLayout->addLayout(stopLayout);
-  breakpointsLayout->addStretch(1);
-  breakpointsGroup->setLayout(breakpointsLayout);
+  QVBoxLayout *measurementsLayout = new QVBoxLayout;
+  measurementsLayout->addLayout(customElfLayout);
+  measurementsLayout->addWidget(samplingModeGpioCheckBox);
+  measurementsLayout->addWidget(runTcfCheckBox);
+  measurementsLayout->addWidget(samplePcCheckBox);
+  measurementsLayout->addLayout(startLayout);
+  measurementsLayout->addLayout(stopAtLayout);
+  measurementsLayout->addLayout(stopLayout);
+  measurementsLayout->addLayout(samplePeriodLayout);
+  measurementsLayout->addStretch(1);
+  measurementsGroup->setLayout(measurementsLayout);
 
   //---------------------------------------------------------------------------
 
@@ -364,9 +407,11 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   mainLayout->addWidget(tcfGroup);
   mainLayout->addWidget(lynsynGroup);
   mainLayout->addWidget(targetGroup);
-  mainLayout->addWidget(breakpointsGroup);
+  mainLayout->addWidget(measurementsGroup);
   mainLayout->addStretch(1);
   setLayout(mainLayout);
+
+  updateGui();
 }
 
 ProjectDialog::ProjectDialog(Project *project) {
@@ -446,7 +491,16 @@ void ProjectDialog::changePage(QListWidgetItem *current, QListWidgetItem *previo
 }
 
 void ProjectDialog::closeEvent(QCloseEvent *e) {
+  // main page
+
+  if(!project->isSdSocProject()) {
+    if(mainPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
+    else project->ultrascale = false;
+  }
+
   project->systemXmls = mainPage->xmlEdit->toPlainText().split("\n");
+
+  // build page
 
   if(buildPage->optCombo->currentIndex() == 4) {
     project->cfgOptLevel = -1;
@@ -478,31 +532,23 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
     project->linkerOptions = buildPage->linkerOptionsEdit->text();
   }
 
-  project->useCustomElf = profPage->customElfCheckBox->checkState() == Qt::Checked;
-  project->customElfFile = profPage->customElfEdit->text();
-
+  // prof page
   for(unsigned i = 0; i < project->pmu.numSensors(); i++) {
     project->pmu.supplyVoltage[i] = profPage->supplyVoltageEdit[i]->text().toDouble();
     project->pmu.rl[i] = profPage->rlEdit[i]->text().toDouble();
   }
 
-  if(!project->isSdSocProject()) {
-    if(mainPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
-    else project->ultrascale = false;
-  }
-
   project->tcfUploadScript = profPage->tcfUploadScriptEdit->toPlainText();
 
-  project->startFunc = profPage->startFuncEdit->text();
-  project->startCore = profPage->startCoreEdit->text().toUInt();
-
-  project->useBp = profPage->useBpCheckBox->checkState() == Qt::Checked;
-
+  project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
+  project->runTcf = profPage->runTcfCheckBox->checkState() == Qt::Checked;
   project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
+
+  project->startFunc = profPage->startFuncEdit->text();
+
+  project->stopAt = profPage->stopAtCombo->currentIndex();
+  project->stopFunc = profPage->stopFuncEdit->text();
   project->samplePeriod = profPage->samplePeriodEdit->text().toLongLong();
 
-  project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
-
-  project->stopFunc = profPage->stopFuncEdit->text();
-  project->stopCore = profPage->stopCoreEdit->text().toUInt();
+  project->customElfFile = profPage->customElfEdit->text();
 }

@@ -68,21 +68,25 @@ class ProjectProfPage : public QWidget {
 public slots:
   void setDefault(bool checked);
   void setDefaultUs(bool checked);
+  void updateGui();
 
 public:
-  QLineEdit *rlEdit[7];
-  QLineEdit *supplyVoltageEdit[7];
-  QLineEdit *startFuncEdit;
-  QLineEdit *startCoreEdit;
-  QLineEdit *stopFuncEdit;
-  QLineEdit *stopCoreEdit;
   QPlainTextEdit *tcfUploadScriptEdit;
-  QCheckBox *customElfCheckBox;
-  QLineEdit *customElfEdit;
-  QCheckBox *samplePcCheckBox;
-  QCheckBox *useBpCheckBox;
+  QLineEdit *rlEdit[LYNSYN_SENSORS];
+  QLineEdit *supplyVoltageEdit[LYNSYN_SENSORS];
+
   QCheckBox *samplingModeGpioCheckBox;
+  QCheckBox *runTcfCheckBox;
+  QCheckBox *samplePcCheckBox;
+
+  QCheckBox *startAtBpCheckBox;
+  QLineEdit *startFuncEdit;
+
+  QComboBox *stopAtCombo;
+  QLineEdit *stopFuncEdit;
   QLineEdit *samplePeriodEdit;
+
+  QLineEdit *customElfEdit;
 
   ProjectProfPage(Project *project, QWidget *parent = 0);
 };

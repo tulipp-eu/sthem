@@ -56,8 +56,6 @@ public:
       setPlainText(content);
     }
 
-    //std::sort(lineNumbers.begin(), lineNumbers.end());
-
     for(unsigned i : lineNumbers) {
       QTextCursor cursor(document()->findBlockByNumber(i-1));
       QTextBlockFormat blockFormat = cursor.blockFormat();
