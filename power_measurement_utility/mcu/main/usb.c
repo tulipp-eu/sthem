@@ -119,8 +119,6 @@ static void sendInitReply(void) {
   while(USBD_EpIsBusy(CDC_EP_DATA_IN));
   int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket) , InitSent);
   if(ret != USB_STATUS_OK) printf("Data error send: %d\n", ret);
-
-  Send_Data2PC(&initReply, sizeof(struct InitReplyPacket));
 }
 
 static void hwInit(struct HwInitRequestPacket *hwInitReq) {

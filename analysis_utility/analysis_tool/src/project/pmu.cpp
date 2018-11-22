@@ -122,18 +122,22 @@ bool Pmu::init() {
     swVersion = initReply.swVersion;
     hwVersion = initReply.hwVersion;
 
-    printf("Lynsyn Hardware %x Firmware %x\n", hwVersion, swVersion);
-
     if(swVersion <= SW_VERSION_1_3) {
+      struct InitReplyPacketV1_0 *initReplyV1_0 = (struct InitReplyPacketV1_0*)&initReply;
+
+      printf("Lynsyn Hardware %x Firmware %x\n", hwVersion, swVersion);
+
       for(unsigned i = 0; i < MAX_SENSORS; i++) {
-        if((initReply.calibration[i] < 0.8) || (initReply.calibration[i] > 1.2)) {
+        if((initReplyV1_0->calibration[i] < 0.8) || (initReplyV1_0->calibration[i] > 1.2)) {
           printf("Suspect calibration values\n");
           return false;
         }
-        sensorCalibration[i] = initReply.calibration[i];
+        sensorCalibration[i] = initReplyV1_0->calibration[i];
       }
 
     } else {
+      printf("Lynsyn Hardware %x Bootloader %x Software %x\n", hwVersion, initReply.bootVersion, swVersion);
+
       struct CalInfoPacket calInfo;
       getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
       for(unsigned i = 0; i < MAX_SENSORS; i++) {

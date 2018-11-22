@@ -150,7 +150,7 @@ struct __attribute__((__packed__)) InitReplyPacketV1_0 {
   uint32_t adcCal;
 };
 
-struct __attribute__((__packed__)) InitReplyPacket {
+struct __attribute__((__packed__)) InitReplyPacket { // from V1.4
   uint8_t hwVersion;
   uint8_t swVersion;
   uint8_t bootVersion;
@@ -180,7 +180,7 @@ struct __attribute__((__packed__)) SampleReplyPacketV1_0 {
   int16_t current[7];
 };
 
-struct __attribute__((__packed__)) SampleReplyPacket {
+struct __attribute__((__packed__)) SampleReplyPacket { // from V1.3
   int64_t time;
   uint64_t pc[4];
   int16_t current[7];
