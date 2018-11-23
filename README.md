@@ -6,4 +6,4 @@ All information is found in the [wiki](https://github.com/tulipp-eu/sthem/wiki).
 
 If you use STHEM for a publication, we would appreciate if you cite our ARC'18 paper:
 
-*"Supporting Utilities for Heterogeneous Embedded Image Processing Platforms (STHEM): An Overview"*, Ahmad Sadek, Ananya Muddukrishna, Lester Kalms, Asbjørn Djupdal, Ariel Podlubne, Diana Goehringer and Magnus Jahre, *In Proc. of the International Symposium on Applied Reconfigurable Computing (ARC)*, 2018.
+*["Supporting Utilities for Heterogeneous Embedded Image Processing Platforms (STHEM): An Overview"](https://link.springer.com/chapter/10.1007/978-3-319-78890-6_59)*, Ahmad Sadek, Ananya Muddukrishna, Lester Kalms, Asbjørn Djupdal, Ariel Podlubne, Diana Goehringer and Magnus Jahre, *In Proc. of the International Symposium on Applied Reconfigurable Computing (ARC)*, 2018.
