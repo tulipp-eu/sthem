@@ -88,6 +88,8 @@ public:
 
   static unsigned getSdsocVersion();
 
+  static Sdsoc *createSdsoc(unsigned version);
+
 	friend std::ostream& operator<<(std::ostream &os, const Sdsoc &p) {
     // only streams out the necessary parts for DSE
 		os << p.getTimingOk() << '\n';
@@ -170,6 +172,14 @@ public:
   }
 
   virtual void print();
+};
+
+//-----------------------------------------------------------------------------
+
+class Sdsoc20182 : public Sdsoc20174 {
+
+public:
+  Sdsoc20182() {}
 };
 
 #endif

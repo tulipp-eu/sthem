@@ -68,14 +68,7 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
   timer.start();
 
   // create run
-  Sdsoc *project = NULL;
-  if(Config::sdsocVersion == 20162) {
-    project = new Sdsoc20162(mainProject);
-  } else if(Config::sdsocVersion == 20172) {
-    project = new Sdsoc20172(mainProject);
-  } else if(Config::sdsocVersion == 20174) {
-    project = new Sdsoc20174(mainProject);
-  }
+  Sdsoc *project = Sdsoc::createSdsoc(Config::sdsocVersion);
 
   DseRun dseRun(genome, project, new Profile);
 
