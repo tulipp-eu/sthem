@@ -24,15 +24,16 @@
 
 #include "analysis_tool.h"
 #include "container.h"
+#include "region.h"
 #include "basicblock.h"
 
-class SuperBB : public BasicBlock {
+class SuperBB : public Region {
 
   Entry *entryNode;
   std::vector<Exit*> exitNodes;
 
 public:
-  SuperBB(QString id, Container *parent, unsigned treeviewRow) : BasicBlock(id, parent, treeviewRow) {
+  SuperBB(QString id, Container *parent, unsigned treeviewRow) : Region(id, parent, treeviewRow) {
     entryNode = NULL;
   }
   virtual ~SuperBB() {
@@ -61,6 +62,8 @@ public:
       child->calculateCallers();
     }
   }
+
+
 };
 
 #endif

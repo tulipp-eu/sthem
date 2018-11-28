@@ -273,7 +273,14 @@ void FunctionNode::printXML(FILE *fp) {
 void FunctionNode::instrument() {
   Node::instrument();
 
-  StringRef Func = "__tulipp_func_enter";
+  StringRef Func;
+
+  if(func->getName().str() == "main") {
+    Func = "__tulipp_init";
+  } else {
+    Func = "__tulipp_func_enter";
+  }
+
   Instruction *InsertionPt = &*func->begin()->getFirstInsertionPt();
 
   Module &M = *InsertionPt->getParent()->getParent()->getParent();

@@ -1018,9 +1018,9 @@ int main(int argc, char *argv[]) {
       printf("*** Connect EFM32 programmer to Lynsyn.\n");
       getchar();
 
-      programMcu();
-
-      automaticTests(false);
+      if(programMcu()) {
+        automaticTests(false);
+      }
       break;
     case 7:
       printf("*** Connect Lynsyn to the PC USB port.\n");
@@ -1029,9 +1029,9 @@ int main(int argc, char *argv[]) {
       printf("*** Connect the Xilinx USB cable to Lynsyn J5.\n");
       getchar();
 
-      programFpga();
-
-      automaticTests(false);
+      if(programFpga()) {
+        automaticTests(false);
+      }
       break;
     case 8:
       printf("*** Connect Lynsyn to the PC USB port.\n");

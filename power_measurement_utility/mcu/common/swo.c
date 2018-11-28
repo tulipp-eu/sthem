@@ -29,17 +29,6 @@
 #include <em_system.h>
 #include <em_chip.h>
 
-#include "lynsyn.h"
-
-int _write(int fd, char *str, int len) {
-#ifdef SWO
-  for (int i = 0; i < len; i++) {
-    ITM_SendChar(str[i]);
-  }
-#endif
-  return len;
-}
-
 /* *** This is a Serial Wire Output based console.*** */
 /* To use it you must do two things: */
 /* 1. Set up the Serial Wire Output in your application. */
@@ -56,20 +45,12 @@ void swoInit(void) {
   /* Enable Serial wire output pin */
   GPIO->ROUTE |= GPIO_ROUTE_SWOPEN;
 
-#if defined(_EFM32_GIANT_FAMILY) || defined(_EFM32_LEOPARD_FAMILY) || defined(_EFM32_WONDER_FAMILY)
   /* Set location 0 */
   GPIO->ROUTE = (GPIO->ROUTE & ~(_GPIO_ROUTE_SWLOCATION_MASK)) | GPIO_ROUTE_SWLOCATION_LOC0;
 
   /* Enable output on pin - GPIO Port F, Pin 2 */
   GPIO->P[5].MODEL &= ~(_GPIO_P_MODEL_MODE2_MASK);
   GPIO->P[5].MODEL |= GPIO_P_MODEL_MODE2_PUSHPULL;
-#else
-  /* Set location 1 */
-  GPIO->ROUTE = (GPIO->ROUTE & ~(_GPIO_ROUTE_SWLOCATION_MASK)) |GPIO_ROUTE_SWLOCATION_LOC1;
-  /* Enable output on pin */
-  GPIO->P[2].MODEH &= ~(_GPIO_P_MODEH_MODE15_MASK);
-  GPIO->P[2].MODEH |= GPIO_P_MODEH_MODE15_PUSHPULL;
-#endif
 
   /* Enable debug clock AUXHFRCO */
   CMU->OSCENCMD = CMU_OSCENCMD_AUXHFRCOEN;

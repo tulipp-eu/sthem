@@ -455,14 +455,3 @@ void profilerOn(void) {
 void profilerOff(void) {
   XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
 }
-
-bool setupCallTracer(void) {
-  _monInit();
-  return true;
-}
-
-bool endCallTracer(unsigned core) {
-  _mcleanup(core);
-  printf("PROFILER: Call trace file written\n"); 
-  return true;
-}

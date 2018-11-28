@@ -32,6 +32,8 @@
 
 #include "../common/swo.h"
 
+static uint32_t bootVersion __attribute__ ((section (".version"))) __attribute__ ((__used__)) = BOOT_VERSION;
+
 ///////////////////////////////////////////////////////////////////////////////
 
 int Copy_UpgradeApplication() {
@@ -102,6 +104,8 @@ void Select_Application()
 	}
 	//else
 	{
+    printf("Booting...\n");
+
 		boot();
 	}
 }
@@ -118,11 +122,20 @@ int main(void) {
   GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
   GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
 
-#ifdef SWO
+#ifdef USE_SWO
   swoInit();
 #endif
 
   printf("Lynsyn bootloader %s\n", BOOT_VERSION_STRING);
 
   Select_Application();
+}
+
+int _write(int fd, char *str, int len) {
+#ifdef USE_SWO
+  for (int i = 0; i < len; i++) {
+    ITM_SendChar(str[i]);
+  }
+#endif
+  return len;
 }
