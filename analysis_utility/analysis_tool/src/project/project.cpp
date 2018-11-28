@@ -835,8 +835,8 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   unsigned core = 0;
   unsigned sensor = 0;
-  double offsetData[7];
-  double gainData[7];
+  double offsetData[LYNSYN_SENSORS];
+  double gainData[LYNSYN_SENSORS];
   double period = 0;
   double unknownPower = 0;
   double unknownRuntime = 0;
@@ -844,7 +844,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   file.read((char*)&core, sizeof(uint8_t));
   file.read((char*)&sensor, sizeof(uint8_t));
-  for(int i = 0; i < 7; i++) {
+  for(int i = 0; i < LYNSYN_SENSORS; i++) {
     file.read((char*)&offsetData[i], sizeof(double));
     file.read((char*)&gainData[i], sizeof(double));
   }
@@ -858,7 +858,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   QSqlDatabase::database().transaction();
 
   if((unknownPower != 0) || (unknownRuntime != 0)) {
-    double energy[7] = {0, 0, 0, 0, 0, 0, 0};
+    double energy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
     if(unknownRuntime) {
       energy[sensor] = unknownPower * unknownRuntime;
     }
@@ -886,7 +886,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   }
 
   double totalRuntime = 0;
-  double totalEnergy[7] = {0, 0, 0, 0, 0, 0, 0};
+  double totalEnergy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
 
   for(uint32_t i = 0; i < count; i++) {
     uint64_t pc;
@@ -1144,7 +1144,7 @@ bool Project::runProfiler() {
 
           } else {
             // next frame
-            for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
+            for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
             for(int i = 0; i < LYNSYN_SENSORS; i++) {
               if(currentFrameEnergy[i] > frameEnergyMax[i]) frameEnergyMax[i] = currentFrameEnergy[i];
               if((frameEnergyMin[i] == 0) || (currentFrameEnergy[i] < frameEnergyMin[i])) frameEnergyMin[i] = currentFrameEnergy[i];
@@ -1153,14 +1153,14 @@ bool Project::runProfiler() {
             }
           }
 
-          for(int core = 0; core < 4; core++) for(auto location : locations[core]) location.second->clearFrameData();
+          for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->clearFrameData();
         }
       }
 
-      QString bbText[4];
-      QString modText[4];
+      QString bbText[LYNSYN_MAX_CORES];
+      QString modText[LYNSYN_MAX_CORES];
 
-      uint64_t pc[4];
+      uint64_t pc[LYNSYN_MAX_CORES];
       pc[0] = query.value("pc1").toULongLong();
       pc[1] = query.value("pc2").toULongLong();
       pc[2] = query.value("pc3").toULongLong();
@@ -1168,7 +1168,7 @@ bool Project::runProfiler() {
 
       int64_t timeSinceLast = query.value("timeSinceLast").toLongLong();
 
-      double power[7];
+      double power[LYNSYN_SENSORS];
       power[0] = query.value("power1").toDouble();
       power[1] = query.value("power2").toDouble();
       power[2] = query.value("power3").toDouble();
@@ -1179,14 +1179,14 @@ bool Project::runProfiler() {
 
       for(int i = 0; i < LYNSYN_SENSORS; i++) currentFrameEnergy[i] += power[i] * Pmu::cyclesToSeconds(timeSinceLast);
 
-      for(int core = 0; core < 4; core++) {
+      for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
         Location *location = getLocation(core, pc[core], &elfSupport, &locations[core]);
 
         bbText[core] = location->bbId;
         modText[core] = location->moduleId;
 
         location->updateRuntime(Pmu::cyclesToSeconds(timeSinceLast));
-        for(int sensor = 0; sensor < 7; sensor++) {
+        for(int sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
           location->updateEnergy(sensor, power[sensor] * Pmu::cyclesToSeconds(timeSinceLast));
         }
       }

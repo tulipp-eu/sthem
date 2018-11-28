@@ -22,7 +22,7 @@
 #ifndef JTAG_H
 #define JTAG_H
 
-#include "lynsyn.h"
+#include "lynsyn_main.h"
 #include "zynq.h"
 #include "cortex.h"
 

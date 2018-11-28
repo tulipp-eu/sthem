@@ -126,7 +126,7 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
     runtimeTopFrame = runtimeFrame;
     //printf("Runtime frame inconsistency: %f %f\n", runtimeTopFrame, runtimeFrame);
   }
-  for(int i = 0; i < 7; i++) {
+  for(int i = 0; i < LYNSYN_SENSORS; i++) {
     if(energyTop[i] < energy[i]) {
       energyTop[i] = energy[i];
       //printf("Energy inconsistency: %f %f\n", energyTop[i], energy[i]);

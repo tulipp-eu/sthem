@@ -19,31 +19,17 @@
  *
  *****************************************************************************/
 
-#ifndef FPGA_H
-#define FPGA_H
+#ifndef USB_H
+#define USB_H
 
-#include "usbprotocol.h"
+#include "lynsyn_main.h"
+#include "../common/usbprotocol.h"
 
-#define FPGA_CONFIGURE_TIMEOUT 96000000 // in cycles
+#define START_BP 0
+#define STOP_BP  1
+#define FRAME_BP 0
 
-#ifdef USE_FPGA_JTAG_CONTROLLER
-
-#define MAX_SEQ_SIZE 256
-#define MAX_STORED_SEQ_SIZE 65536
-
-void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData);
-void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData);
-void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData);
-void executeSeq(void);
-void readSeq(unsigned size, uint8_t *tdoData);
-
-#endif
-
-bool fpgaInit();
-uint32_t fpgaInitOk(void);
-void jtagInt(void);
-void jtagExt(void);
-int jtagTest(void);
-bool oscTest(void);
+void usbInit(void);
+void sendSamples(struct SampleReplyPacket *sample, unsigned n);
 
 #endif

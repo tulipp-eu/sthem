@@ -116,15 +116,9 @@ bool Analysis::openProject(QString path, QString configType, bool fast) {
     }
 
   } else {
-    Sdsoc *sdsocProject = NULL;
+    Sdsoc *sdsocProject = Sdsoc::createSdsoc(Config::sdsocVersion);
 
-    if(Config::sdsocVersion == 20162) {
-      sdsocProject = new Sdsoc20162();
-    } else if(Config::sdsocVersion == 20172) {
-      sdsocProject = new Sdsoc20172();
-    } else if(Config::sdsocVersion == 20174) {
-      sdsocProject = new Sdsoc20174();
-    } else {
+    if(!sdsocProject) {
       QApplication::restoreOverrideCursor();
       QMessageBox msgBox;
       msgBox.setText("Can't open SDSoC project without SDSoC");
@@ -211,8 +205,8 @@ bool Analysis::profileApp() {
 void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   double runtime;
   double runtimeFrame;
-  double energy[7];
-  double energyFrame[7];
+  double energy[LYNSYN_SENSORS];
+  double energyFrame[LYNSYN_SENSORS];
   uint64_t dummyCount;
 
   loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &dummyCount);
@@ -242,8 +236,8 @@ void Analysis::dump(unsigned core, unsigned sensor) {
 
       double runtime;
       double runtimeFrame;
-      double energy[7];
-      double energyFrame[7];
+      double energy[LYNSYN_SENSORS];
+      double energyFrame[LYNSYN_SENSORS];
       uint64_t count;
 
       function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);

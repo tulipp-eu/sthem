@@ -29,6 +29,7 @@
 #include "function.h"
 #include "basicblock.h"
 #include "region.h"
+#include "superbb.h"
 #include "instruction.h"
 #include "loop.h"
 
@@ -233,7 +234,11 @@ int Container::constructFromXml(const QDomElement &element, int treeviewRow, Pro
 
   } else if(tagName == TAG_REGION) {
     bool isSuperBb = element.attribute(ATTR_SUPERBB, "false") != "false";
-    child = new Region(childId, this, treeviewRow++, isSuperBb);
+    if(isSuperBb) {
+      child = new SuperBB(childId, this, treeviewRow++);
+    } else {
+      child = new Region(childId, this, treeviewRow++);
+    }
     appendChild(child);
 
   } else if(tagName == TAG_LOOP) {

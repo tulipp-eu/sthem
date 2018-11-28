@@ -23,6 +23,21 @@
 
 #include <QProcess>
 
+Sdsoc *Sdsoc::createSdsoc(unsigned version) {
+  switch(version) {
+    case 20162:
+      return new Sdsoc20162();
+    case 20172:
+      return new Sdsoc20172();
+    case 20174:
+      return new Sdsoc20174();
+    case 20182:
+      return new Sdsoc20182();
+    default:
+      return NULL;
+  }
+}
+
 unsigned Sdsoc::getSdsocVersion() {
   QProcess process;
   process.start("sdscc -version");
@@ -41,6 +56,8 @@ unsigned Sdsoc::getSdsocVersion() {
     return 20172;
   } else if(stdout.contains("sdscc v2017.4")) {
     return 20174;
+  } else if(stdout.contains("sdscc v2018.2")) {
+    return 20182;
   }
 
   printf("Unsupported SDSoC version detected\n");
@@ -69,20 +86,6 @@ void Sdsoc::copy(Sdsoc *p) {
 
 Sdsoc::Sdsoc(Sdsoc *p) {
   copy(p);
-}
-
-void Sdsoc20172::print() {
-  Sdsoc::print();
-  printf("sysConfig: %s\n", sysConfig.toUtf8().constData());
-  printf("cpu: %s\n", cpu.toUtf8().constData());
-}
-
-void Sdsoc20174::print() {
-  Sdsoc::print();
-  printf("sysConfig: %s\n", sysConfig.toUtf8().constData());
-  printf("cpu: %s\n", cpu.toUtf8().constData());
-  printf("cpuInstance: %s\n", cpuInstance.toUtf8().constData());
-  printf("genEmulationModel: %d\n", genEmulationModel);
 }
 
 void Sdsoc::print() {
@@ -759,6 +762,12 @@ bool Sdsoc20162::getProjectOptions() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+void Sdsoc20172::print() {
+  Sdsoc::print();
+  printf("sysConfig: %s\n", sysConfig.toUtf8().constData());
+  printf("cpu: %s\n", cpu.toUtf8().constData());
+}
+
 void Sdsoc20172::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
   Sdsoc::writeSdsRule(compiler, makefile, path, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
 }
@@ -875,6 +884,14 @@ bool Sdsoc20172::getProjectOptions() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+void Sdsoc20174::print() {
+  Sdsoc::print();
+  printf("sysConfig: %s\n", sysConfig.toUtf8().constData());
+  printf("cpu: %s\n", cpu.toUtf8().constData());
+  printf("cpuInstance: %s\n", cpuInstance.toUtf8().constData());
+  printf("genEmulationModel: %d\n", genEmulationModel);
+}
 
 void Sdsoc20174::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
   Sdsoc::writeSdsRule(compiler, makefile, path, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
@@ -997,4 +1014,6 @@ bool Sdsoc20174::getProjectOptions() {
 
   return true;
 }
+
+///////////////////////////////////////////////////////////////////////////////
 

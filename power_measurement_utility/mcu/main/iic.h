@@ -19,17 +19,22 @@
  *
  *****************************************************************************/
 
-#ifndef USB_H
-#define USB_H
+#ifndef IIC_H
+#define IIC_H
 
-#include "lynsyn.h"
-#include "usbprotocol.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-#define START_BP 0
-#define STOP_BP  1
-#define FRAME_BP 0
+#include <em_i2c.h>
 
-void usbInit(void);
-void sendSamples(struct SampleReplyPacket *sample, unsigned n);
+#define I2C_NO_CMD               0
+#define I2C_MAGIC                1
+#define I2C_READ_CURRENT_AVG     2
+#define I2C_READ_CURRENT_INSTANT 3
+#define I2C_GET_CAL              4
+
+extern uint64_t i2cCurrentAcc[7];
+extern int i2cSamplesSinceLast[7];
+extern int16_t i2cCurrentInstant[7];
 
 #endif

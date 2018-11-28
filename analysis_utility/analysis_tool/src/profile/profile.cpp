@@ -231,7 +231,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb,
   } else {
     *runtime = 0;
     *runtimeFrame = 0;
-    for(int i = 0; i < 7; i++) {
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
       energy[i] = 0;
       energyFrame[i] = 0;
     }

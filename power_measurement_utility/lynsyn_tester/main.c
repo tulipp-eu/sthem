@@ -35,7 +35,7 @@
 
 #include <libusb.h>
 
-#include "../mcu/usbprotocol.h"
+#include "../mcu/common/usbprotocol.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -202,7 +202,10 @@ bool programFpga(void) {
 }
 
 bool programMcu(void) {
-  int ret = system("commander flash lynsyn.bin --device EFM32GG332F1024");
+  int ret = system("commander flash lynsyn_boot.bin --halt --device EFM32GG332F1024");
+  if(!ret) {
+    ret = system("commander flash lynsyn_main.bin --address 0x10000 --device EFM32GG332F1024");
+  }
 
   if(ret) {
     printf("Can't program the MCU.  Possible problems:\n");
@@ -660,7 +663,7 @@ void calSensor(double acceptance) {
 void downloadCalData(void) {
   if(!initLynsyn()) exit(-1);
 
-  printf("Enter filename to write to: ");
+  printf("*** Enter filename to write to: ");
   char filename[80];
   int r = fscanf(stdin, "%s", filename);
   if(r != 1) {
@@ -699,7 +702,7 @@ void downloadCalData(void) {
 void uploadCalData(void) {
   if(!initLynsyn()) exit(-1);
 
-  printf("Enter filename to read from: ");
+  printf("*** Enter filename to read from: ");
   char filename[80];
   int r = fscanf(stdin, "%s", filename);
   if(r != 1) {
@@ -776,15 +779,98 @@ bool live(void) {
   return true;
 }
 
+uint32_t crc32(uint32_t crc, uint32_t *data, int length) {
+  for(int i = 0; i < length; i++) {
+    crc = crc + data[i] ;
+  }
+  return crc ;
+}
+
+bool usbFirmwareUpgrade() {
+  printf("*** Enter filename: ");
+  char filename[80];
+  int r = fscanf(stdin, "%s", filename);
+  if(r != 1) {
+    printf("I/O error\n");
+    exit(-1);
+  }
+
+	uint32_t crc = 0;
+
+	printf("Upgrading firmware from file %s.\n", filename);
+
+  /*===========input file==========================*/
+
+  FILE *fp = fopen(filename, "rb");
+  if(!fp) {
+    printf("Can't open file %s.\n", filename);
+    return false;
+  }
+
+  /*============open board=========================*/
+
+	if(!initLynsyn()) {
+    fclose(fp);
+    return false;
+  }
+
+  /*==========initialize firmware upgrade===========*/
+
+	struct RequestPacket initRequest;
+  initRequest.cmd = USB_CMD_UPGRADE_INIT;
+  sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+
+  /*==========send firmware data ===================*/
+ 
+  while(!feof(fp)) {
+    struct UpgradeStoreRequestPacket upgradeStoreRequest;
+    upgradeStoreRequest.request.cmd = USB_CMD_UPGRADE_STORE;
+    int bytesRead = fread(upgradeStoreRequest.data, 1, FLASH_BUFFER_SIZE, fp);
+    if(ferror(fp) || ((bytesRead != FLASH_BUFFER_SIZE) && !feof(fp))) {
+      printf("Error reading file.  Aborting, please unplug/replug lynsyn board\n");
+      fclose(fp);
+      return false;
+    }
+    if(bytesRead) {
+      crc = crc32(crc, (uint32_t *)upgradeStoreRequest.data, FLASH_BUFFER_SIZE/4);
+      sendBytes((uint8_t*)&upgradeStoreRequest, sizeof(struct UpgradeStoreRequestPacket));
+    }
+  }
+
+  /*==========finalize upgrade=====================*/
+
+  struct UpgradeFinaliseRequestPacket finalizePacket;
+
+  finalizePacket.request.cmd = USB_CMD_UPGRADE_FINALISE;
+  finalizePacket.crc=crc;
+  sendBytes((uint8_t*)&finalizePacket, sizeof(struct UpgradeFinaliseRequestPacket));
+
+  releaseLynsyn();
+  
+  printf("Firmware upgraded.\n");
+
+  sleep(1);
+
+  /*==========test=================================*/
+
+  printf("Testing lynsyn\n");
+
+  automaticTests(false);
+
+  printf("Upgrade was successful\n");
+
+  return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static char doc[] = "A test and calibration tool for Lynsyn boards";
 static char args_doc[] = "";
 
 static struct argp_option options[] = {
-  {"board-version",  'b', "version",      0,  "Board version" },
-  {"procedure",    'p', "procedure",      0,  "Which procedure to run" },
-  {"acceptance",   'a', "value",      0, "Maximum allowed error in percentage (0.01 default" },
+  {"board-version", 'b', "version",   0, "Board version" },
+  {"procedure",     'p', "procedure", 0, "Which procedure to run" },
+  {"acceptance",    'a', "value",     0, "Maximum allowed error in percentage (0.01 default" },
   { 0 }
 };
 
@@ -817,7 +903,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
 
     default:
       return ARGP_ERR_UNKNOWN;
-    }
+  }
 
   return 0;
 }
@@ -826,7 +912,6 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
-
   arguments.board_version = -1;
   arguments.procedure = -1;
   arguments.acceptance = 0.01;
@@ -856,8 +941,10 @@ int main(int argc, char *argv[]) {
     printf("Enter '3' for only automatic testing\n");
     printf("Enter '4' for downloading cal data\n");
     printf("Enter '5' for uploading cal data\n");
-    printf("Enter '6' for only MCU and FPGA flashing\n");
-    printf("Enter '7' for live measurements\n");
+    printf("Enter '6' for only MCU flashing\n");
+    printf("Enter '7' for only FPGA flashing\n");
+    printf("Enter '8' for live measurements\n");
+    printf("Enter '9' for USB firmware upgrade\n");
     if(!fgets(choiceBuf, 80, stdin)) {
       printf("I/O error\n");
       exit(-1);
@@ -907,17 +994,40 @@ int main(int argc, char *argv[]) {
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
-      program();
-      automaticTests(false);
+      printf("*** Connect EFM32 programmer to Lynsyn.\n");
+      getchar();
+
+      if(programMcu()) {
+        automaticTests(false);
+      }
       break;
     case 7:
       printf("*** Connect Lynsyn to the PC USB port.\n");
       getchar();
 
+      printf("*** Connect the Xilinx USB cable to Lynsyn J5.\n");
+      getchar();
+
+      if(programFpga()) {
+        automaticTests(false);
+      }
+      break;
+    case 8:
+      printf("*** Connect Lynsyn to the PC USB port.\n");
+      getchar();
+
       live();
       break;
-    default:
+    case 9:
+      printf("*** Connect Lynsyn to the PC USB port.\n");
+      getchar();
+
+      usbFirmwareUpgrade();
+      break;
+     default:
       return 0;
   }
+
+  return 0;
 }
 

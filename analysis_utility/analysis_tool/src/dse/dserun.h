@@ -82,13 +82,7 @@ public:
 
     if(!d.failed) {
       if(!d.project) {
-        if(Config::sdsocVersion == 20162) {
-          d.project = new Sdsoc20162;
-        } else if(Config::sdsocVersion == 20172) {
-          d.project = new Sdsoc20172;
-        } else if(Config::sdsocVersion == 20174) {
-          d.project = new Sdsoc20174;
-        }
+        d.project = Sdsoc::createSdsoc(Config::sdsocVersion);
       }
       if(!d.profile) d.profile = new Profile;
 

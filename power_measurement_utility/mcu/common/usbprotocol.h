@@ -31,6 +31,8 @@
 #define HW_VERSION_2_1 0x21
 #define HW_VERSION_2_2 0x22
 
+#define BOOT_VERSION_1_0 0x10
+
 #define SW_VERSION_1_0 1
 #define SW_VERSION_1_1 0x11
 #define SW_VERSION_1_2 0x12
@@ -39,16 +41,20 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define USB_CMD_INIT           'i'
-#define USB_CMD_HW_INIT        'h'
-#define USB_CMD_JTAG_INIT      'j'
-#define USB_CMD_BREAKPOINT     'b'
-#define USB_CMD_START_SAMPLING 's'
-#define USB_CMD_CAL            'l'
-#define USB_CMD_CAL_SET        'c'
-#define USB_CMD_TEST           't'
+#define USB_CMD_INIT             'i'
+#define USB_CMD_HW_INIT          'h'
+#define USB_CMD_JTAG_INIT        'j'
+#define USB_CMD_BREAKPOINT       'b'
+#define USB_CMD_START_SAMPLING   's'
+#define USB_CMD_CAL              'l'
+#define USB_CMD_CAL_SET          'c'
+#define USB_CMD_TEST             't'
 
-#define USB_CMD_ADC_SET        'a'  // deprecated
+#define USB_CMD_UPGRADE_INIT     'u'
+#define USB_CMD_UPGRADE_STORE    'f'
+#define USB_CMD_UPGRADE_FINALISE 'r'
+
+#define USB_CMD_ADC_SET          'a'  // deprecated
 
 #define BP_TYPE_START 0
 #define BP_TYPE_STOP  1
@@ -76,9 +82,11 @@
 #define CALREQ_FLAG_LOW  1
 #define CALREQ_FLAG_HIGH 2
 
+#define FLASH_BUFFER_SIZE 64
+
 ///////////////////////////////////////////////////////////////////////////////
 
-#define MAX_PACKET_SIZE (sizeof(struct BreakpointRequestPacket))
+#define MAX_PACKET_SIZE (sizeof(struct UpgradeStoreRequestPacket))
 #define MAX_SAMPLES 32
 
 struct __attribute__((__packed__)) RequestPacket {
@@ -122,13 +130,30 @@ struct __attribute__((__packed__)) TestRequestPacket {
   uint8_t testNum;
 };
 
+struct __attribute__((__packed__)) UpgradeStoreRequestPacket {
+	struct RequestPacket request;
+  uint8_t data[FLASH_BUFFER_SIZE];
+};
+
+struct __attribute__((__packed__)) UpgradeFinaliseRequestPacket {
+	struct RequestPacket request;
+  uint32_t crc;
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 
-struct __attribute__((__packed__)) InitReplyPacket {
+struct __attribute__((__packed__)) InitReplyPacketV1_0 {
   uint8_t hwVersion;
   uint8_t swVersion;
-  double calibration[7]; // deprecated after V1.4
-  uint32_t adcCal;       // deprecated after V1.4
+  double calibration[7];
+  uint32_t adcCal;
+};
+
+struct __attribute__((__packed__)) InitReplyPacket { // from V1.4
+  uint8_t hwVersion;
+  uint8_t swVersion;
+  uint8_t bootVersion;
+  uint8_t reserved[59];
 };
 
 struct __attribute__((__packed__)) CalInfoPacket {
@@ -154,7 +179,7 @@ struct __attribute__((__packed__)) SampleReplyPacketV1_0 {
   int16_t current[7];
 };
 
-struct __attribute__((__packed__)) SampleReplyPacket {
+struct __attribute__((__packed__)) SampleReplyPacket { // from V1.3
   int64_t time;
   uint64_t pc[4];
   int16_t current[7];
