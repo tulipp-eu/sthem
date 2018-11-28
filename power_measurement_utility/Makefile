@@ -1,7 +1,5 @@
-#export SDK=/opt/SimplicityStudio_v4/developer/sdks/gecko_sdk_suite/v2.4/
-#export TOOLCHAIN=/opt/SimplicityStudio_v4/developer/toolchains/gnu_arm/7.2_2017q4/bin/
-export SDK=/home/fatima/Downloads/SimplicityStudio-v4/SimplicityStudio_v4/developer/sdks/gecko_sdk_suite/v2.4/
-export TOOLCHAIN=/home/fatima/Downloads/SimplicityStudio-v4/SimplicityStudio_v4/developer/toolchains/gnu_arm/7.2_2017q4/bin/
+export SDK=/opt/SimplicityStudio_v4/developer/sdks/gecko_sdk_suite/v2.4/
+export TOOLCHAIN=/opt/SimplicityStudio_v4/developer/toolchains/gnu_arm/7.2_2017q4/bin/
 .PHONY: all
 all:
 	mkdir -p bin

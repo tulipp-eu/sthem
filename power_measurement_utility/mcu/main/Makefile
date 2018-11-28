@@ -30,7 +30,7 @@ default: lynsyn_main.bin
 	${OBJDUMP} -l -S -D $< > $@
 
 lynsyn_main.elf: \
-	adc.o config.o descriptors.o fpga.o jtag.o main.o usb.o jtag_fpga.o jtag_usart.o \
+	adc.o config.o descriptors.o fpga.o jtag.o main.o usb.o jtag_fpga.o jtag_usart.o iic.o \
 	../common/swo.o ../common/lynsyn.o \
 	${SDK}/platform/emlib/src/em_cmu.o \
 	${SDK}/platform/emlib/src/em_core.o \

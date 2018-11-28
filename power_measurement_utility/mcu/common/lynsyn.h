@@ -39,17 +39,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 //  flash layout
 
-#define FLASH_BOOT_START              0x000000
-#define FLASH_BOOT_VERSION            0x000100
+#define FLASH_BOOT_START       0x000000
+#define FLASH_BOOT_VERSION     0x000100
 
-#define FLASH_APP_START               0x010000
+#define FLASH_APP_START        0x010000
 
-#define FLASH_NEW_APPLICATION_START   0x080000
+#define FLASH_UPGRADE_START    0x080000
 
-#define FLASH_PARAMETERS_START        0x0f0000
-#define FLASH_NEW_APP_FLAG            0x0f0000
+#define FLASH_PARAMETERS_START 0x0f0000
+#define FLASH_UPGRADE_FLAG     0x0f0000
 
-#define NEW_APP_MAGIC 0x4e415050
+#define UPGRADE_MAGIC 0x4e415050
 
 ///////////////////////////////////////////////////////////////////////////////
 // lynsyn settings

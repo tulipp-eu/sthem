@@ -40,7 +40,7 @@ uint8_t startCore;
 uint8_t stopCore;
 uint64_t frameBp;
 
-static uint32_t crc_mcu;
+static uint32_t upgradeCrc;
 static uint32_t flashPackageCounter;
 
 static uint32_t lowWanted[7];
@@ -56,15 +56,15 @@ struct AdcTestReplyPacket adcTestReply __attribute__((__aligned__(4)));
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static int UsbDataSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining);
-static int InitSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining);
-static void UsbStateChange(USBD_State_TypeDef oldState, USBD_State_TypeDef newState);
+static int usbDataSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining);
+static int initSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining);
+static void usbStateChange(USBD_State_TypeDef oldState, USBD_State_TypeDef newState);
 
 ///////////////////////////////////////////////////////////////////////////////
 
 static const USBD_Callbacks_TypeDef callbacks = {
   .usbReset        = NULL,
-  .usbStateChange  = UsbStateChange,
+  .usbStateChange  = usbStateChange,
   .setupCmd        = NULL,
   .isSelfPowered   = NULL,
   .sofInt          = NULL
@@ -82,30 +82,17 @@ const USBD_Init_TypeDef initstruct = {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static void Flash_erase()
-{
-	int i;
-	uint8_t * pointer_internal= (uint8_t *)FLASH_NEW_APPLICATION_START;
-	for(i=(uint32_t)pointer_internal;i<FLASH_SIZE;i+=4096)
-	 {
-		 MSC_ErasePage((uint32_t*)i);
-	 }
+static uint32_t crc32(uint32_t crc, uint32_t *data, int length) {
+  for(int i = 0; i < length; i++ ) {
+    crc = crc + data[i] ;
+  }
+  return crc ;
 }
 
-static uint32_t CRC32(uint32_t CRC , uint32_t *data , int length )
-{
- int i ;
- for( i = 0 ; i < length ; i++ )
- {
-  CRC = CRC + data[i] ;
- }
- return CRC ;
-}
-
-static void Send_Data2PC(void *inBuffer, int length) {
+static void sendBuf(void *inBuffer, int length) {
 	// send data to host 
   while(USBD_EpIsBusy(CDC_EP_DATA_IN));
-  int ret = USBD_Write(CDC_EP_DATA_IN, (uint8_t*)inBuffer, length , UsbDataSent);
+  int ret = USBD_Write(CDC_EP_DATA_IN, (uint8_t*)inBuffer, length , usbDataSent);
   if(ret != USB_STATUS_OK) printf("Data error send: %d\n", ret);
 }
 
@@ -114,14 +101,10 @@ static void Send_Data2PC(void *inBuffer, int length) {
 static void sendInitReply(void) {
   initReply.hwVersion = getUint32("hwver");
   initReply.swVersion = SW_VERSION;
-<<<<<<< HEAD
-  initReply.bootVersion = 5;
-=======
   initReply.bootVersion = (uint8_t)*(uint32_t*)FLASH_BOOT_VERSION;
->>>>>>> 8088dd98e3c137d1f7b9d4d8ad03df91a0c0c0d9
 
   while(USBD_EpIsBusy(CDC_EP_DATA_IN));
-  int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket) , InitSent);
+  int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket) , initSent);
   if(ret != USB_STATUS_OK) printf("Data error send: %d\n", ret);
 }
 
@@ -148,45 +131,49 @@ static void hwInit(struct HwInitRequestPacket *hwInitReq) {
   setDouble("gain6", 1);
 }
 
-static void USB_BootMode(struct RequestPacket *inBuffer) {
-  // ack to host command for Boot info and Version
+static void upgradeInit(struct RequestPacket *inBuffer) {
   MSC_Init();
-  Flash_erase();
-  crc_mcu = 0;
-  flashPackageCounter = 0;
-  printf("Receiving new firmware...\n");
+
+	for(int i = FLASH_UPGRADE_START; i < FLASH_SIZE; i += 4096) {
+    MSC_ErasePage((uint32_t*)i);
+  }
+
   MSC_Deinit();
+
+  upgradeCrc = 0;
+  flashPackageCounter = 0;
+
+  printf("Receiving new firmware...\n");
 }
 
-static void USB_FLASH_SAVE(struct FlashBootPackage *flash_boot_package) {
+static void upgradeStore(struct UpgradeStoreRequestPacket *upgradeStoreRequest) {
   MSC_Init();
 
-  uint32_t *base_add = (uint32_t*)(FLASH_NEW_APPLICATION_START+flashPackageCounter*FLASH_BUFFER_SIZE);
-  uint32_t *pointer_inbuffer = (uint32_t*)flash_boot_package->Data;
-if (base_add>FLASH_NEW_APP_FLAG)  return;
+  uint32_t *destination = (uint32_t*)(FLASH_UPGRADE_START+flashPackageCounter*FLASH_BUFFER_SIZE);
 
-  MSC_WriteWord(base_add, pointer_inbuffer, FLASH_BUFFER_SIZE);
+  if(destination >= (uint32_t*)FLASH_UPGRADE_FLAG) return;
 
-  crc_mcu=CRC32(crc_mcu,(uint32_t * )flash_boot_package->Data,FLASH_BUFFER_SIZE/4);
+  MSC_WriteWord(destination, upgradeStoreRequest->data, FLASH_BUFFER_SIZE);
+
+  upgradeCrc = crc32(upgradeCrc, (uint32_t*)upgradeStoreRequest->data, FLASH_BUFFER_SIZE / 4);
 
   MSC_Deinit();
 
   flashPackageCounter++;
 }
 
-static void USB_BootReset(struct ResetPackage *resetPackage) {
-  //finalize operation
+static void finalizeUpgrade(struct UpgradeFinaliseRequestPacket *finalizeRequest) {
   printf("New firmware received\n");
 
-  if(crc_mcu != resetPackage->crc) {
+  if(upgradeCrc != finalizeRequest->crc) {
     printf("Incorrect CRC, not upgrading\n");
 
   } else {
     MSC_Init();
 
-    uint32_t buf = NEW_APP_MAGIC;
+    uint32_t buf = UPGRADE_MAGIC;
 
-    MSC_WriteWord((uint32_t*)FLASH_NEW_APP_FLAG, &buf, 4);
+    MSC_WriteWord((uint32_t*)FLASH_UPGRADE_FLAG, &buf, 4);
 
     MSC_Deinit();
 
@@ -363,7 +350,7 @@ static void testProcedure(struct TestRequestPacket *testReq) {
         usbTestReply.buf[i] = i;
       }
 
-      Send_Data2PC(&usbTestReply, sizeof(struct UsbTestReplyPacket));
+      sendBuf(&usbTestReply, sizeof(struct UsbTestReplyPacket));
 
       break;
     }
@@ -421,25 +408,25 @@ static void testProcedure(struct TestRequestPacket *testReq) {
         adcTestReply.current[sensor] = currentAvg[sensor] / CAL_AVERAGE_SAMPLES;
       }
 
-      Send_Data2PC(&adcTestReply, sizeof(struct AdcTestReplyPacket));
+      sendBuf(&adcTestReply, sizeof(struct AdcTestReplyPacket));
 
       break;
     }
   }
 
   if(sendStatus) {
-    Send_Data2PC(&testReply, sizeof(struct TestReplyPacket));
+    sendBuf(&testReply, sizeof(struct TestReplyPacket));
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static int UsbDataSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
+static int usbDataSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
   (void)remaining;
   return USB_STATUS_OK;
 }
 
-static int InitSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
+static int initSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) {
   (void)remaining;
 
   calInfo.offset[0] = getDouble("offset0");
@@ -458,7 +445,7 @@ static int InitSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
   calInfo.gain[5] = getDouble("gain5");
   calInfo.gain[6] = getDouble("gain6");
 
-  Send_Data2PC(&calInfo, sizeof(struct CalInfoPacket));
+  sendBuf(&calInfo, sizeof(struct CalInfoPacket));
 
   jtagExt();
 
@@ -479,16 +466,16 @@ static int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t rema
         hwInit((struct HwInitRequestPacket *)req);
         break;
 
-      case USB_CMD_BootMode:
-        USB_BootMode(req);
+      case USB_CMD_UPGRADE_INIT:
+        upgradeInit(req);
         break;
 
-      case USB_CMD_FLASH_Save:
-        USB_FLASH_SAVE((struct FlashBootPackage *)inBuffer);
+      case USB_CMD_UPGRADE_STORE:
+        upgradeStore((struct UpgradeStoreRequestPacket *)inBuffer);
         break;
 
-      case USB_CMD_RESET:
-        USB_BootReset((struct ResetPackage *)inBuffer);
+      case USB_CMD_UPGRADE_FINALISE:
+        finalizeUpgrade((struct UpgradeFinaliseRequestPacket *)inBuffer);
         break;
 
       case USB_CMD_JTAG_INIT:
@@ -521,7 +508,7 @@ static int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t rema
   return USB_STATUS_OK;
 }
 
-static void UsbStateChange(USBD_State_TypeDef oldState, USBD_State_TypeDef newState) {
+static void usbStateChange(USBD_State_TypeDef oldState, USBD_State_TypeDef newState) {
   (void) oldState;
   if(newState == USBD_STATE_CONFIGURED) {
     USBD_Read(CDC_EP_DATA_OUT, inBuffer, MAX_PACKET_SIZE, UsbDataReceived);
@@ -533,5 +520,5 @@ void usbInit(void) {
 }
 
 void sendSamples(struct SampleReplyPacket *sample, unsigned n) {
-  Send_Data2PC(sample, n * sizeof(struct SampleReplyPacket));
+  sendBuf(sample, n * sizeof(struct SampleReplyPacket));
 }

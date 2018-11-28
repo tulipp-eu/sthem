@@ -663,7 +663,7 @@ void calSensor(double acceptance) {
 void downloadCalData(void) {
   if(!initLynsyn()) exit(-1);
 
-  printf("Enter filename to write to: ");
+  printf("*** Enter filename to write to: ");
   char filename[80];
   int r = fscanf(stdin, "%s", filename);
   if(r != 1) {
@@ -702,7 +702,7 @@ void downloadCalData(void) {
 void uploadCalData(void) {
   if(!initLynsyn()) exit(-1);
 
-  printf("Enter filename to read from: ");
+  printf("*** Enter filename to read from: ");
   char filename[80];
   int r = fscanf(stdin, "%s", filename);
   if(r != 1) {
@@ -779,97 +779,15 @@ bool live(void) {
   return true;
 }
 
-uint32_t CRC32(uint32_t CRC , uint32_t *data , int length )
-{
- int i ;
- for( i = 0 ; i < length ; i++ )
- {
-  CRC = CRC + data[i] ;
- }
- return CRC ;
-}
-
-int Send_bit_TO_MCU(char* Add)//address for .bin ,)
-{
-	uint32_t crc_pc=0;
-	printf("*** Firmware Update.*** \n");
-
-  /*===========input file==========================*/
-
-  FILE *fp = fopen(Add, "rb");
-  if(!fp) {
-    printf("Can't open file '%s'\nnot valid or access deny", Add);
-    exit(-2);
+uint32_t crc32(uint32_t crc, uint32_t *data, int length) {
+  for(int i = 0; i < length; i++) {
+    crc = crc + data[i] ;
   }
-  printf("*** File Check.*** \n");
-
-  /*============check board=========================*/
-
-	if(!initLynsyn()) exit(-3);
-	printf("*** lynsyn Check.*** \n");
-	if(!testUsb()) exit(-4);
-	printf("*** USB Check.*** \n");
-
-  /*==========send first command ===========================*/
-
-  //send CMD1 to MCU , MCU <---> flash , return some information  ////send byte
-	struct RequestPacket initRequest;
-  initRequest.cmd = USB_CMD_BootMode;
-  sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
-
-  /*==========send firmware data ===========================*/
- 
-  struct ResetPackage reset_package;
-
-	struct FlashBootPackage bootPack;
-	long i ;
-	int r;
-	fseek(fp, 0L, SEEK_END);
-	long sz = ftell(fp);
-	sz=((sz+FLASH_BUFFER_SIZE-1)/FLASH_BUFFER_SIZE)*FLASH_BUFFER_SIZE;
-	fseek(fp, 0L, SEEK_SET);
-	if(sz>10000)
-    {
-      printf("*** MCU boot Starting  (size: %1.1fkB) ...\n"  ,((float)sz)/1000 );
-    }
-	else
-    {
-      printf("*** MCU boot Starting  (size: %1.0fB) ...\n"  ,((float)sz) );
-    }
-	for(i=0;;i++)
-    {
-      bootPack.request.cmd=USB_CMD_FLASH_Save;
-      r = fread(bootPack.Data, 1, FLASH_BUFFER_SIZE, fp);
-      if (r==0) break;
-      crc_pc=CRC32(crc_pc,(uint32_t *)bootPack.Data,FLASH_BUFFER_SIZE/4);
-      //send to MCU (CMD2) // send byte
-      sendBytes((uint8_t*)&bootPack, sizeof(struct FlashBootPackage));
-    }
-
-  printf("*** MCU boot data send ,(%2.1f%s) completed\n" , 100.0 , "%" );
-
-  //MCU go to reset(CMD)
-
-  reset_package.request.cmd = USB_CMD_RESET;
-  reset_package.Reserve[0]=0;
-  reset_package.Reserve[1]=0;
-  reset_package.Reserve[2]=0;
-  reset_package.crc=crc_pc;
-  sendBytes((uint8_t*)&reset_package, sizeof(struct ResetPackage));
-
-  releaseLynsyn();
-  
-  sleep(1);
-
-  automaticTests(false);
-
-  printf("*** Upgrading was successful \n");
-
-  return 1 ;
+  return crc ;
 }
 
-void usbFirmwareUpgrade() {
-  printf("Enter filename: ");
+bool usbFirmwareUpgrade() {
+  printf("*** Enter filename: ");
   char filename[80];
   int r = fscanf(stdin, "%s", filename);
   if(r != 1) {
@@ -877,7 +795,71 @@ void usbFirmwareUpgrade() {
     exit(-1);
   }
 
-  Send_bit_TO_MCU(filename);
+	uint32_t crc = 0;
+
+	printf("Upgrading firmware from file %s.\n", filename);
+
+  /*===========input file==========================*/
+
+  FILE *fp = fopen(filename, "rb");
+  if(!fp) {
+    printf("Can't open file %s.\n", filename);
+    return false;
+  }
+
+  /*============open board=========================*/
+
+	if(!initLynsyn()) {
+    fclose(fp);
+    return false;
+  }
+
+  /*==========initialize firmware upgrade===========*/
+
+	struct RequestPacket initRequest;
+  initRequest.cmd = USB_CMD_UPGRADE_INIT;
+  sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+
+  /*==========send firmware data ===================*/
+ 
+  while(!feof(fp)) {
+    struct UpgradeStoreRequestPacket upgradeStoreRequest;
+    upgradeStoreRequest.request.cmd = USB_CMD_UPGRADE_STORE;
+    int bytesRead = fread(upgradeStoreRequest.data, 1, FLASH_BUFFER_SIZE, fp);
+    if(ferror(fp) || ((bytesRead != FLASH_BUFFER_SIZE) && !feof(fp))) {
+      printf("Error reading file.  Aborting, please unplug/replug lynsyn board\n");
+      fclose(fp);
+      return false;
+    }
+    if(bytesRead) {
+      crc = crc32(crc, (uint32_t *)upgradeStoreRequest.data, FLASH_BUFFER_SIZE/4);
+      sendBytes((uint8_t*)&upgradeStoreRequest, sizeof(struct UpgradeStoreRequestPacket));
+    }
+  }
+
+  /*==========finalize upgrade=====================*/
+
+  struct UpgradeFinaliseRequestPacket finalizePacket;
+
+  finalizePacket.request.cmd = USB_CMD_UPGRADE_FINALISE;
+  finalizePacket.crc=crc;
+  sendBytes((uint8_t*)&finalizePacket, sizeof(struct UpgradeFinaliseRequestPacket));
+
+  releaseLynsyn();
+  
+  printf("Firmware upgraded.\n");
+
+  sleep(1);
+
+  /*==========test=================================*/
+
+  printf("Testing lynsyn\n");
+
+  automaticTests(false);
+
+  printf("Upgrade was successful\n");
+
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -930,8 +912,6 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
-  struct RequestPacket initRequest;
-  struct InitReplyPacket initReply;
   arguments.board_version = -1;
   arguments.procedure = -1;
   arguments.acceptance = 0.01;
@@ -965,7 +945,6 @@ int main(int argc, char *argv[]) {
     printf("Enter '7' for only FPGA flashing\n");
     printf("Enter '8' for live measurements\n");
     printf("Enter '9' for USB firmware upgrade\n");
-    printf("Enter '10' for testing USB firmware upgrade\n");
     if(!fgets(choiceBuf, 80, stdin)) {
       printf("I/O error\n");
       exit(-1);
@@ -1045,27 +1024,7 @@ int main(int argc, char *argv[]) {
 
       usbFirmwareUpgrade();
       break;
-    case 10:
-	printf("***This is only for test.\n"  );
-	if(!initLynsyn()) exit(-3);
-      //struct RequestPacket initRequest;
-
-	initRequest.cmd = USB_CMD_INIT;
-	sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
-
-	//struct InitReplyPacket initReply;
-	getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
-
-  	struct CalInfoPacket calInfo;
-  	getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
-  	
-	printf("*** MCU  hardware_version) %i\n" ,initReply.hwVersion );
-  	printf("*** MCU  software_version) %i\n" ,initReply.swVersion );
-  	printf("*** MCU ( BOOT_Loader_version) %i\n" ,initReply.bootVersion );
-	releaseLynsyn();
-      break;
-      
-    default:
+     default:
       return 0;
   }
 

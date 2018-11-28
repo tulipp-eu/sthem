@@ -31,30 +31,30 @@
 #define HW_VERSION_2_1 0x21
 #define HW_VERSION_2_2 0x22
 
+#define BOOT_VERSION_1_0 0x10
+
 #define SW_VERSION_1_0 1
 #define SW_VERSION_1_1 0x11
 #define SW_VERSION_1_2 0x12
 #define SW_VERSION_1_3 0x13
 #define SW_VERSION_1_4 0x14
 
-#define BOOT_VERSION_1_0 0x10
-
 ///////////////////////////////////////////////////////////////////////////////
 
-#define USB_CMD_INIT           'i'
-#define USB_CMD_HW_INIT        'h'
-#define USB_CMD_JTAG_INIT      'j'
-#define USB_CMD_BREAKPOINT     'b'
-#define USB_CMD_START_SAMPLING 's'
-#define USB_CMD_CAL            'l'
-#define USB_CMD_CAL_SET        'c'
-#define USB_CMD_TEST           't'
+#define USB_CMD_INIT             'i'
+#define USB_CMD_HW_INIT          'h'
+#define USB_CMD_JTAG_INIT        'j'
+#define USB_CMD_BREAKPOINT       'b'
+#define USB_CMD_START_SAMPLING   's'
+#define USB_CMD_CAL              'l'
+#define USB_CMD_CAL_SET          'c'
+#define USB_CMD_TEST             't'
 
-#define USB_CMD_BootMode       'o'
-#define USB_CMD_FLASH_Save     'f'
-#define USB_CMD_RESET          'r'
+#define USB_CMD_UPGRADE_INIT     'u'
+#define USB_CMD_UPGRADE_STORE    'f'
+#define USB_CMD_UPGRADE_FINALISE 'r'
 
-#define USB_CMD_ADC_SET        'a'  // deprecated
+#define USB_CMD_ADC_SET          'a'  // deprecated
 
 #define BP_TYPE_START 0
 #define BP_TYPE_STOP  1
@@ -82,11 +82,11 @@
 #define CALREQ_FLAG_LOW  1
 #define CALREQ_FLAG_HIGH 2
 
-#define FLASH_BUFFER_SIZE    64
+#define FLASH_BUFFER_SIZE 64
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define MAX_PACKET_SIZE (sizeof(struct FlashBootPackage))
+#define MAX_PACKET_SIZE (sizeof(struct UpgradeStoreRequestPacket))
 #define MAX_SAMPLES 32
 
 struct __attribute__((__packed__)) RequestPacket {
@@ -130,14 +130,13 @@ struct __attribute__((__packed__)) TestRequestPacket {
   uint8_t testNum;
 };
 
-struct __attribute__((__packed__)) FlashBootPackage {
+struct __attribute__((__packed__)) UpgradeStoreRequestPacket {
 	struct RequestPacket request;
-  uint8_t Data[FLASH_BUFFER_SIZE];
+  uint8_t data[FLASH_BUFFER_SIZE];
 };
 
-struct __attribute__((__packed__)) ResetPackage {
+struct __attribute__((__packed__)) UpgradeFinaliseRequestPacket {
 	struct RequestPacket request;
-  uint8_t Reserve[3];
   uint32_t crc;
 };
 

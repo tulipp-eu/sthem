@@ -36,30 +36,7 @@ static uint32_t bootVersion __attribute__ ((section (".version"))) __attribute__
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int Copy_UpgradeApplication() {
-	uint8_t * pointer_internal= (uint8_t *)FLASH_APP_START;
-	uint32_t i;
-
-  // erase flash
-  for(i=(uint32_t)pointer_internal;i<FLASH_NEW_APPLICATION_START;i+=4096) {
-    MSC_ErasePage((void*)i);
-  }
-  uint32_t *base_add = (uint32_t *)FLASH_APP_START ;
-  uint32_t *pointer_inbuffer = (uint32_t *)FLASH_NEW_APPLICATION_START ;
-
-  // copy to internal flash
-  MSC_WriteWord(base_add, pointer_inbuffer, FLASH_PARAMETERS_START-FLASH_NEW_APPLICATION_START);
-
-  return 1;
-}
-
-int check_for_NewUpgrade()
-{
-	uint32_t *inBuffer = (uint32_t*)FLASH_PARAMETERS_START;
- return inBuffer[0];
-}
-
-void boot(void) {
+static void boot(void) {
   uint32_t pc, sp;
 
   /* disable interrupts. */
@@ -81,33 +58,39 @@ void boot(void) {
   asm("mov pc, %[pc]" :: [pc] "r" (pc));
 }
 
-void Select_Application()
-{
-	int32_t NewApp = check_for_NewUpgrade();
-	if(NewApp==NEW_APP_MAGIC)
-	{
+static void upgradeFirmware() {
+	int32_t newApp = *(uint32_t*)FLASH_UPGRADE_FLAG;
+	if(newApp == UPGRADE_MAGIC) {
     MSC_Init();
 
     printf("Upgrading firmware...\n");
-		Copy_UpgradeApplication();
-		uint32_t *base_add =  (uint32_t*)FLASH_NEW_APP_FLAG;
 
-    MSC_ErasePage(base_add);
-    MSC_WriteWord(base_add, 0, 4);
+    // erase flash
+    for(unsigned i = FLASH_APP_START; i < FLASH_UPGRADE_START; i += 4096) {
+      MSC_ErasePage((void*)i);
+    }
+
+    // copy to application flash area
+    MSC_WriteWord((uint32_t *)FLASH_APP_START, (uint32_t *)FLASH_UPGRADE_START, FLASH_PARAMETERS_START - FLASH_UPGRADE_START);
+
+    // reset upgrade flag
+		uint32_t *upgrade =  (uint32_t*)FLASH_UPGRADE_FLAG;
+    MSC_ErasePage(upgrade);
+    MSC_WriteWord(upgrade, 0, 4);
 
     MSC_Deinit();
 	}
-//	uint32_t App = check_for_Application();
-	//if(App==0xffffffff)
-	{
-	//	return ;
-	}
-	//else
-	{
-    printf("Booting...\n");
+}
 
-		boot();
-	}
+///////////////////////////////////////////////////////////////////////////////
+
+int _write(int fd, char *str, int len) {
+#ifdef USE_SWO
+  for (int i = 0; i < len; i++) {
+    ITM_SendChar(str[i]);
+  }
+#endif
+  return len;
 }
 
 int main(void) {
@@ -128,14 +111,9 @@ int main(void) {
 
   printf("Lynsyn bootloader %s\n", BOOT_VERSION_STRING);
 
-  Select_Application();
-}
+  printf("Checking for new firmware...\n");
+  upgradeFirmware();
 
-int _write(int fd, char *str, int len) {
-#ifdef USE_SWO
-  for (int i = 0; i < len; i++) {
-    ITM_SendChar(str[i]);
-  }
-#endif
-  return len;
+  printf("Booting...\n");
+  boot();
 }
