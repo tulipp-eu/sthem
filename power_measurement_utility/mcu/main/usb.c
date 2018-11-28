@@ -114,7 +114,7 @@ static void Send_Data2PC(void *inBuffer, int length) {
 static void sendInitReply(void) {
   initReply.hwVersion = getUint32("hwver");
   initReply.swVersion = SW_VERSION;
-  initReply.bootVersion = 1;
+  initReply.bootVersion = 5;
 
   while(USBD_EpIsBusy(CDC_EP_DATA_IN));
   int ret = USBD_Write(CDC_EP_DATA_IN, &initReply, sizeof(struct InitReplyPacket) , InitSent);
@@ -159,6 +159,7 @@ static void USB_FLASH_SAVE(struct FlashBootPackage *flash_boot_package) {
 
   uint32_t *base_add = (uint32_t*)(FLASH_NEW_APPLICATION_START+flashPackageCounter*FLASH_BUFFER_SIZE);
   uint32_t *pointer_inbuffer = (uint32_t*)flash_boot_package->Data;
+if (base_add>FLASH_NEW_APP_FLAG)  return;
 
   MSC_WriteWord(base_add, pointer_inbuffer, FLASH_BUFFER_SIZE);
 

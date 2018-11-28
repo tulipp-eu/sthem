@@ -930,7 +930,8 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
-
+  struct RequestPacket initRequest;
+  struct InitReplyPacket initReply;
   arguments.board_version = -1;
   arguments.procedure = -1;
   arguments.acceptance = 0.01;
@@ -964,6 +965,7 @@ int main(int argc, char *argv[]) {
     printf("Enter '7' for only FPGA flashing\n");
     printf("Enter '8' for live measurements\n");
     printf("Enter '9' for USB firmware upgrade\n");
+    printf("Enter '10' for testing USB firmware upgrade\n");
     if(!fgets(choiceBuf, 80, stdin)) {
       printf("I/O error\n");
       exit(-1);
@@ -1042,6 +1044,25 @@ int main(int argc, char *argv[]) {
       getchar();
 
       usbFirmwareUpgrade();
+      break;
+    case 10:
+	printf("***This is only for test.\n"  );
+	if(!initLynsyn()) exit(-3);
+      //struct RequestPacket initRequest;
+
+	initRequest.cmd = USB_CMD_INIT;
+	sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+
+	//struct InitReplyPacket initReply;
+	getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
+
+  	struct CalInfoPacket calInfo;
+  	getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
+  	
+	printf("*** MCU  hardware_version) %i\n" ,initReply.hwVersion );
+  	printf("*** MCU  software_version) %i\n" ,initReply.swVersion );
+  	printf("*** MCU ( BOOT_Loader_version) %i\n" ,initReply.bootVersion );
+	releaseLynsyn();
       break;
       
     default:
