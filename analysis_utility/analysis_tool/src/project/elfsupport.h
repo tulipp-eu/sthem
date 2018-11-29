@@ -64,7 +64,9 @@ public:
     prevPc = -1;
   }
   void addElf(QString elfFile) {
-    elfFiles.push_back(elfFile);
+    if(elfFile.trimmed() != "") {
+      elfFiles.push_back(elfFile);
+    }
   }
 
   // get debug info

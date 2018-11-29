@@ -1040,10 +1040,20 @@ bool Project::runProfiler() {
 
     if(runTcf) {
       startAddr = elfSupport.lookupSymbol(startFunc);
+      if(!startAddr) {
+        emit finished(1, "Start location not found");
+        pmu.release();
+        return false;
+      }        
     }
 
     if(stopAt == STOP_AT_BREAKPOINT) {
       stopAddr = elfSupport.lookupSymbol(stopFunc);
+      if(!stopAddr) {
+        emit finished(1, "Stop location not found");
+        pmu.release();
+        return false;
+      }        
     }
 
     uint64_t frameAddr = elfSupport.lookupSymbol("tulippFrameDone");
