@@ -180,6 +180,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   aboutAct = new QAction("About", this);
   connect(aboutAct, SIGNAL(triggered()), this, SLOT(about()));
 
+  updateAct = new QAction("Update", this);
+  connect(updateAct, SIGNAL(triggered()), this, SLOT(update()));
+
   openProjectAct = new QAction("Open custom project", this);
   connect(openProjectAct, SIGNAL(triggered()), this, SLOT(openCustomProject()));
 
@@ -218,7 +221,7 @@ MainWindow::MainWindow(Analysis *analysis) {
 
   helpMenu = menuBar()->addMenu("Help");
   helpMenu->addAction(aboutAct);
-
+  helpMenu->addAction(updateAct);
   // toolbars
   mainToolBar = addToolBar("MainTB");
   mainToolBar->setObjectName("MainTB");
@@ -522,6 +525,12 @@ void MainWindow::about() {
                      QString("Analysis Tool ") + SW_VERSION_STRING + "\n"
                      "A performance measurement and analysis utility\n"
                      "TULIPP EU Project, NTNU 2018");
+}
+
+void MainWindow::update() {
+ 
+                     Pmu pmu1 ;
+                     pmu1.checkForUpgrade(2,"lynsynmain.bin");
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -84,6 +84,7 @@ private:
   QToolBar *projectToolBar;
   QAction *exitAct;
   QAction *aboutAct;
+  QAction *updateAct;
   QAction *clearColorsAct;
   QAction *topAct;
   QAction *frameAct;
@@ -114,6 +115,7 @@ private:
 
 private slots:
   void about();
+  void update();
   void regionClicked(const QModelIndex &index);
   void analysisClicked(const QModelIndex &index);
   void clearColorsEvent();
