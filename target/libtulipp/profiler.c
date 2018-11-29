@@ -455,3 +455,8 @@ void profilerOn(void) {
 void profilerOff(void) {
   XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
 }
+
+void __attribute__ ((noinline)) tulippFrameDone(void) {
+  asm("nop");
+}
+

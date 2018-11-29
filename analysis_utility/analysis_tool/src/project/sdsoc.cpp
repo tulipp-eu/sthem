@@ -893,48 +893,6 @@ void Sdsoc20174::print() {
   printf("genEmulationModel: %d\n", genEmulationModel);
 }
 
-void Sdsoc20174::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
-  Sdsoc::writeSdsRule(compiler, makefile, path, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
-}
-
-void Sdsoc20174::writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt) {
-  Sdsoc::writeSdsLinkRule(linker, makefile, objects, opt + " -sds-sys-config " + sysConfig + " -sds-proc " + cpu);
-}
-
-void Sdsoc20174::parseSynthesisReport() {
-  QFile file("_sds/reports/sds.rpt");
-
-  if(file.open(QIODevice::ReadOnly)) {
-    QTextStream in(&file);
-
-    QString line;
-    do {
-      line = in.readLine();
-      if(line.contains("All user specified timing constraints are met", Qt::CaseSensitive)) {
-        timingOk = true;
-      }
-      if(line.contains("| Block RAM Tile", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        brams = list[5].trimmed().toFloat();
-      }
-      if(line.contains("| CLB LUTs", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        luts = list[5].trimmed().toFloat();
-      }
-      if(line.contains("| DSPs", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        dsps = list[5].trimmed().toFloat();
-      }
-      if(line.contains("| CLB Registers", Qt::CaseSensitive)) {
-        QStringList list = line.split('|');
-        regs = list[5].trimmed().toFloat();
-      }
-    } while(!line.isNull());
-
-    file.close();
-  }
-}
-
 bool Sdsoc20174::getProjectOptions() {
   QDomDocument doc;
   QFile file(path + "/project.sdx");

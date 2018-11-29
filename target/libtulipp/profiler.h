@@ -95,4 +95,6 @@ bool setupCallTracer(void);
 /** End call tracer, write to file */
 bool endCallTracer(unsigned core);
 
+void __attribute__ ((noinline)) tulippFrameDone(void);
+
 #endif

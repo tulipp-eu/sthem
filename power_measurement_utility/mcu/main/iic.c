@@ -88,7 +88,7 @@ void i2cInit(void) {
   NVIC_EnableIRQ(I2C0_IRQn);    
 }
 
-void i2cSendData(void) {
+static void i2cSendData(void) {
   switch(i2cCommand) {
 
     case I2C_READ_CURRENT_AVG:

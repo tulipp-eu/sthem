@@ -150,23 +150,16 @@ public:
 
 //-----------------------------------------------------------------------------
 
-class Sdsoc20174 : public Sdsoc {
+class Sdsoc20174 : public Sdsoc20172 {
 
 protected:
-  QString sysConfig;
-  QString cpu;
   QString cpuInstance;
   bool genEmulationModel;
 
   virtual bool getProjectOptions();
-  virtual void parseSynthesisReport();
-  virtual void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
-  virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
 
 public:
-  Sdsoc20174() {
-    platformKey = "sdx.custom.platform.repository.locations";
-  }
+  Sdsoc20174() {}
   Sdsoc20174(Sdsoc *p) {
     Sdsoc::copy(p);
   }
