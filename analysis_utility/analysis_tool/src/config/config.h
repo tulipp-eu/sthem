@@ -42,13 +42,14 @@
 #define DEFAULT_TCF_UPLOAD_SCRIPT_US \
   "connect\n" \
   "\n" \
-  "targets -set -filter {name =~\"APU*\"} -index 1\n" \
+  "targets -set -nocase -filter {name =~\"APU*\"} -index 1\n" \
   "rst -system\n" \
+  "after 3000\n" \
   "\n" \
   "fpga -file $name.elf.bit\n" \
   "configparams force-mem-access 1\n" \
   "\n" \
-  "targets -set -filter {name =~\"APU*\"} -index 1\n" \
+  "targets -set -nocase -filter {name =~\"APU*\"} -index 1\n" \
   "source [lindex [exec find _sds | grep psu_init.tcl] 0]\n" \
   "psu_init\n" \
   "after 1000\n" \
@@ -57,7 +58,7 @@
   "psu_ps_pl_reset_config\n" \
   "catch {psu_protection}\n" \
   "\n" \
-  "targets -set -filter {name =~ \"*A53*0\"}\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
   "rst -processor\n" \
   "dow $name.elf\n" \
   "configparams force-mem-access 0\n"
