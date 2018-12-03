@@ -61,7 +61,8 @@
   "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
   "rst -processor\n" \
   "dow $name.elf\n" \
-  "configparams force-mem-access 0\n"
+  "configparams force-mem-access 0\n" \
+  "after 1000\n"
 
 class Config {
 
