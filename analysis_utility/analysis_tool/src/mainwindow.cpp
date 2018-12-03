@@ -530,7 +530,7 @@ void MainWindow::about() {
 void MainWindow::update() {
  
                      Pmu pmu1 ;
-                     pmu1.checkForUpgrade(2,"lynsynmain.bin");
+                     pmu1.checkForUpgrade(0x15,"lynsyn_main.bin");
 }
 
 ///////////////////////////////////////////////////////////////////////////////

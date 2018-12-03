@@ -1024,6 +1024,25 @@ int main(int argc, char *argv[]) {
 
       usbFirmwareUpgrade();
       break;
+    case 10:
+	printf("***This is only for test.\n"  );
+	if(!initLynsyn()) exit(-3);
+      struct RequestPacket initRequest;
+
+	initRequest.cmd = USB_CMD_INIT;
+	sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+
+	struct InitReplyPacket initReply;
+	getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
+
+  	struct CalInfoPacket calInfo;
+  	getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
+  	
+	printf("*** MCU  hardware_version) %i\n" ,initReply.hwVersion );
+  	printf("*** MCU  software_version) %i\n" ,initReply.swVersion );
+  	printf("*** MCU ( BOOT_Loader_version) %i\n" ,initReply.bootVersion );
+	releaseLynsyn();
+      break;
      default:
       return 0;
   }
