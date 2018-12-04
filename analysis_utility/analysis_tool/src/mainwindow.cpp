@@ -35,6 +35,7 @@
 #include "cfg/loop.h"
 #include "analysis/analysismodel.h"
 #include "config/configdialog.h"
+#include "update/configdialog2.h"
 #include "project/projectdialog.h"
 #include "project/pmu.h"
 
@@ -183,6 +184,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   updateAct = new QAction("Update", this);
   connect(updateAct, SIGNAL(triggered()), this, SLOT(update()));
 
+  update2Act = new QAction("UpdateV2", this);
+  connect(update2Act, SIGNAL(triggered()), this, SLOT(update2()));
+
   openProjectAct = new QAction("Open custom project", this);
   connect(openProjectAct, SIGNAL(triggered()), this, SLOT(openCustomProject()));
 
@@ -222,6 +226,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   helpMenu = menuBar()->addMenu("Help");
   helpMenu->addAction(aboutAct);
   helpMenu->addAction(updateAct);
+  helpMenu->addAction(update2Act);
   // toolbars
   mainToolBar = addToolBar("MainTB");
   mainToolBar->setObjectName("MainTB");
@@ -528,11 +533,21 @@ void MainWindow::about() {
 }
 
 void MainWindow::update() {
- 
-                     Pmu pmu1 ;
-                     pmu1.checkForUpgrade(2,"lynsynmain.bin");
+  QFileDialog dialog(this, "Select Firmware Application file");
+  dialog.setNameFilter(tr("Firmware binary(.bin) (*.bin)"));
+  if(dialog.exec()) {
+     QString path = dialog.selectedFiles()[0];
+     QByteArray ba = path.toLocal8Bit();
+      char *c_str2 = ba.data();
+          Pmu pmu1 ;
+          pmu1.checkForUpgrade(2,c_str2);
+}
 }
 
+void MainWindow::update2() {
+    ConfigDialog2 dialog;
+     dialog.exec();
+}
 ///////////////////////////////////////////////////////////////////////////////
 
 void MainWindow::regionClicked(const QModelIndex &index) {

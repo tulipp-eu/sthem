@@ -85,6 +85,7 @@ private:
   QAction *exitAct;
   QAction *aboutAct;
   QAction *updateAct;
+  QAction *update2Act;
   QAction *clearColorsAct;
   QAction *topAct;
   QAction *frameAct;
@@ -116,6 +117,7 @@ private:
 private slots:
   void about();
   void update();
+  void update2();
   void regionClicked(const QModelIndex &index);
   void analysisClicked(const QModelIndex &index);
   void clearColorsEvent();

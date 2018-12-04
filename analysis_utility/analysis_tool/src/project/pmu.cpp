@@ -557,6 +557,9 @@ bool Pmu::checkForUpgrade(uint8_t newSwVersion,char *filename)
     QMessageBox msgBox;
     msgBox.setText("USB not found,");
     msgBox.exec();
+   // msgBox.setText(filename); just for test
+ //   msgBox.exec();
+    
     return(false);
  }
  initRequest.cmd = USB_CMD_INIT;
