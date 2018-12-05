@@ -239,7 +239,7 @@ bool Project::makeXml() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
-  if(created) errorCode = system(QString("make -j xml").toUtf8().constData());
+  if(created) errorCode = system(QString("make xml").toUtf8().constData());
   else errorCode = 1;
 
   if(!created || errorCode) {
@@ -255,7 +255,7 @@ bool Project::makeBin() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
-  if(created) errorCode = system(QString("make -j xml").toUtf8().constData());
+  if(created) errorCode = system(QString("make xml").toUtf8().constData());
   else errorCode = 1;
 
   if(!created || errorCode) {
@@ -268,7 +268,7 @@ bool Project::makeBin() {
   emit advance(1, "Building binary");
 
   created = createMakefile();
-  if(created) errorCode = system(QString("make -j binary").toUtf8().constData());
+  if(created) errorCode = system(QString("make binary").toUtf8().constData());
   else errorCode = 1;
 
   if(!created || errorCode) {
