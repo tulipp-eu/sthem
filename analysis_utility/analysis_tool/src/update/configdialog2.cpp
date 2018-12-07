@@ -115,7 +115,7 @@ QFileDialog dialog(this, "Select Firmware Application file");
      QByteArray ba = path.toLocal8Bit();
       char *c_str2 = ba.data();
           Pmu pmu1 ;
-          pmu1.checkForUpgrade(2,c_str2);
+          pmu1.checkForUpgrade(c_str2);
 }
 }
 

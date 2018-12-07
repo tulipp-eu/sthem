@@ -83,7 +83,9 @@ public:
   static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorOffset, double *sensorGain);
   uint32_t crc32(uint32_t crc, uint32_t *data, int length);
   bool usbFirmwareUpgrade(char *filename);
-  bool checkForUpgrade(uint8_t newSwVersion,char *filename);
+  bool checkForUpgrade(char *filename);
+  uint8_t CRC_Check(uint32_t crc);
+  uint32_t fileCRC(char *filename);
 
   bool collectSamples(bool useFrame, bool useStartBp,
                       uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,

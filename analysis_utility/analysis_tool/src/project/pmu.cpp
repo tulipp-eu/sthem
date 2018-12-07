@@ -470,15 +470,66 @@ uint32_t Pmu::crc32(uint32_t crc, uint32_t *data, int length) {
   }
   return crc ;
 }
+/*==========CRC_Check=================================*/
+#define MAX_NUMBER_SW_VERSION_SUPPORTED   10  
+uint32_t frimwareCRC[MAX_NUMBER_SW_VERSION_SUPPORTED][2]={
+			    {0x14,0xc50bdcc8},
+			    {2,0},
+			    {3,0},
+			    {4,0},
+			    {5,0},
+			    {6,0},
+			    {7,0},
+			    {8,0},
+			    {9,0},
+			    {10,0}
+			    };
+uint8_t Pmu::CRC_Check(uint32_t crc)
+{
+int i;
+uint8_t newSwVersion=0;
+ for(i=0;i<MAX_NUMBER_SW_VERSION_SUPPORTED;i++)
+ {
+  if (crc==frimwareCRC[i][1])
+  {
+   newSwVersion=frimwareCRC[i][0];
+  }
+ }
+return(newSwVersion);
+} 
 
+/*===========crc calculate for upgrade==========================*/
+uint32_t Pmu::fileCRC(char *filename) {
+ 	uint32_t crc = 0;
+
+
+  /*===========input file==========================*/
+
+  FILE *fp = fopen(filename, "rb");
+  if(!fp) {
+    printf("Can't open file %s.\n", filename);
+    return false;
+  }
+
+  /*==========send firmware data ===================*/
+ 
+  while(!feof(fp)) {
+    struct UpgradeStoreRequestPacket upgradeStoreRequest;
+    upgradeStoreRequest.request.cmd = USB_CMD_UPGRADE_STORE;
+    int bytesRead = fread(upgradeStoreRequest.data, 1, FLASH_BUFFER_SIZE, fp);
+    if(ferror(fp) || ((bytesRead != FLASH_BUFFER_SIZE) && !feof(fp))) {
+      printf("Error reading file.  Aborting, please unplug/replug lynsyn board\n");
+      fclose(fp);
+      return false;
+    }
+    if(bytesRead) {
+      crc = crc32(crc, (uint32_t *)upgradeStoreRequest.data, FLASH_BUFFER_SIZE/4);
+    }
+  }
+   return(crc);
+}
+/*===========usbFirmwareUpgrade==========================*/
 bool Pmu::usbFirmwareUpgrade(char *filename) {
- // printf("*** Enter filename: ");
- // char filename[80];
- // int r = fscanf(stdin, "%s", filename);
-  //if(r != 1) {
-  //  printf("I/O error\n");
-  //  exit(-1);
- // }
 
 	uint32_t crc = 0;
 
@@ -547,11 +598,18 @@ bool Pmu::usbFirmwareUpgrade(char *filename) {
   return true;
 }
 
-bool Pmu::checkForUpgrade(uint8_t newSwVersion,char *filename)
+/*==========checkForUpgrade=================================*/
+
+bool Pmu::checkForUpgrade(char *filename)
 {
  struct RequestPacket initRequest;
  struct InitReplyPacket initReply;
  struct CalInfoPacket calInfo;
+uint32_t crc=fileCRC(filename); //for test
+ printf("crc=%x\n",crc ); //for test
+uint8_t newSwVersion=CRC_Check(crc); //for test 
+ printf("newSwVersion=%x\n",newSwVersion ); //for test 
+
  if(!init()) 
  {
     QMessageBox msgBox;
@@ -566,10 +624,11 @@ bool Pmu::checkForUpgrade(uint8_t newSwVersion,char *filename)
  sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
  getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
  getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
- //printf("*** MCU  hardware_version) %i\n" ,initReply.hwVersion );
-// printf("*** MCU  software_version) %i\n" ,initReply.swVersion );
-// printf("*** MCU ( BOOT_Loader_version) %i\n" ,initReply.bootVersion );
  release();
+//uint32_t crc=fileCRC(filename);
+ //printf("crc=%x\n",crc );
+//uint32_t newSwVersion=CRC_Check(crc);
+// printf("newSwVersion=%x\n",newSwVersion );
  if(initReply.swVersion<newSwVersion)
  {
     QMessageBox msgBox;
