@@ -808,7 +808,6 @@ void MainWindow::finishProfile(int error, QString msg) {
     msgBox.exec();
 
   } else {
-    analysis->project->elfFile = analysis->project->elfFilename();
     loadFiles();
 
     cfgScene->redraw();
