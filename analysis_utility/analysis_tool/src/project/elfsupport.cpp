@@ -86,7 +86,7 @@ void ElfSupport::setPc(uint64_t pc) {
         if(pclose(fp)) goto error;
       }
 
-      addr2line = Addr2Line(fileName, function, lineNumber);
+      addr2line = Addr2Line(fileName, elfFile, function, lineNumber);
       addr2lineCache[pc] = addr2line;
 
       if((function != "Unknown") || (lineNumber != 0)) break;
@@ -96,13 +96,18 @@ void ElfSupport::setPc(uint64_t pc) {
   return;
 
  error:
-  addr2line = Addr2Line("", "", 0);
+  addr2line = Addr2Line("", "", "", 0);
   addr2lineCache[pc] = addr2line;
 }
 
 QString ElfSupport::getFilename(uint64_t pc) {
   setPc(pc);
   return addr2line.filename;
+}
+
+QString ElfSupport::getElfName(uint64_t pc) {
+  setPc(pc);
+  return addr2line.elfName;
 }
 
 QString ElfSupport::getFunction(uint64_t pc) {

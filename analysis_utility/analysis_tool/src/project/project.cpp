@@ -602,7 +602,6 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   }
 
   if(!bb) {
-    QString functionId;
     QString funcName;
 
     if(elfSupport->isBb(pc)) {
@@ -611,13 +610,7 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
       funcName = elfSupport->getFunction(pc);
     }
 
-    if(core != 0) {
-      functionId = QString("CPU") + QString::number(core) + "_" + funcName;
-    } else {
-      functionId = funcName;
-    }
-
-    func = cfg->getFunctionById(functionId);
+    func = cfg->getFunctionById(funcName);
 
     if(func) {
       // we don't know the BB, but the function exists in the CFG: add to first BB
@@ -626,13 +619,22 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 
     } else {
       // the function does not exist in the CFG
+      funcName = "";
+      if(core != 0) {
+        funcName = QString("CPU") + QString::number(core) + ":";
+      }
+      if(elfSupport->getFunction(pc) != "Unknown") {
+        funcName += elfSupport->getElfName(pc) + ":";
+      }
+      funcName += elfSupport->getFunction(pc);
+
       Module *mod = cfg->externalMod;
-      func = mod->getFunctionById(functionId);
+      func = mod->getFunctionById(funcName);
 
       if(func) {
         bb = static_cast<BasicBlock*>(func->children[0]);
       } else {
-        func = new Function(functionId, mod, mod->children.size());
+        func = new Function(funcName, mod, mod->children.size());
         mod->appendChild(func);
 
         bb = new BasicBlock(QString::number(mod->children.size()), func, 0);

@@ -26,6 +26,7 @@
 
 #include <QDataStream>
 #include <QtSql>
+#include <QQueue>
 
 #include <usbprotocol.h>
 
@@ -40,10 +41,49 @@
 
 class Measurement;
 
-class Pmu {
+///////////////////////////////////////////////////////////////////////////////
+
+class Sample {
+public:
+  int64_t timeSinceLast;
+  SampleReplyPacket sample;
+  double power[LYNSYN_SENSORS];
+
+  Sample(int64_t t, SampleReplyPacket s, double *p) {
+    timeSinceLast = t;
+    sample = s;
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      power[i] = p[i];
+    }
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+class DBStorer : public QObject {
+  Q_OBJECT
 
 private:
   QSqlQuery query;
+  uint8_t swVersion;
+
+public:
+  DBStorer(uint8_t swVersion);
+  ~DBStorer();
+
+public slots:
+  void storeRawSample(Sample *sample);
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+class Pmu : public QObject {
+  Q_OBJECT
+
+private:
+  QThread dbThread;
+
 	struct libusb_device_handle *lynsynHandle;
   uint8_t outEndpoint;
   uint8_t inEndpoint;
@@ -58,7 +98,6 @@ private:
   void sendBytes(uint8_t *bytes, int numBytes);
   void getBytes(uint8_t *bytes, int numBytes);
   bool getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived);
-  void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy);
 
 public:
   static const unsigned MAX_SENSORS = LYNSYN_SENSORS;
@@ -68,6 +107,10 @@ public:
   double supplyVoltage[LYNSYN_SENSORS];
 
   Pmu() {}
+  ~Pmu() {
+    dbThread.quit();
+    dbThread.wait();
+  }
 
   Pmu(double rl[LYNSYN_SENSORS], double supplyVoltage[LYNSYN_SENSORS]) {
     for(int i = 0; i < LYNSYN_SENSORS; i++) {
@@ -93,6 +136,10 @@ public:
 
   static double cyclesToSeconds(uint64_t cycles) { return cycles / (double)LYNSYN_FREQ; }
   static uint64_t secondsToCycles(double seconds) { return (uint64_t)(seconds * LYNSYN_FREQ); }
+
+signals:
+  void storeRawSample(Sample *sample);
+
 };
 
 #endif
