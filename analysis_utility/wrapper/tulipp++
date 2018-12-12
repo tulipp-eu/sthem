@@ -1,0 +1,5 @@
+#!/bin/bash
+
+. toolsettings.sh
+
+$WRAPPER $CLANG $LLVM_IR_PARSER $OPT $LLC $AS $@

@@ -14,6 +14,8 @@ all:
 	cp tulipp_source_tool/tulipp_source_tool bin
 	cd llvm_ir_parser && $(MAKE)
 	cp llvm_ir_parser/llvm_ir_parser bin
+	cd wrapper && $(MAKE)
+	cp wrapper/tulipp* wrapper/wrapper wrapper/toolsettings.sh bin
 
 .PHONY : clean
 clean :

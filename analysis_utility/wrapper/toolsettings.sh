@@ -1,0 +1,7 @@
+WRAPPER="wrapper"
+CLANG="clang"
+CLANGPP="clang++"
+LLVM_IR_PARSER="llvm_ir_parser"
+OPT="opt"
+LLC="llc"
+AS="aarch64-hipperos-as"
