@@ -393,7 +393,12 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
             QDomElement grandGrandChildElement = grandGrandChildNode.toElement();
             if(!grandGrandChildElement.isNull()) {
               if(grandGrandChildElement.tagName() == "listOptionValue") {
-                options += "-I" + sdsocExpand(xmlPurify(grandGrandChildElement.attribute("value", ""))) + " ";
+                QString incDir = sdsocExpand(xmlPurify(grandGrandChildElement.attribute("value", "")));
+                QFileInfo fileInfo(incDir);
+                if(!fileInfo.isAbsolute()) {
+                  incDir = path + "/src/" + incDir;
+                }
+                options += "-I" + incDir + " ";
               }
             }
             grandGrandChildNode = grandGrandChildNode.nextSibling();
@@ -541,7 +546,12 @@ QString Sdsoc::processLinkerOptions(QDomElement &childElement) {
             QDomElement grandGrandChildElement = grandGrandChildNode.toElement();
             if(!grandGrandChildElement.isNull()) {
               if(grandGrandChildElement.tagName() == "listOptionValue") {
-                options += "-L" + sdsocExpand(xmlPurify(grandGrandChildElement.attribute("value", ""))) + " ";
+                QString libDir = sdsocExpand(xmlPurify(grandGrandChildElement.attribute("value", "")));
+                QFileInfo fileInfo(libDir);
+                if(!fileInfo.isAbsolute()) {
+                  libDir = path + "/src/" + libDir;
+                }
+                options += "-L" + libDir + " ";
               }
             }
             grandGrandChildNode = grandGrandChildNode.nextSibling();
