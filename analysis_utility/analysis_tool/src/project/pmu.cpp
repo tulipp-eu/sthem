@@ -31,7 +31,7 @@
 #define LYNSYN_REF_VOLTAGE 2.5
 #define LYNSYN_RS 8200
 
-#define MAX_TRIES 10
+#define MAX_TRIES 20
 
 #include "pmu.h"
 #include "profile/measurement.h"
@@ -115,7 +115,7 @@ bool Pmu::init() {
   bool found = false;
   int numDevices = libusb_get_device_list(usbContext, &devs);
   int tries = 0;
-  while(!found && (tries < MAX_TRIES)) {
+  while(!found && (tries++ < MAX_TRIES)) {
     for(int i = 0; i < numDevices; i++) {
       struct libusb_device_descriptor desc;
       libusb_device *dev = devs[i];
