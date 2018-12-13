@@ -24,11 +24,14 @@
 #include <QtSql>
 
 #include <QMessageBox>
+#include <QApplication>
 #include <usbprotocol.h>
 
 #define LYNSYN_MAX_CURRENT_VALUE 32768
 #define LYNSYN_REF_VOLTAGE 2.5
 #define LYNSYN_RS 8200
+
+#define MAX_TRIES 10
 
 #include "pmu.h"
 #include "profile/measurement.h"
@@ -47,15 +50,23 @@ bool Pmu::init() {
 
   bool found = false;
   int numDevices = libusb_get_device_list(usbContext, &devs);
-  for(int i = 0; i < numDevices; i++) {
-    libusb_device_descriptor desc;
-    libusb_device *dev = devs[i];
-    libusb_get_device_descriptor(dev, &desc);
-    if(desc.idVendor == 0x10c4 && desc.idProduct == 0x8c1e) {
-      printf("Found Lynsyn Device\n");
-      lynsynBoard = dev;
-      found = true;
-      break;
+  int tries = 0;
+  while(!found && (tries < MAX_TRIES)) {
+    for(int i = 0; i < numDevices; i++) {
+      struct libusb_device_descriptor desc;
+      libusb_device *dev = devs[i];
+      libusb_get_device_descriptor(dev, &desc);
+      if(desc.idVendor == 0x10c4 && desc.idProduct == 0x8c1e) {
+        printf("Found Lynsyn Device\n");
+        lynsynBoard = dev;
+        found = true;
+        break;
+      }
+    }
+    if(!found) {
+      printf("Waiting for Lynsyn device\n");
+      QThread::sleep(1);
+      numDevices = libusb_get_device_list(usbContext, &devs);
     }
   }
 
@@ -464,182 +475,110 @@ double Pmu::currentToPower(unsigned sensor, double current, double *rl, double *
   return i * supplyVoltage[sensor];
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
+uint32_t acceptedFirmwares[] = {
+  0x5d0067bc // V1.4
+};
+
 uint32_t Pmu::crc32(uint32_t crc, uint32_t *data, int length) {
   for(int i = 0; i < length; i++) {
     crc = crc + data[i] ;
   }
   return crc ;
 }
-/*==========CRC_Check=================================*/
-#define MAX_NUMBER_SW_VERSION_SUPPORTED   10  
-uint32_t frimwareCRC[MAX_NUMBER_SW_VERSION_SUPPORTED][2]={
-			    {0x14,0xc50bdcc8},
-			    {2,0},
-			    {3,0},
-			    {4,0},
-			    {5,0},
-			    {6,0},
-			    {7,0},
-			    {8,0},
-			    {9,0},
-			    {10,0}
-			    };
-uint8_t Pmu::CRC_Check(uint32_t crc)
-{
-int i;
-uint8_t newSwVersion=0;
- for(i=0;i<MAX_NUMBER_SW_VERSION_SUPPORTED;i++)
- {
-  if (crc==frimwareCRC[i][1])
-  {
-   newSwVersion=frimwareCRC[i][0];
-  }
- }
-return(newSwVersion);
-} 
 
-/*===========crc calculate for upgrade==========================*/
-uint32_t Pmu::fileCRC(char *filename) {
- 	uint32_t crc = 0;
+bool Pmu::checkForUpgrade(QString filename) {
+  QFile file(filename);
+  file.open(QIODevice::ReadOnly);
+  QByteArray firmware = file.readAll();
+  file.close();
 
+  int packets = firmware.size() / FLASH_BUFFER_SIZE;
+  if(firmware.size() % FLASH_BUFFER_SIZE) packets++;
 
-  /*===========input file==========================*/
+  uint8_t *firmwareBuf = (uint8_t*)calloc(packets * FLASH_BUFFER_SIZE, 1);
+  memcpy(firmwareBuf, firmware.data(), firmware.size());
 
-  FILE *fp = fopen(filename, "rb");
-  if(!fp) {
-    printf("Can't open file %s.\n", filename);
-    return false;
+  uint32_t crc = crc32(0, (uint32_t*)firmwareBuf, (packets * FLASH_BUFFER_SIZE) / 4);
+
+  printf("CRC: %x\n", crc);
+
+  bool doUpgrade = false;
+  int n = sizeof(acceptedFirmwares) / sizeof(uint32_t);
+  for(int i = 0; i < n; i++) {
+    if(crc == acceptedFirmwares[i]) {
+      doUpgrade = true;
+      break;
+    }
   }
 
-  /*==========send firmware data ===================*/
+  if(doUpgrade) {
+    {
+      QMessageBox msgBox;
+      msgBox.setText("Firmware OK, ready to upgrade.  Do not unplug the PMU");
+      msgBox.exec();
+    }
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    printf("Upgrading firmware from file %s.\n", filename.toUtf8().constData());
+
+    /*==========initialize firmware upgrade===========*/
+
+    struct RequestPacket initRequest;
+    initRequest.cmd = USB_CMD_UPGRADE_INIT;
+    sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
+
+    /*==========send firmware data ===================*/
  
-  while(!feof(fp)) {
-    struct UpgradeStoreRequestPacket upgradeStoreRequest;
-    upgradeStoreRequest.request.cmd = USB_CMD_UPGRADE_STORE;
-    int bytesRead = fread(upgradeStoreRequest.data, 1, FLASH_BUFFER_SIZE, fp);
-    if(ferror(fp) || ((bytesRead != FLASH_BUFFER_SIZE) && !feof(fp))) {
-      printf("Error reading file.  Aborting, please unplug/replug lynsyn board\n");
-      fclose(fp);
-      return false;
-    }
-    if(bytesRead) {
-      crc = crc32(crc, (uint32_t *)upgradeStoreRequest.data, FLASH_BUFFER_SIZE/4);
-    }
-  }
-   return(crc);
-}
-/*===========usbFirmwareUpgrade==========================*/
-bool Pmu::usbFirmwareUpgrade(char *filename) {
+    for(int i = 0; i < packets; i++) {
+      struct UpgradeStoreRequestPacket upgradeStoreRequest;
+      upgradeStoreRequest.request.cmd = USB_CMD_UPGRADE_STORE;
 
-	uint32_t crc = 0;
+      memcpy(upgradeStoreRequest.data, &firmwareBuf[i*FLASH_BUFFER_SIZE], FLASH_BUFFER_SIZE);
 
-	printf("Upgrading firmware from file %s.\n", filename);
-
-  /*===========input file==========================*/
-
-  FILE *fp = fopen(filename, "rb");
-  if(!fp) {
-    printf("Can't open file %s.\n", filename);
-    return false;
-  }
-
-  /*============open board=========================*/
-
-	if(!init()) {
-    fclose(fp);
-    return false;
-  }
-
-  /*==========initialize firmware upgrade===========*/
-
-	struct RequestPacket initRequest;
-  initRequest.cmd = USB_CMD_UPGRADE_INIT;
-  sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
-
-  /*==========send firmware data ===================*/
- 
-  while(!feof(fp)) {
-    struct UpgradeStoreRequestPacket upgradeStoreRequest;
-    upgradeStoreRequest.request.cmd = USB_CMD_UPGRADE_STORE;
-    int bytesRead = fread(upgradeStoreRequest.data, 1, FLASH_BUFFER_SIZE, fp);
-    if(ferror(fp) || ((bytesRead != FLASH_BUFFER_SIZE) && !feof(fp))) {
-      printf("Error reading file.  Aborting, please unplug/replug lynsyn board\n");
-      fclose(fp);
-      return false;
-    }
-    if(bytesRead) {
-      crc = crc32(crc, (uint32_t *)upgradeStoreRequest.data, FLASH_BUFFER_SIZE/4);
       sendBytes((uint8_t*)&upgradeStoreRequest, sizeof(struct UpgradeStoreRequestPacket));
     }
+
+    /*==========finalize upgrade=====================*/
+
+    struct UpgradeFinaliseRequestPacket finalisePacket;
+
+    finalisePacket.request.cmd = USB_CMD_UPGRADE_FINALISE;
+    finalisePacket.crc = crc;
+    sendBytes((uint8_t*)&finalisePacket, sizeof(struct UpgradeFinaliseRequestPacket));
+
+    /*==========test upgrade=========================*/
+
+    printf("Testing lynsyn\n");
+
+    QThread::sleep(1);
+
+    release();
+
+    if(init()) {
+      QApplication::restoreOverrideCursor();
+
+      QMessageBox msgBox;
+      msgBox.setText("Firmware upgraded successfully");
+      msgBox.exec();
+
+    } else {
+      QApplication::restoreOverrideCursor();
+
+      QMessageBox msgBox;
+      msgBox.setText("Firmware upgrade failed");
+      msgBox.exec();
+    }
+
+  } else {
+    QMessageBox msgBox;
+    msgBox.setText("Unsupported version.  Upgrade the analysis tool, or select a different firmware. ");
+    msgBox.exec();
+
+    return false;
   }
-
-  /*==========finalize upgrade=====================*/
-
-  struct UpgradeFinaliseRequestPacket finalizePacket;
-
-  finalizePacket.request.cmd = USB_CMD_UPGRADE_FINALISE;
-  finalizePacket.crc=crc;
-  sendBytes((uint8_t*)&finalizePacket, sizeof(struct UpgradeFinaliseRequestPacket));
-
-  release();
-  
-  printf("Firmware upgraded.\n");
-
- // sleep(1);
-
-  /*==========test=================================*/
-
-  printf("Testing lynsyn\n");
-
-  //automaticTests(false);
-
-  printf("Upgrade was successful\n");
 
   return true;
 }
-
-/*==========checkForUpgrade=================================*/
-
-bool Pmu::checkForUpgrade(char *filename)
-{
- struct RequestPacket initRequest;
- struct InitReplyPacket initReply;
- struct CalInfoPacket calInfo;
-uint32_t crc=fileCRC(filename); //for test
- printf("crc=%x\n",crc ); //for test
-uint8_t newSwVersion=CRC_Check(crc); //for test 
- printf("newSwVersion=%x\n",newSwVersion ); //for test 
-
- if(!init()) 
- {
-    QMessageBox msgBox;
-    msgBox.setText("USB not found,");
-    msgBox.exec();
-   // msgBox.setText(filename); just for test
- //   msgBox.exec();
-    
-    return(false);
- }
- initRequest.cmd = USB_CMD_INIT;
- sendBytes((uint8_t*)&initRequest, sizeof(struct RequestPacket));
- getBytes((uint8_t*)&initReply, sizeof(struct InitReplyPacket));
- getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
- release();
-//uint32_t crc=fileCRC(filename);
- //printf("crc=%x\n",crc );
-//uint32_t newSwVersion=CRC_Check(crc);
-// printf("newSwVersion=%x\n",newSwVersion );
- if(initReply.swVersion<newSwVersion)
- {
-    QMessageBox msgBox;
-    msgBox.setText("Upgrade was successful");
-    msgBox.exec();
-  return(usbFirmwareUpgrade(filename));
- }else{
- printf("***   There is not any new firmwareUpgrade\n" );
- return(false);
-}
-}
-
-
-	

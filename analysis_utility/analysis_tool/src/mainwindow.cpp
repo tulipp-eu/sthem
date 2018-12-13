@@ -35,7 +35,6 @@
 #include "cfg/loop.h"
 #include "analysis/analysismodel.h"
 #include "config/configdialog.h"
-#include "update/configdialog2.h"
 #include "project/projectdialog.h"
 #include "project/pmu.h"
 
@@ -181,11 +180,8 @@ MainWindow::MainWindow(Analysis *analysis) {
   aboutAct = new QAction("About", this);
   connect(aboutAct, SIGNAL(triggered()), this, SLOT(about()));
 
-  updateAct = new QAction("Update", this);
-  connect(updateAct, SIGNAL(triggered()), this, SLOT(update()));
-
-  update2Act = new QAction("UpdateV2", this);
-  connect(update2Act, SIGNAL(triggered()), this, SLOT(update2()));
+  upgradeAct = new QAction("Upgrade PMU Firmware", this);
+  connect(upgradeAct, SIGNAL(triggered()), this, SLOT(upgrade()));
 
   openProjectAct = new QAction("Open custom project", this);
   connect(openProjectAct, SIGNAL(triggered()), this, SLOT(openCustomProject()));
@@ -225,8 +221,7 @@ MainWindow::MainWindow(Analysis *analysis) {
 
   helpMenu = menuBar()->addMenu("Help");
   helpMenu->addAction(aboutAct);
-  helpMenu->addAction(updateAct);
-  helpMenu->addAction(update2Act);
+  helpMenu->addAction(upgradeAct);
   // toolbars
   mainToolBar = addToolBar("MainTB");
   mainToolBar->setObjectName("MainTB");
@@ -532,26 +527,26 @@ void MainWindow::about() {
                      "TULIPP EU Project, NTNU 2018");
 }
 
-void MainWindow::update() {
-  QFileDialog dialog(this, "Select Firmware Application file");
-  dialog.setNameFilter(tr("Firmware binary(.bin) (*.bin)"));
+void MainWindow::upgrade() {
+  QFileDialog dialog(this, "Select PMU firmware file");
+  dialog.setNameFilter(tr("Firmware binary (*.bin)"));
   if(dialog.exec()) {
-     QString path = dialog.selectedFiles()[0];
-     QByteArray ba = path.toLocal8Bit();
-      char *c_str2 = ba.data();
-          Pmu pmu1 ;
-          pmu1.checkForUpgrade(c_str2);
+    Pmu pmu;
+
+    bool pmuInited = pmu.init();
+    if(!pmuInited) {
+      QMessageBox msgBox;
+      msgBox.setText("Can't connect to PMU");
+      msgBox.exec();
+      return;
+    }
+
+    pmu.checkForUpgrade(dialog.selectedFiles()[0]);
+
+    pmu.release();
+  }
 }
 
-                    // Pmu pmu1 ;
-                   //  pmu1.checkForUpgrade(0x15,"lynsyn_main.bin");
-
-}
-
-void MainWindow::update2() {
-    ConfigDialog2 dialog;
-     dialog.exec();
-}
 ///////////////////////////////////////////////////////////////////////////////
 
 void MainWindow::regionClicked(const QModelIndex &index) {

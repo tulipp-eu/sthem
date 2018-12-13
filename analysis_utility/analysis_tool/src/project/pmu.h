@@ -60,6 +60,8 @@ private:
   bool getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived);
   void storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy);
 
+  static uint32_t crc32(uint32_t crc, uint32_t *data, int length);
+
 public:
   static const unsigned MAX_SENSORS = LYNSYN_SENSORS;
   static const unsigned MAX_CORES = LYNSYN_MAX_CORES;
@@ -81,11 +83,7 @@ public:
 
   double currentToPower(unsigned sensor, double current);
   static double currentToPower(unsigned sensor, double current, double *rl, double *supplyVoltage, double *sensorOffset, double *sensorGain);
-  uint32_t crc32(uint32_t crc, uint32_t *data, int length);
-  bool usbFirmwareUpgrade(char *filename);
-  bool checkForUpgrade(char *filename);
-  uint8_t CRC_Check(uint32_t crc);
-  uint32_t fileCRC(char *filename);
+  bool checkForUpgrade(QString filename);
 
   bool collectSamples(bool useFrame, bool useStartBp,
                       uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
