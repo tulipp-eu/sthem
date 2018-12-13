@@ -68,6 +68,7 @@ class ProjectProfPage : public QWidget {
 public slots:
   void setDefault(bool checked);
   void setDefaultUs(bool checked);
+  void setDefaultHipperosUs(bool checked);
   void updateGui();
 
 public:
@@ -85,6 +86,8 @@ public:
   QComboBox *stopAtCombo;
   QLineEdit *stopFuncEdit;
   QLineEdit *samplePeriodEdit;
+
+  QLineEdit *frameFuncEdit;
 
   QLineEdit *customElfEdit;
 

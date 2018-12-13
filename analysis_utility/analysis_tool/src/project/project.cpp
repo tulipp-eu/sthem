@@ -239,7 +239,7 @@ bool Project::makeXml() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
-  if(created) errorCode = system(QString("make -j xml").toUtf8().constData());
+  if(created) errorCode = system(QString("make xml").toUtf8().constData());
   else errorCode = 1;
 
   if(!created || errorCode) {
@@ -255,7 +255,7 @@ bool Project::makeBin() {
   emit advance(0, "Building XML");
 
   bool created = createXmlMakefile();
-  if(created) errorCode = system(QString("make -j xml").toUtf8().constData());
+  if(created) errorCode = system(QString("make xml").toUtf8().constData());
   else errorCode = 1;
 
   if(!created || errorCode) {
@@ -268,7 +268,7 @@ bool Project::makeBin() {
   emit advance(1, "Building binary");
 
   created = createMakefile();
-  if(created) errorCode = system(QString("make -j binary").toUtf8().constData());
+  if(created) errorCode = system(QString("make binary").toUtf8().constData());
   else errorCode = 1;
 
   if(!created || errorCode) {
@@ -325,6 +325,8 @@ void Project::loadProjectFile() {
   stopFunc = settings.value("stopFunc", "_exit").toString();
   samplePeriod = settings.value("samplePeriod", 0).toLongLong();
 
+  frameFunc = settings.value("frameFunc", "tulippFrameDone").toString();
+
   customElfFile = settings.value("customElfFile", "").toString();
   instrument = settings.value("instrument", false).toBool();
 
@@ -375,6 +377,8 @@ void Project::saveProjectFile() {
 
   settings.setValue("stopAt", stopAt);
   settings.setValue("stopFunc", stopFunc);
+
+  settings.setValue("frameFunc", frameFunc);
 
   settings.setValue("instrument", instrument);
 
@@ -520,6 +524,7 @@ void Project::copy(Project *p) {
   startFunc = p->startFunc;
   stopFunc = p->stopFunc;
   createBbInfo = p->createBbInfo;
+  frameFunc = p->frameFunc;
   
   // settings from either sdsoc project or user
   sources = p->sources;
@@ -602,7 +607,6 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
   }
 
   if(!bb) {
-    QString functionId;
     QString funcName;
 
     if(elfSupport->isBb(pc)) {
@@ -611,13 +615,7 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
       funcName = elfSupport->getFunction(pc);
     }
 
-    if(core != 0) {
-      functionId = QString("CPU") + QString::number(core) + "_" + funcName;
-    } else {
-      functionId = funcName;
-    }
-
-    func = cfg->getFunctionById(functionId);
+    func = cfg->getFunctionById(funcName);
 
     if(func) {
       // we don't know the BB, but the function exists in the CFG: add to first BB
@@ -626,13 +624,22 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 
     } else {
       // the function does not exist in the CFG
+      funcName = "";
+      if(core != 0) {
+        funcName = QString("CPU") + QString::number(core) + ":";
+      }
+      if(elfSupport->getFunction(pc) != "Unknown") {
+        funcName += elfSupport->getElfName(pc) + ":";
+      }
+      funcName += elfSupport->getFunction(pc);
+
       Module *mod = cfg->externalMod;
-      func = mod->getFunctionById(functionId);
+      func = mod->getFunctionById(funcName);
 
       if(func) {
         bb = static_cast<BasicBlock*>(func->children[0]);
       } else {
-        func = new Function(functionId, mod, mod->children.size());
+        func = new Function(funcName, mod, mod->children.size());
         mod->appendChild(func);
 
         bb = new BasicBlock(QString::number(mod->children.size()), func, 0);
@@ -1040,13 +1047,23 @@ bool Project::runProfiler() {
 
     if(runTcf) {
       startAddr = elfSupport.lookupSymbol(startFunc);
+      if(!startAddr) {
+        emit finished(1, "Start location not found");
+        pmu.release();
+        return false;
+      }        
     }
 
     if(stopAt == STOP_AT_BREAKPOINT) {
       stopAddr = elfSupport.lookupSymbol(stopFunc);
+      if(!stopAddr) {
+        emit finished(1, "Stop location not found");
+        pmu.release();
+        return false;
+      }        
     }
 
-    uint64_t frameAddr = elfSupport.lookupSymbol("tulippFrameDone");
+    uint64_t frameAddr = elfSupport.lookupSymbol(frameFunc);
 
     bool ret = pmu.collectSamples(runTcf, runTcf,
                                   frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 

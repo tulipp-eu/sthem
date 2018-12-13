@@ -39,23 +39,59 @@
   "ps7_post_config\n"                                               \
   "dow $name.elf\n"
 
-#define DEFAULT_TCF_UPLOAD_SCRIPT_US                                    \
-  "connect\n"                                                           \
-  "targets 8\n"                                                         \
-  "rst -system\n"                                                       \
-  "after 3000\n"                                                        \
-  "targets 8\n"                                                         \
-  "while {[catch {fpga -file $name.elf.bit}] eq 1} {rst -system}\n"     \
-  "targets 8\n"                                                         \
-  "source [lindex [exec find _sds | grep psu_init.tcl] 0]\n"            \
-  "psu_init\n"                                                          \
-  "after 1000\n"                                                        \
-  "psu_ps_pl_isolation_removal\n"                                       \
-  "after 1000\n"                                                        \
-  "psu_ps_pl_reset_config\n"                                            \
-  "targets 9\n"                                                         \
-  "rst -processor\n"                                                    \
-  "dow $name.elf\n"
+#define DEFAULT_TCF_UPLOAD_SCRIPT_US \
+  "connect\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~\"APU*\"} -index 1\n" \
+  "rst -system\n" \
+  "after 3000\n" \
+  "\n" \
+  "fpga -file $name.elf.bit\n" \
+  "configparams force-mem-access 1\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~\"APU*\"} -index 1\n" \
+  "source [lindex [exec find _sds | grep psu_init.tcl] 0]\n" \
+  "psu_init\n" \
+  "after 1000\n" \
+  "psu_ps_pl_isolation_removal\n" \
+  "after 1000\n" \
+  "psu_ps_pl_reset_config\n" \
+  "catch {psu_protection}\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
+  "rst -processor\n" \
+  "dow $name.elf\n" \
+  "configparams force-mem-access 0\n" \
+  "after 1000\n"
+
+#define DEFAULT_TCF_UPLOAD_SCRIPT_HIPPEROS_US \
+  "connect\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
+  "rst -system\n" \
+  "\n" \
+  "con\n" \
+  "after 3000\n" \
+  "stop\n" \
+  "\n" \
+  "dow -data bin/kernel.img 0x12100000\n" \
+  "dow -data bin/uinitrd.img 0x14000000\n" \
+  "\n" \
+  "exec echo \"bootm 0x12100000 0x14000000\" > /dev/ttyUSB0\n" \
+  "\n" \
+  "con\n" \
+  "after 1000\n" \
+  "stop\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*1\"}\n" \
+  "con\n" \
+  "after 10\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*2\"}\n" \
+  "con\n" \
+  "after 10\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*3\"}\n" \
+  "con\n" \
+  "after 10\n"
 
 class Config {
 

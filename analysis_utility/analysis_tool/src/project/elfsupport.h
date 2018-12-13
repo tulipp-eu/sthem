@@ -31,17 +31,20 @@
 class Addr2Line {
 public:
   QString filename;
+  QString elfName;
   QString function;
   uint64_t lineNumber;
 
   Addr2Line() {
     filename = "";
+    elfName = "";
     function = "";
     lineNumber = 0;
   }
 
-  Addr2Line(QString filename, QString function, uint64_t lineNumber) {
+  Addr2Line(QString filename, QString elfName, QString function, uint64_t lineNumber) {
     this->filename = filename;
+    this->elfName = elfName;
     this->function = function;
     this->lineNumber = lineNumber;
   }
@@ -64,11 +67,14 @@ public:
     prevPc = -1;
   }
   void addElf(QString elfFile) {
-    elfFiles.push_back(elfFile);
+    if(elfFile.trimmed() != "") {
+      elfFiles.push_back(elfFile);
+    }
   }
 
   // get debug info
   QString getFilename(uint64_t pc);
+  QString getElfName(uint64_t pc);
   QString getFunction(uint64_t pc);
   uint64_t getLineNumber(uint64_t pc);
   bool isBb(uint64_t pc);

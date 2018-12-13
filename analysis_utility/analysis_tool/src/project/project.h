@@ -78,6 +78,8 @@ public:
   QString stopFunc;
   int64_t samplePeriod;
 
+  QString frameFunc;
+
   bool instrument;
   bool createBbInfo;
 

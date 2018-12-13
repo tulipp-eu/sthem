@@ -21,6 +21,22 @@
 
 #include "elfsupport.h"
 
+static char *readLine(char *s, int size, FILE *stream) {
+  char *ret = NULL;
+
+  while(!ret) {
+    ret = fgets(s, size, stream);
+    if(feof(stream)) return NULL;
+    if(ferror(stream)) {
+      if(errno == EINTR) clearerr(stream);
+      else return NULL;
+    }
+  }
+
+  return ret;
+}
+
+
 void ElfSupport::setPc(uint64_t pc) {
   if(prevPc != pc) {
     prevPc = pc;
@@ -50,15 +66,15 @@ void ElfSupport::setPc(uint64_t pc) {
         if((fp = popen(cmd.c_str(), "r")) == NULL) goto error;
 
         // discard first output line
-        if(fgets(buf, 1024, fp) == NULL) goto error;
+        if(readLine(buf, 1024, fp) == NULL) goto error;
 
         // get function name
-        if(fgets(buf, 1024, fp) == NULL) goto error;
+        if(readLine(buf, 1024, fp) == NULL) goto error;
         function = QString::fromUtf8(buf).simplified();
         if(function == "??") function = "Unknown";
 
         // get filename and linenumber
-        if(fgets(buf, 1024, fp) == NULL) goto error;
+        if(readLine(buf, 1024, fp) == NULL) goto error;
 
         {
           QString qbuf = QString::fromUtf8(buf);
@@ -70,7 +86,7 @@ void ElfSupport::setPc(uint64_t pc) {
         if(pclose(fp)) goto error;
       }
 
-      addr2line = Addr2Line(fileName, function, lineNumber);
+      addr2line = Addr2Line(fileName, elfFile, function, lineNumber);
       addr2lineCache[pc] = addr2line;
 
       if((function != "Unknown") || (lineNumber != 0)) break;
@@ -80,13 +96,18 @@ void ElfSupport::setPc(uint64_t pc) {
   return;
 
  error:
-  addr2line = Addr2Line("", "", 0);
+  addr2line = Addr2Line("", "", "", 0);
   addr2lineCache[pc] = addr2line;
 }
 
 QString ElfSupport::getFilename(uint64_t pc) {
   setPc(pc);
   return addr2line.filename;
+}
+
+QString ElfSupport::getElfName(uint64_t pc) {
+  setPc(pc);
+  return addr2line.elfName;
 }
 
 QString ElfSupport::getFunction(uint64_t pc) {
@@ -120,10 +141,12 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
     // run program
     if((fp = popen(cmd.toUtf8().constData(), "r")) == NULL) goto error;
 
-    while(fgets(buf, 1024, fp)) {
-      QStringList line = QString::fromUtf8(buf).split(' ');
-      if(line[2].trimmed() == symbol) {
-        return line[0].toULongLong(0, 16);
+    while(!feof(fp) && !ferror(fp)) {
+      if(readLine(buf, 1024, fp)) {
+        QStringList line = QString::fromUtf8(buf).split(' ');
+        if(line[2].trimmed() == symbol) {
+          return line[0].toULongLong(0, 16);
+        }
       }
     }
   }
@@ -131,4 +154,3 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
  error:
   return 0;
 }
-

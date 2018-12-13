@@ -40,6 +40,66 @@ uint32_t acceptedFirmwares[] = {
   0x5d0067bc // V1.4
 };
 
+///////////////////////////////////////////////////////////////////////////////
+
+DBStorer::DBStorer(uint8_t swVersion) {
+  this->swVersion = swVersion;
+
+  QSqlDatabase::database().transaction();
+
+  query.prepare("INSERT INTO measurements (time, timeSinceLast,  pc1, pc2, pc3, pc4, power1, power2, power3, power4, power5, power6, power7) "
+                "VALUES (:time, :timeSinceLast, :pc1, :pc2, :pc3, :pc4, :power1, :power2, :power3, :power4, :power5, :power6, :power7)");
+}
+
+DBStorer::~DBStorer() {
+  QSqlDatabase::database().commit();
+}
+
+void DBStorer::storeRawSample(Sample *sample) {
+
+  if((swVersion >= SW_VERSION_1_3) && (sample->sample.flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
+    QSqlQuery frameQuery;
+
+    frameQuery.prepare("INSERT INTO frames (time,delay) VALUES (:time,:delay)");
+
+    frameQuery.bindValue(":time", (qint64)sample->sample.time);
+    frameQuery.bindValue(":delay", (qint64)sample->sample.pc[0] - (qint64)sample->sample.time);
+
+    bool success = frameQuery.exec();
+    assert(success);
+
+  } else {
+    query.bindValue(":time", (qint64)sample->sample.time);
+
+    query.bindValue(":timeSinceLast", (qint64)sample->timeSinceLast);
+
+    query.bindValue(":pc1", (quint64)sample->sample.pc[0]);
+    query.bindValue(":pc2", (quint64)sample->sample.pc[1]);
+    query.bindValue(":pc3", (quint64)sample->sample.pc[2]);
+    query.bindValue(":pc4", (quint64)sample->sample.pc[3]);
+
+    query.bindValue(":power1", sample->power[0]);
+    query.bindValue(":power2", sample->power[1]);
+    query.bindValue(":power3", sample->power[2]);
+    query.bindValue(":power4", sample->power[3]);
+    query.bindValue(":power5", sample->power[4]);
+    query.bindValue(":power6", sample->power[5]);
+    query.bindValue(":power7", sample->power[6]);
+
+    bool success = query.exec();
+    if((swVersion == SW_VERSION_1_1) && !success) {
+      printf("Failed to insert %d\n", (unsigned)sample->sample.time);
+    } else {
+      printf("Failed to insert %d: %s\n", (unsigned)sample->sample.time, query.lastError().text().toUtf8().constData());
+      assert(success);
+    }
+  }
+
+  delete sample;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 bool Pmu::init() {
   libusb_device *lynsynBoard;
 
@@ -227,60 +287,20 @@ bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsR
   return true;
 }
 
-void Pmu::storeRawSample(SampleReplyPacket *sample, int64_t timeSinceLast, double *minPower, double *maxPower, double *energy) {
-
-  if((swVersion >= SW_VERSION_1_3) && (sample->flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
-    QSqlQuery frameQuery;
-
-    frameQuery.prepare("INSERT INTO frames (time,delay) VALUES (:time,:delay)");
-
-    frameQuery.bindValue(":time", (qint64)sample->time);
-    frameQuery.bindValue(":delay", (qint64)sample->pc[0] - (qint64)sample->time);
-
-    bool success = frameQuery.exec();
-    assert(success);
-
-  } else {
-    query.bindValue(":time", (qint64)sample->time);
-
-    query.bindValue(":timeSinceLast", (qint64)timeSinceLast);
-
-    query.bindValue(":pc1", (quint64)sample->pc[0]);
-    query.bindValue(":pc2", (quint64)sample->pc[1]);
-    query.bindValue(":pc3", (quint64)sample->pc[2]);
-    query.bindValue(":pc4", (quint64)sample->pc[3]);
-
-    double power[LYNSYN_SENSORS];
-
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
-      power[i] = currentToPower(i, sample->current[i]);
-      if(power[i] < minPower[i]) minPower[i] = power[i];
-      if(power[i] > maxPower[i]) maxPower[i] = power[i];
-      energy[i] += power[i] * cyclesToSeconds(timeSinceLast);
-    }
-
-    query.bindValue(":power1", power[0]);
-    query.bindValue(":power2", power[1]);
-    query.bindValue(":power3", power[2]);
-    query.bindValue(":power4", power[3]);
-    query.bindValue(":power5", power[4]);
-    query.bindValue(":power6", power[5]);
-    query.bindValue(":power7", power[6]);
-
-    bool success = query.exec();
-    if((swVersion == SW_VERSION_1_1) && !success) {
-      printf("Failed to insert %d\n", (unsigned)sample->time);
-    } else {
-      assert(success);
-    }
-  }
-}
-
 bool Pmu::collectSamples(bool useFrame, bool useStartBp,
                          uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
                          int64_t samplePeriod, uint64_t startAddr, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
+
+  DBStorer *dbStorer = new DBStorer(swVersion);
+
+  dbStorer->moveToThread(&dbThread);
+
+  //connect(&dbThread, &QThread::finished, dbStorer, &QObject::deleteLater);
+  connect(this, SIGNAL(storeRawSample(Sample*)), dbStorer, SLOT(storeRawSample(Sample*)));
+
+  dbThread.start();
 
   bool useBp = startAtBp | (stopAt == STOP_AT_BREAKPOINT);
 
@@ -331,18 +351,26 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
     req.cmd = USB_CMD_START_SAMPLING;
     if(samplingModeGpio) {
       printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     if(!useStartBp) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     if(!samplePc) {
       printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     if(stopAt == STOP_AT_TIME) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
@@ -373,11 +401,6 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
   int counter = 0;
 
   bool done = false;
-
-  QSqlDatabase::database().transaction();
-
-  query.prepare("INSERT INTO measurements (time, timeSinceLast,  pc1, pc2, pc3, pc4, power1, power2, power3, power4, power5, power6, power7) "
-                "VALUES (:time, :timeSinceLast, :pc1, :pc2, :pc3, :pc4, :power1, :power2, :power3, :power4, :power5, :power6, :power7)");
 
   int64_t lastTime = -1;
 
@@ -432,18 +455,30 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
 
         lastTime = sample->time;
 
-        storeRawSample(sample, timeSinceLast, minPower, maxPower, energy);
+        double power[LYNSYN_SENSORS];
+
+        for(int i = 0; i < LYNSYN_SENSORS; i++) {
+          power[i] = currentToPower(i, sample->current[i]);
+          if(power[i] < minPower[i]) minPower[i] = power[i];
+          if(power[i] > maxPower[i]) maxPower[i] = power[i];
+          energy[i] += power[i] * cyclesToSeconds(timeSinceLast);
+        }
+
+        Sample *s = new Sample(timeSinceLast, *sample, power);
+
+        emit storeRawSample(s);
       }
 
       sample++;
     }
   }
 
-  QSqlDatabase::database().commit();
-
   *runtime = cyclesToSeconds(*maxTime - *minTime);
 
   free(buf);
+
+  disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+  dbStorer->deleteLater();
 
   return true;
 }
