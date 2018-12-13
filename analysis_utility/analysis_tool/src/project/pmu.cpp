@@ -36,6 +36,10 @@
 #include "pmu.h"
 #include "profile/measurement.h"
 
+uint32_t acceptedFirmwares[] = {
+  0x5d0067bc // V1.4
+};
+
 bool Pmu::init() {
   libusb_device *lynsynBoard;
 
@@ -476,10 +480,6 @@ double Pmu::currentToPower(unsigned sensor, double current, double *rl, double *
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-uint32_t acceptedFirmwares[] = {
-  0x5d0067bc // V1.4
-};
 
 uint32_t Pmu::crc32(uint32_t crc, uint32_t *data, int length) {
   for(int i = 0; i < length; i++) {
