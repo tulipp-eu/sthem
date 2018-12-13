@@ -64,6 +64,35 @@
   "configparams force-mem-access 0\n" \
   "after 1000\n"
 
+#define DEFAULT_TCF_UPLOAD_SCRIPT_HIPPEROS_US \
+  "connect\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
+  "rst -system\n" \
+  "\n" \
+  "con\n" \
+  "after 3000\n" \
+  "stop\n" \
+  "\n" \
+  "dow -data bin/kernel.img 0x12100000\n" \
+  "dow -data bin/uinitrd.img 0x14000000\n" \
+  "\n" \
+  "exec echo \"bootm 0x12100000 0x14000000\" > /dev/ttyUSB0\n" \
+  "\n" \
+  "con\n" \
+  "after 1000\n" \
+  "stop\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*1\"}\n" \
+  "con\n" \
+  "after 10\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*2\"}\n" \
+  "con\n" \
+  "after 10\n" \
+  "targets -set -nocase -filter {name =~ \"*A53*3\"}\n" \
+  "con\n" \
+  "after 10\n"
+
 class Config {
 
 public:

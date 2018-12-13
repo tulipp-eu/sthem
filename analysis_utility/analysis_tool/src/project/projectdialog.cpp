@@ -257,6 +257,11 @@ void ProjectProfPage::setDefaultUs(bool checked) {
   tcfUploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT_US);
 }
 
+void ProjectProfPage::setDefaultHipperosUs(bool checked) {
+  tcfUploadScriptEdit->clear();
+  tcfUploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT_HIPPEROS_US);
+}
+
 ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(parent) {
   QLabel label;
   QFontMetrics m(label.font());
@@ -286,12 +291,19 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
     QPushButton *defaultUsButton = new QPushButton("Default (Zynq Ultrascale+)");
     connect(defaultUsButton, SIGNAL(clicked(bool)), this, SLOT(setDefaultUs(bool)));
 
+    QPushButton *defaultHipperosUsButton = new QPushButton("Default HIPPEROS (Zynq Ultrascale+)");
+    connect(defaultHipperosUsButton, SIGNAL(clicked(bool)), this, SLOT(setDefaultHipperosUs(bool)));
+
     QHBoxLayout *buttonLayout = new QHBoxLayout;
     buttonLayout->addWidget(defaultButton);
     buttonLayout->addWidget(defaultUsButton);
     buttonLayout->addStretch(1);
-
     tcfLayout->addLayout(buttonLayout);
+
+    QHBoxLayout *buttonLayoutHipperos = new QHBoxLayout;
+    buttonLayoutHipperos->addWidget(defaultHipperosUsButton);
+    buttonLayoutHipperos->addStretch(1);
+    tcfLayout->addLayout(buttonLayoutHipperos);
   }
 
   tcfLayout->addStretch(1);
@@ -389,6 +401,13 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   samplePeriodLayout->addWidget(samplePeriodLabel);
   samplePeriodLayout->addWidget(samplePeriodEdit);
 
+  QHBoxLayout *frameLayout = new QHBoxLayout;
+  QLabel *frameFuncLabel = new QLabel("Frame done location:");
+  frameLayout->addWidget(frameFuncLabel);
+  frameFuncEdit = new QLineEdit(project->frameFunc);
+  frameLayout->addWidget(frameFuncEdit);
+  frameLayout->addStretch(1);
+
   QVBoxLayout *measurementsLayout = new QVBoxLayout;
   measurementsLayout->addLayout(customElfLayout);
   measurementsLayout->addWidget(samplingModeGpioCheckBox);
@@ -398,6 +417,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   measurementsLayout->addLayout(stopAtLayout);
   measurementsLayout->addLayout(stopLayout);
   measurementsLayout->addLayout(samplePeriodLayout);
+  measurementsLayout->addLayout(frameLayout);
   measurementsLayout->addStretch(1);
   measurementsGroup->setLayout(measurementsLayout);
 
@@ -549,6 +569,8 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->stopAt = profPage->stopAtCombo->currentIndex();
   project->stopFunc = profPage->stopFuncEdit->text();
   project->samplePeriod = profPage->samplePeriodEdit->text().toLongLong();
+
+  project->frameFunc = profPage->frameFuncEdit->text();
 
   project->customElfFile = profPage->customElfEdit->text();
 }

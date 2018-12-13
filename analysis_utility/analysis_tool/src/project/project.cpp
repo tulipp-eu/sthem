@@ -325,6 +325,8 @@ void Project::loadProjectFile() {
   stopFunc = settings.value("stopFunc", "_exit").toString();
   samplePeriod = settings.value("samplePeriod", 0).toLongLong();
 
+  frameFunc = settings.value("frameFunc", "tulippFrameDone").toString();
+
   customElfFile = settings.value("customElfFile", "").toString();
   instrument = settings.value("instrument", false).toBool();
 
@@ -375,6 +377,8 @@ void Project::saveProjectFile() {
 
   settings.setValue("stopAt", stopAt);
   settings.setValue("stopFunc", stopFunc);
+
+  settings.setValue("frameFunc", frameFunc);
 
   settings.setValue("instrument", instrument);
 
@@ -520,6 +524,7 @@ void Project::copy(Project *p) {
   startFunc = p->startFunc;
   stopFunc = p->stopFunc;
   createBbInfo = p->createBbInfo;
+  frameFunc = p->frameFunc;
   
   // settings from either sdsoc project or user
   sources = p->sources;
@@ -1058,7 +1063,7 @@ bool Project::runProfiler() {
       }        
     }
 
-    uint64_t frameAddr = elfSupport.lookupSymbol("tulippFrameDone");
+    uint64_t frameAddr = elfSupport.lookupSymbol(frameFunc);
 
     bool ret = pmu.collectSamples(runTcf, runTcf,
                                   frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 

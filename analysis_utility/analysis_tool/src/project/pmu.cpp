@@ -82,6 +82,7 @@ void DBStorer::storeRawSample(Sample *sample) {
     if((swVersion == SW_VERSION_1_1) && !success) {
       printf("Failed to insert %d\n", (unsigned)sample->sample.time);
     } else {
+      printf("Failed to insert %d: %s\n", (unsigned)sample->sample.time, query.lastError().text().toUtf8().constData());
       assert(success);
     }
   }
@@ -280,7 +281,7 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
 
   dbStorer->moveToThread(&dbThread);
 
-  connect(&dbThread, &QThread::finished, dbStorer, &QObject::deleteLater);
+  //connect(&dbThread, &QThread::finished, dbStorer, &QObject::deleteLater);
   connect(this, SIGNAL(storeRawSample(Sample*)), dbStorer, SLOT(storeRawSample(Sample*)));
 
   dbThread.start();
@@ -334,18 +335,26 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
     req.cmd = USB_CMD_START_SAMPLING;
     if(samplingModeGpio) {
       printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     if(!useStartBp) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     if(!samplePc) {
       printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     if(stopAt == STOP_AT_TIME) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+      dbStorer->deleteLater();
       return false;
     }
     sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
@@ -451,6 +460,9 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
   *runtime = cyclesToSeconds(*maxTime - *minTime);
 
   free(buf);
+
+  disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
+  dbStorer->deleteLater();
 
   return true;
 }

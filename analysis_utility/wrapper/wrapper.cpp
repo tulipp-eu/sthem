@@ -42,6 +42,8 @@ int main(int argc, char *argv[]) {
   std::string output;
   std::string optlevel;
 
+  bool instrument = false;
+
   int arg = 6;
 
   if(argc <= arg) {
@@ -60,6 +62,9 @@ int main(int argc, char *argv[]) {
     } else if(argstring.substr(0,2) == std::string("-O")) {
       optlevel = argstring;
       arg++;
+    } else if(argstring == std::string("--tulipp-instrument")) {
+      instrument = true;
+      arg++;
     } else {
       args.push_back(std::string(argv[arg]));
       arg++;
@@ -73,6 +78,7 @@ int main(int argc, char *argv[]) {
   clangline += "-Os -target aarch64--none-gnueabi -g -emit-llvm -S " + input;
   std::string parserline1 = std::string(argv[2]) + " " + base(input) + ".ll -xml " + base(input) + ".xml";
   std::string parserline2 = std::string(argv[2]) + " " + base(input) + ".ll -ll " + base(input) + "_2.ll";
+  if(instrument) parserline2 += " --instrument";
   std::string optline = std::string(argv[3]) + " " + optlevel + " " + base(input) + "_2.ll -o " + base(input) + "_3.ll";
   if(optlevel == std::string("-Os")) optlevel = std::string("-O2");
   std::string llcline = std::string(argv[4]) + " " + optlevel + " -mcpu=cortex-a53 " + base(input) + "_3.ll -o " + base(input) + ".s";
