@@ -30,7 +30,7 @@
 
 #define DEFAULT_TCF_UPLOAD_SCRIPT \
   "connect\n"                                                       \
-  "source [lindex [exec find _sds | grep sdk.*ps7_init.tcl] 0]\n"   \
+  "source [lindex [exec find _sds | grep ps7_init.tcl] 0]\n"   \
   "targets 2\n"                                                     \
   "rst -system\n"                                                   \
   "after 3000\n"                                                    \
