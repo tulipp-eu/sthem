@@ -323,7 +323,7 @@ void Project::loadProjectFile() {
 
   stopAt = settings.value("stopAt", 0).toUInt();
   stopFunc = settings.value("stopFunc", "_exit").toString();
-  samplePeriod = settings.value("samplePeriod", 0).toLongLong();
+  samplePeriod = settings.value("samplePeriodS", 0).toDouble();
 
   frameFunc = settings.value("frameFunc", "tulippFrameDone").toString();
 
@@ -373,7 +373,7 @@ void Project::saveProjectFile() {
   settings.setValue("samplePc", samplePc);
 
   settings.setValue("startFunc", startFunc);
-  settings.setValue("samplePeriod", (qint64)samplePeriod);
+  settings.setValue("samplePeriodS", samplePeriod);
 
   settings.setValue("stopAt", stopAt);
   settings.setValue("stopFunc", stopFunc);
@@ -1067,7 +1067,7 @@ bool Project::runProfiler() {
 
     bool ret = pmu.collectSamples(runTcf, runTcf,
                                   frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 
-                                  samplePeriod, startAddr, stopAddr,
+                                  Pmu::secondsToCycles(samplePeriod), startAddr, stopAddr,
                                   &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
     if(!ret) {
       emit finished(1, "Invalid profile settings for PMU firmware version, upgrade firmware");

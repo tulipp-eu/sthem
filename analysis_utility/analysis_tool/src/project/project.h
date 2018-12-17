@@ -76,7 +76,7 @@ public:
 
   unsigned stopAt;
   QString stopFunc;
-  int64_t samplePeriod;
+  double samplePeriod;
 
   QString frameFunc;
 

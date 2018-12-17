@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
 
   Config::overrideSamplePeriod = 0;
   if(parser.isSet(periodOption)) {
-    Config::overrideSamplePeriod = parser.value(periodOption).toLongLong();
+    Config::overrideSamplePeriod = parser.value(periodOption).toDouble();
   }
 
   Config::overrideSamplePc = false;

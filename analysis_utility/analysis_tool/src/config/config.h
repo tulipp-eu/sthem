@@ -130,7 +130,7 @@ public:
   static unsigned sdsocVersion;
   static QString extraCompileOptions;
   static QString projectDir;
-  static int64_t overrideSamplePeriod;
+  static double overrideSamplePeriod;
   static bool overrideSamplePc;
   static bool overrideNoSamplePc;
 };

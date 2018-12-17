@@ -396,7 +396,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   stopLayout->addStretch(1);
 
   QHBoxLayout *samplePeriodLayout = new QHBoxLayout;
-  QLabel *samplePeriodLabel = new QLabel("Sample period:");
+  QLabel *samplePeriodLabel = new QLabel("Sample period (in seconds):");
   samplePeriodEdit = new QLineEdit(QString::number(project->samplePeriod));
   samplePeriodLayout->addWidget(samplePeriodLabel);
   samplePeriodLayout->addWidget(samplePeriodEdit);
@@ -568,7 +568,7 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
 
   project->stopAt = profPage->stopAtCombo->currentIndex();
   project->stopFunc = profPage->stopFuncEdit->text();
-  project->samplePeriod = profPage->samplePeriodEdit->text().toLongLong();
+  project->samplePeriod = profPage->samplePeriodEdit->text().toDouble();
 
   project->frameFunc = profPage->frameFuncEdit->text();
 

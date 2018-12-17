@@ -44,6 +44,6 @@ unsigned Config::window;
 unsigned Config::sdsocVersion;
 QString Config::extraCompileOptions;
 QString Config::projectDir;
-int64_t Config::overrideSamplePeriod;
+double Config::overrideSamplePeriod;
 bool Config::overrideSamplePc;
 bool Config::overrideNoSamplePc;
