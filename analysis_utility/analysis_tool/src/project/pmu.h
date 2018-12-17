@@ -64,7 +64,7 @@ class DBStorer : public QObject {
   Q_OBJECT
 
 private:
-  QSqlQuery query;
+  QSqlQuery *query;
   uint8_t swVersion;
 
 public:
@@ -72,6 +72,8 @@ public:
   ~DBStorer();
 
 public slots:
+  void initTransaction();
+  void commitTransaction();
   void storeRawSample(Sample *sample);
 
 };
@@ -141,6 +143,8 @@ public:
   static uint64_t secondsToCycles(double seconds) { return (uint64_t)(seconds * LYNSYN_FREQ); }
 
 signals:
+  void initTransaction();
+  void commitTransaction();
   void storeRawSample(Sample *sample);
 
 };
