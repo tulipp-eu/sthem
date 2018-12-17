@@ -44,21 +44,47 @@ uint32_t acceptedFirmwares[] = {
 
 DBStorer::DBStorer(uint8_t swVersion) {
   this->swVersion = swVersion;
-
-  QSqlDatabase::database().transaction();
-
-  query.prepare("INSERT INTO measurements (time, timeSinceLast,  pc1, pc2, pc3, pc4, power1, power2, power3, power4, power5, power6, power7) "
-                "VALUES (:time, :timeSinceLast, :pc1, :pc2, :pc3, :pc4, :power1, :power2, :power3, :power4, :power5, :power6, :power7)");
 }
 
 DBStorer::~DBStorer() {
-  QSqlDatabase::database().commit();
+}
+
+void DBStorer::initTransaction() {
+  QSqlDatabase threadDb = QSqlDatabase::addDatabase("QSQLITE", "thread");
+  threadDb.setDatabaseName("profile.db3");
+  bool success = threadDb.open();
+  if(!success) {
+    QSqlError error = threadDb.lastError();
+    printf("Can't open DB: %s\n", error.text().toUtf8().constData());
+    assert(0);
+  }
+
+  threadDb.transaction();
+
+  query = new QSqlQuery(threadDb);
+
+  query->prepare("INSERT INTO measurements (time, timeSinceLast,  pc1, pc2, pc3, pc4, power1, power2, power3, power4, power5, power6, power7) "
+                 "VALUES (:time, :timeSinceLast, :pc1, :pc2, :pc3, :pc4, :power1, :power2, :power3, :power4, :power5, :power6, :power7)");
+}
+
+void DBStorer::commitTransaction() {
+  delete query;
+
+  {
+    QSqlDatabase threadDb = QSqlDatabase::database("thread");
+
+    threadDb.commit();
+    threadDb.close();
+  }
+
+  QSqlDatabase::removeDatabase("thread");
 }
 
 void DBStorer::storeRawSample(Sample *sample) {
+  QSqlDatabase threadDb = QSqlDatabase::database("thread");
 
   if((swVersion >= SW_VERSION_1_3) && (sample->sample.flags & SAMPLE_REPLY_FLAG_FRAME_DONE)) {
-    QSqlQuery frameQuery;
+    QSqlQuery frameQuery(threadDb);
 
     frameQuery.prepare("INSERT INTO frames (time,delay) VALUES (:time,:delay)");
 
@@ -69,28 +95,27 @@ void DBStorer::storeRawSample(Sample *sample) {
     assert(success);
 
   } else {
-    query.bindValue(":time", (qint64)sample->sample.time);
+    query->bindValue(":time", (qint64)sample->sample.time);
 
-    query.bindValue(":timeSinceLast", (qint64)sample->timeSinceLast);
+    query->bindValue(":timeSinceLast", (qint64)sample->timeSinceLast);
 
-    query.bindValue(":pc1", (quint64)sample->sample.pc[0]);
-    query.bindValue(":pc2", (quint64)sample->sample.pc[1]);
-    query.bindValue(":pc3", (quint64)sample->sample.pc[2]);
-    query.bindValue(":pc4", (quint64)sample->sample.pc[3]);
+    query->bindValue(":pc1", (quint64)sample->sample.pc[0]);
+    query->bindValue(":pc2", (quint64)sample->sample.pc[1]);
+    query->bindValue(":pc3", (quint64)sample->sample.pc[2]);
+    query->bindValue(":pc4", (quint64)sample->sample.pc[3]);
 
-    query.bindValue(":power1", sample->power[0]);
-    query.bindValue(":power2", sample->power[1]);
-    query.bindValue(":power3", sample->power[2]);
-    query.bindValue(":power4", sample->power[3]);
-    query.bindValue(":power5", sample->power[4]);
-    query.bindValue(":power6", sample->power[5]);
-    query.bindValue(":power7", sample->power[6]);
+    query->bindValue(":power1", sample->power[0]);
+    query->bindValue(":power2", sample->power[1]);
+    query->bindValue(":power3", sample->power[2]);
+    query->bindValue(":power4", sample->power[3]);
+    query->bindValue(":power5", sample->power[4]);
+    query->bindValue(":power6", sample->power[5]);
+    query->bindValue(":power7", sample->power[6]);
 
-    bool success = query.exec();
+    bool success = query->exec();
     if((swVersion == SW_VERSION_1_1) && !success) {
-      printf("Failed to insert %d\n", (unsigned)sample->sample.time);
+      printf("Failed to insert %ld\n", sample->sample.time);
     } else {
-      printf("Failed to insert %d: %s\n", (unsigned)sample->sample.time, query.lastError().text().toUtf8().constData());
       assert(success);
     }
   }
@@ -297,10 +322,13 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
 
   dbStorer->moveToThread(&dbThread);
 
-  //connect(&dbThread, &QThread::finished, dbStorer, &QObject::deleteLater);
+  connect(this, SIGNAL(initTransaction()), dbStorer, SLOT(initTransaction()));
+  connect(this, SIGNAL(commitTransaction()), dbStorer, SLOT(commitTransaction()));
   connect(this, SIGNAL(storeRawSample(Sample*)), dbStorer, SLOT(storeRawSample(Sample*)));
 
   dbThread.start();
+
+  emit initTransaction();
 
   bool useBp = startAtBp | (stopAt == STOP_AT_BREAKPOINT);
 
@@ -351,24 +379,32 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
     req.cmd = USB_CMD_START_SAMPLING;
     if(samplingModeGpio) {
       printf("Warning. PMU does not support measuring with GPIO control. Update firmware!\n");
+      disconnect(this, SIGNAL (initTransaction()), 0, 0);
+      disconnect(this, SIGNAL (commitTransaction()), 0, 0);
       disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
       dbStorer->deleteLater();
       return false;
     }
     if(!useStartBp) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      disconnect(this, SIGNAL (initTransaction()), 0, 0);
+      disconnect(this, SIGNAL (commitTransaction()), 0, 0);
       disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
       dbStorer->deleteLater();
       return false;
     }
     if(!samplePc) {
       printf("Warning: PMU does not support measuring without PC sampling. Update firmware!\n");
+      disconnect(this, SIGNAL (initTransaction()), 0, 0);
+      disconnect(this, SIGNAL (commitTransaction()), 0, 0);
       disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
       dbStorer->deleteLater();
       return false;
     }
     if(stopAt == STOP_AT_TIME) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
+      disconnect(this, SIGNAL (initTransaction()), 0, 0);
+      disconnect(this, SIGNAL (commitTransaction()), 0, 0);
       disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
       dbStorer->deleteLater();
       return false;
@@ -477,6 +513,10 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
 
   free(buf);
 
+  emit commitTransaction();
+
+  disconnect(this, SIGNAL (initTransaction()), 0, 0);
+  disconnect(this, SIGNAL (commitTransaction()), 0, 0);
   disconnect(this, SIGNAL (storeRawSample(Sample*)), 0, 0);
   dbStorer->deleteLater();
 
