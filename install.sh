@@ -19,11 +19,17 @@ cd analysis_utility
 make
 cd ..
 
-echo "#BEGIN TulippProfile" >> ~/.profile
-echo export PATH=\$PATH:`pwd`/bin >> ~/.profile
-echo "#END TulippProfile" >> ~/.profile
+echo "#BEGIN TulippProfile" >> ~/.bashrc
+echo PATH=\"\$PATH:`pwd`/analysis_utility/bin\" >> ~/.bashrc
+echo "#END TulippProfile" >> ~/.bashrc
+
+PATH=$PATH:`pwd`/analysis_utility/bin
 
 cd power_measurement_utility
 sudo make install_hw
 cd ..
+
+echo
+echo
+echo "*** STHEM is now installed"
 
