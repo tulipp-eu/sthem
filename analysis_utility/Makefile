@@ -1,7 +1,7 @@
-export QMAKE = qmake CONFIG+=debug
-export CLANGPATH = /usr/lib/clang/6.0/
-export CLANGPP = clang++-6.0
-export LLVM_CONFIG = llvm-config-6.0
+export QMAKE = qmake
+#export QMAKE = qmake CONFIG+=debug
+export CLANGPP = clang++
+export LLVM_CONFIG = llvm-config
 
 .PHONY: all
 all:

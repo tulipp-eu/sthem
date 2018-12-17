@@ -1,4 +1,4 @@
-CFLAGS = -std=gnu++11 -fno-rtti -O -g `${LLVM_CONFIG} --cxxflags` -I${CLANGPATH}/include
+CFLAGS = -std=gnu++11 -fno-rtti -O -g `${LLVM_CONFIG} --cxxflags`
 LDFLAGS = -Wl,--start-group -lclangAST -lclangASTMatchers -lclangAnalysis -lclangBasic -lclangDriver -lclangEdit -lclangFrontend -lclangFrontendTool -lclangLex -lclangParse -lclangSema -lclangEdit -lclangRewrite -lclangRewriteFrontend -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers -lclangStaticAnalyzerCore -lclangSerialization -lclangToolingCore -lclangTooling -lclangFormat -Wl,--end-group `${LLVM_CONFIG} --ldflags --libs --system-libs`
 
 ###############################################################################
