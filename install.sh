@@ -28,13 +28,12 @@ echo "#BEGIN TulippProfile" >> ~/.bashrc
 echo PATH=\"\$PATH:`pwd`/analysis_utility/bin\" >> ~/.bashrc
 echo "#END TulippProfile" >> ~/.bashrc
 
-PATH=$PATH:`pwd`/analysis_utility/bin
-
 cd power_measurement_utility
 sudo make install_hw
 cd ..
 
 echo
 echo
-echo "*** STHEM is now installed"
+echo "*** STHEM is now installed. "
 
+bash

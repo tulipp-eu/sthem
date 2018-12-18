@@ -398,7 +398,7 @@ void MainWindow::closeProject() {
 
   analysis->closeProject();
 
-  cfgView->setDse(analysis->dse);
+  cfgView->setDse(NULL);
 
   if(hwGroup) delete hwGroup;
   hwGroup = NULL;
@@ -472,6 +472,7 @@ bool MainWindow::openProject(QString path, QString configType) {
       connect(analysis->project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
       loadFiles();
     }
+    cfgView->setDse(analysis->dse);
   }
 
   QApplication::restoreOverrideCursor();

@@ -435,9 +435,9 @@ void BbNode::printXML(FILE *fp) {
     if(instr->getOpcode() == Instruction::Call) {
       CallInst *call = static_cast<CallInst*>(instr);
       if(call->getCalledFunction()) {
-        /*if(call->getCalledFunction()->isIntrinsic()) {
+        if(call->getCalledFunction()->isIntrinsic()) {
           continue;
-          } else */{
+        } else {
           fprintf(fp, "<instr id=\"call\" target=\"%s\"", xmlify(demangle(call->getCalledFunction()->getName().str())).c_str());
         }
       } else {

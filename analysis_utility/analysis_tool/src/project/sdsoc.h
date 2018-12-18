@@ -59,7 +59,7 @@ public:
   bool enableHwSwTrace;
   bool traceApplication;
 
-  void copy(Sdsoc *p);
+  virtual void copy(Sdsoc *p);
 
   Sdsoc() {}
   Sdsoc(Sdsoc *p);
@@ -88,7 +88,10 @@ public:
 
   static unsigned getSdsocVersion();
 
+  virtual unsigned getVersion() = 0;
+
   static Sdsoc *createSdsoc(unsigned version);
+  static Sdsoc *copySdsoc(Sdsoc *project);
 
 	friend std::ostream& operator<<(std::ostream &os, const Sdsoc &p) {
     // only streams out the necessary parts for DSE
@@ -118,10 +121,10 @@ public:
   Sdsoc20162() {
     platformKey = "sdsoc.platform";
   }
-  Sdsoc20162(Sdsoc *p) {
-    Sdsoc::copy(p);
+  Sdsoc20162(Sdsoc20162 *p) {
+    copy(p);
   }
-
+  virtual unsigned getVersion() { return 20162; }
 };
 
 //-----------------------------------------------------------------------------
@@ -141,9 +144,17 @@ public:
   Sdsoc20172() {
     platformKey = "sdx.custom.platform.repository.locations";
   }
-  Sdsoc20172(Sdsoc *p) {
-    Sdsoc::copy(p);
+  Sdsoc20172(Sdsoc20172 *p) {
+    copy(p);
   }
+
+  virtual void copy(Sdsoc20172 *p) {
+    Sdsoc::copy(p);
+    sysConfig = p->sysConfig;
+    cpu = p->cpu;
+  }
+
+  virtual unsigned getVersion() { return 20172; }
 
   virtual void print();
 };
@@ -160,9 +171,17 @@ protected:
 
 public:
   Sdsoc20174() {}
-  Sdsoc20174(Sdsoc *p) {
-    Sdsoc::copy(p);
+  Sdsoc20174(Sdsoc20174 *p) {
+    copy(p);
   }
+
+  virtual void copy(Sdsoc20174 *p) {
+    Sdsoc20172::copy(p);
+    cpuInstance = p->cpuInstance;
+    genEmulationModel = p->genEmulationModel;
+  }
+
+  virtual unsigned getVersion() { return 20174; }
 
   virtual void print();
 };
@@ -173,6 +192,15 @@ class Sdsoc20182 : public Sdsoc20174 {
 
 public:
   Sdsoc20182() {}
+  Sdsoc20182(Sdsoc20182 *p) {
+    copy(p);
+  }
+
+  virtual void copy(Sdsoc20182 *p) {
+    Sdsoc20174::copy(p);
+  }
+
+  virtual unsigned getVersion() { return 20182; }
 };
 
 #endif

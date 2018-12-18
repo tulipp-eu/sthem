@@ -38,6 +38,21 @@ Sdsoc *Sdsoc::createSdsoc(unsigned version) {
   }
 }
 
+Sdsoc *Sdsoc::copySdsoc(Sdsoc *project) {
+  switch(project->getVersion()) {
+    case 20162:
+      return new Sdsoc20162(static_cast<Sdsoc20162*>(project));
+    case 20172:
+      return new Sdsoc20172(static_cast<Sdsoc20172*>(project));
+    case 20174:
+      return new Sdsoc20174(static_cast<Sdsoc20174*>(project));
+    case 20182:
+      return new Sdsoc20182(static_cast<Sdsoc20182*>(project));
+    default:
+      return NULL;
+  }
+}
+
 unsigned Sdsoc::getSdsocVersion() {
   QProcess process;
   process.start("sdscc -version");

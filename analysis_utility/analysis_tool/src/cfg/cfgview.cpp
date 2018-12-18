@@ -252,6 +252,4 @@ CfgView::CfgView(QTreeView *analysisView, QGraphicsScene *scene) : QGraphicsView
 
   dseAct = new QAction("&Automatic DSE", this);
   connect(dseAct, SIGNAL(triggered()), this, SLOT(dseEvent()));
-
-  dseAct->setEnabled(false);
 }

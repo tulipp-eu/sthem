@@ -1,5 +1,5 @@
-export QMAKE = qmake
-#export QMAKE = qmake CONFIG+=debug
+#export QMAKE = qmake
+export QMAKE = qmake CONFIG+=debug
 export CLANGPP = clang++
 export LLVM_CONFIG = llvm-config
 

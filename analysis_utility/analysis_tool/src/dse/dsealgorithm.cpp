@@ -68,7 +68,7 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
   timer.start();
 
   // create run
-  Sdsoc *project = Sdsoc::createSdsoc(Config::sdsocVersion);
+  Sdsoc *project = Sdsoc::copySdsoc(mainProject);
 
   DseRun dseRun(genome, project, new Profile);
 
