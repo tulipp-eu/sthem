@@ -30,7 +30,7 @@ std::string base(std::string s) {
     return(s.substr(i+1, s.length() - i));
   } else if((i == std::string::npos) && (j != std::string::npos)) {
     return(s.substr(0, j+1));
-  } else if((i != std::string::npos) && (j != std::string::npos)) {
+  } else if((i == std::string::npos) && (j == std::string::npos)) {
     return(s);
   }
 }
