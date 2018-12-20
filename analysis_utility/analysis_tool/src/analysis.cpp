@@ -29,8 +29,6 @@ Analysis::Analysis() {
   profile = NULL;
   dse = NULL;
 
-  QSqlDatabase::addDatabase("QSQLITE");
-
   // settings
   QSettings settings;
 
@@ -70,8 +68,9 @@ Analysis::~Analysis() {
 }
 
 void Analysis::load() {
-  if(profile) delete profile;
-  profile = new Profile;
+  if(profile) profile->clear();
+
+  if(dse) dse->clear();
 
   assert(project);
   project->loadFiles();
@@ -106,8 +105,11 @@ void Analysis::load() {
 ///////////////////////////////////////////////////////////////////////////////
 
 bool Analysis::openProject(QString path, QString configType, bool fast) {
+  if(profile) delete profile;
+  profile = new Profile;
+
   if(configType == "") {
-    CustomProject *customProject = new CustomProject;
+    CustomProject *customProject = new CustomProject(profile);
 
     if(customProject->openProject(path)) {
       project = customProject;
@@ -116,7 +118,7 @@ bool Analysis::openProject(QString path, QString configType, bool fast) {
     }
 
   } else {
-    Sdsoc *sdsocProject = Sdsoc::createSdsoc(Config::sdsocVersion);
+    Sdsoc *sdsocProject = Sdsoc::createSdsoc(Config::sdsocVersion, profile);
 
     if(!sdsocProject) {
       QApplication::restoreOverrideCursor();
@@ -138,6 +140,7 @@ bool Analysis::openProject(QString path, QString configType, bool fast) {
   }
 
   if(project != NULL) {
+    profile->connect();
     load();
   }
 
@@ -145,13 +148,19 @@ bool Analysis::openProject(QString path, QString configType, bool fast) {
 }
 
 bool Analysis::createProject(QString path) {
-  CustomProject *customProject = new CustomProject;
+  if(!profile) delete profile;
+  profile = new Profile;
+
+  CustomProject *customProject = new CustomProject(profile);
 
   if(customProject->createProject(path)) {
     project = customProject;
+    profile->connect();
 
   } else {
     delete customProject;
+    delete profile;
+    profile = NULL;
     return false;
   }
 
@@ -170,11 +179,11 @@ void Analysis::closeProject() {
 }
 
 bool Analysis::loadProfFile(QString path) {
-  return project->parseProfFile(path, profile);
+  return project->parseProfFile(path);
 }
 
 bool Analysis::loadGProfFile(QString gprofPath, QString elfPath) {
-  return project->parseGProfFile(gprofPath, elfPath, profile);
+  return project->parseGProfFile(gprofPath, elfPath);
 }
 
 bool Analysis::clean() {
@@ -198,8 +207,7 @@ bool Analysis::runApp() {
 bool Analysis::profileApp() {
   assert(profile);
   profile->clean();
-  
-  return project->runProfiler();  
+  return project->runProfiler();
 }
 
 void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {

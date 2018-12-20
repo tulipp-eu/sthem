@@ -23,34 +23,42 @@
 
 #include <QProcess>
 
-Sdsoc *Sdsoc::createSdsoc(unsigned version) {
+Sdsoc *Sdsoc::createSdsoc(unsigned version, Profile *profile) {
   switch(version) {
     case 20162:
-      return new Sdsoc20162();
+      return new Sdsoc20162(profile);
     case 20172:
-      return new Sdsoc20172();
+      return new Sdsoc20172(profile);
     case 20174:
-      return new Sdsoc20174();
+      return new Sdsoc20174(profile);
     case 20182:
-      return new Sdsoc20182();
+      return new Sdsoc20182(profile);
     default:
       return NULL;
   }
 }
 
-Sdsoc *Sdsoc::copySdsoc(Sdsoc *project) {
+Sdsoc *Sdsoc::copySdsoc(Sdsoc *project, Profile *profile) {
+  Sdsoc *sdsoc = NULL;
+
   switch(project->getVersion()) {
     case 20162:
-      return new Sdsoc20162(static_cast<Sdsoc20162*>(project));
+      sdsoc = new Sdsoc20162(static_cast<Sdsoc20162*>(project));
+      break;
     case 20172:
-      return new Sdsoc20172(static_cast<Sdsoc20172*>(project));
+      sdsoc = new Sdsoc20172(static_cast<Sdsoc20172*>(project));
+      break;
     case 20174:
-      return new Sdsoc20174(static_cast<Sdsoc20174*>(project));
+      sdsoc = new Sdsoc20174(static_cast<Sdsoc20174*>(project));
+      break;
     case 20182:
-      return new Sdsoc20182(static_cast<Sdsoc20182*>(project));
-    default:
-      return NULL;
+      sdsoc = new Sdsoc20182(static_cast<Sdsoc20182*>(project));
+      break;
   }
+
+  sdsoc->profile = profile;
+
+  return sdsoc;
 }
 
 unsigned Sdsoc::getSdsocVersion() {
@@ -99,7 +107,7 @@ void Sdsoc::copy(Sdsoc *p) {
   regs = p->regs;
 }
 
-Sdsoc::Sdsoc(Sdsoc *p) {
+Sdsoc::Sdsoc(Sdsoc *p) : Project(profile){
   copy(p);
 }
 

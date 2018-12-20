@@ -63,7 +63,7 @@ void DseResultDialog::changeFitnessFunction(int index) {
   messageTextStream << "<table border=\"1\" cellpadding=\"5\">";
   if(!best.failed) {
     messageTextStream << "<tr>";
-    messageTextStream << "<td>Fitness:</td><td>" << QString::number(fitness) << "</td>";
+    messageTextStream << "<td>Fitness:</td><td>" << fitness << "</td>";
     messageTextStream << "<td>Runtime:</td><td>" << best.profile->getRuntime() << "</td>";
     messageTextStream << "</tr>";
     messageTextStream << "<tr>";
@@ -114,14 +114,18 @@ void DseResultDialog::genSource() {
       Q_UNUSED(ret);
       assert(ret == 0);
 
+      bool r;
+
       // remove old backup file
-      bool r = QFile::remove(f.first + ".old");
-      if(!r) {
-        QApplication::restoreOverrideCursor();
-        QMessageBox msgBox;
-        msgBox.setText("Can't copy file");
-        msgBox.exec();
-        return;
+      if(QFile::exists(f.first + ".old")) {
+        r = QFile::remove(f.first + ".old");
+        if(!r) {
+          QApplication::restoreOverrideCursor();
+          QMessageBox msgBox;
+          msgBox.setText("Can't remove old backup file");
+          msgBox.exec();
+          return;
+        }
       }
 
       // backup old file
@@ -129,7 +133,7 @@ void DseResultDialog::genSource() {
       if(!r) {
         QApplication::restoreOverrideCursor();
         QMessageBox msgBox;
-        msgBox.setText("Can't copy file");
+        msgBox.setText("Can't copy backup file");
         msgBox.exec();
         return;
       }
@@ -139,7 +143,7 @@ void DseResultDialog::genSource() {
       if(!r) {
         QApplication::restoreOverrideCursor();
         QMessageBox msgBox;
-        msgBox.setText("Can't copy file");
+        msgBox.setText("Can't remove file");
         msgBox.exec();
         return;
       }
@@ -149,7 +153,7 @@ void DseResultDialog::genSource() {
       if(!r) {
         QApplication::restoreOverrideCursor();
         QMessageBox msgBox;
-        msgBox.setText("Can't copy file");
+        msgBox.setText("Can't copy generated file");
         msgBox.exec();
         return;
       }

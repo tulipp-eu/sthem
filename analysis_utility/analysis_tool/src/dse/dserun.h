@@ -81,10 +81,13 @@ public:
     is >> d.time;
 
     if(!d.failed) {
-      if(!d.project) {
-        d.project = Sdsoc::createSdsoc(Config::sdsocVersion);
+      if(!d.profile) {
+        d.profile = new Profile;
+        d.profile->connect();
       }
-      if(!d.profile) d.profile = new Profile;
+      if(!d.project) {
+        d.project = Sdsoc::createSdsoc(Config::sdsocVersion, d.profile);
+      }
 
       is >> *d.project >> *d.profile;
     }

@@ -28,7 +28,18 @@
 #include "cfg/loop.h"
 
 Profile::Profile() {
-  QSqlDatabase db = QSqlDatabase::database();
+}
+
+Profile::~Profile() {
+  clear();
+  disconnect();
+}
+
+void Profile::connect() {
+  static int dbCounter = 0;
+  dbConnection = QString("profile") + QString("%1").arg(dbCounter++);
+
+  QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", dbConnection);
   db.setDatabaseName("profile.db3");
 
   bool success = db.open();
@@ -39,7 +50,7 @@ Profile::Profile() {
     assert(0);
   }
 
-  QSqlQuery query;
+  QSqlQuery query(db);
 
   success = query.exec("CREATE TABLE IF NOT EXISTS measurements (time INT, timeSinceLast INT, pc1 INT, pc2 INT, pc3 INT, pc4 INT, basicblock1 TEXT, module1 TEXT, basicblock2 TEXT, module2 TEXT, basicblock3 TEXT, module3 TEXT, basicblock4 TEXT, module4 TEXT, power1 REAL, power2 REAL, power3 REAL, power4 REAL, power5 REAL, power6 REAL, power7 REAL)");
   assert(success);
@@ -76,7 +87,23 @@ Profile::Profile() {
                        ")");
   assert(success);
 
-  success = query.exec("SELECT mintime,maxtime,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7 FROM meta");
+  update();
+}
+
+void Profile::disconnect() {
+  {
+    QSqlDatabase db = QSqlDatabase::database(dbConnection);
+    db.close();
+  }
+  QSqlDatabase::removeDatabase(dbConnection);
+}
+
+void Profile::update() {
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+
+  QSqlQuery query(db);
+
+  bool success = query.exec("SELECT mintime,maxtime,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7 FROM meta");
   assert(success);
 
   if(query.next()) {
@@ -96,12 +123,6 @@ Profile::Profile() {
       energy[i] = 0;
     }
   }
-}
-
-Profile::~Profile() {
-  clear();
-  QSqlDatabase db = QSqlDatabase::database();
-  db.close();
 }
 
 void Profile::addMeasurement(Measurement measurement) {
@@ -126,19 +147,14 @@ void Profile::addMeasurement(Measurement measurement) {
 void Profile::clean() {
   clear();
 
-  QSqlDatabase db = QSqlDatabase::database();
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+
   QSqlQuery query = QSqlQuery(db);
   query.exec("DELETE FROM measurements");
   query.exec("DELETE FROM location");
   query.exec("DELETE FROM arc");
   query.exec("DELETE FROM frames");
   query.exec("DELETE FROM meta");
-
-  cycles = 0;
-  runtime = 0;
-  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
-    energy[i] = 0;
-  }
 }
 
 void Profile::setMeasurements(QVector<Measurement> *measurements) {
@@ -157,7 +173,8 @@ void Profile::setMeasurements(QVector<Measurement> *measurements) {
 
 void Profile::getProfData(unsigned core, BasicBlock *bb,
                           double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString;
 
   if(bb->getTop()->externalMod == bb->getModule()) {
@@ -202,7 +219,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb,
 
     int id = query.value("id").toInt();
 
-    QSqlQuery countQuery;
+    QSqlQuery countQuery(db);
     countQuery.exec("SELECT sum(num) FROM arc WHERE selfid = " + QString::number(id));
     if(countQuery.next()) {
       *count = countQuery.value(0).toInt();
@@ -240,7 +257,8 @@ void Profile::getProfData(unsigned core, BasicBlock *bb,
 }
 
 int Profile::getId(unsigned core, BasicBlock *bb) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString;
 
   if(bb->getTop()->externalMod == bb->getModule()) {
@@ -273,7 +291,8 @@ double Profile::getArcRatio(unsigned core, BasicBlock *bb, Function *func) {
   int fromid = getId(core, bb);
   int selfid = getId(core, func->getFirstBb());
 
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   query.exec("SELECT sum(num) FROM arc WHERE selfid = " + QString::number(selfid));
 
   int totalCalls = 0;
@@ -310,7 +329,8 @@ void Profile::getMeasurements(unsigned core, BasicBlock *bb, QVector<Measurement
 void Profile::addExternalFunctions(Cfg *cfg) {
   Module *mod = cfg->externalMod;
 
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
 
   QString queryString =
     QString() +
@@ -344,7 +364,8 @@ void Profile::clear() {
 }
 
 double Profile::getMinPower(unsigned sensor) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT minpower" + QString::number(sensor+1) + " FROM meta";
 
   query.exec(queryString);
@@ -356,7 +377,8 @@ double Profile::getMinPower(unsigned sensor) {
 }
 
 double Profile::getMaxPower(unsigned sensor) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT maxpower" + QString::number(sensor+1) + " FROM meta";
 
   query.exec(queryString);
@@ -368,7 +390,8 @@ double Profile::getMaxPower(unsigned sensor) {
 }
 
 double Profile::getFrameRuntimeMin() {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT frameRuntimeMin FROM meta";
 
   query.exec(queryString);
@@ -380,7 +403,8 @@ double Profile::getFrameRuntimeMin() {
 }
 
 double Profile::getFrameRuntimeAvg() {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT frameRuntimeAvg FROM meta";
 
   query.exec(queryString);
@@ -392,7 +416,8 @@ double Profile::getFrameRuntimeAvg() {
 }
 
 double Profile::getFrameRuntimeMax() {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT frameRuntimeMax FROM meta";
 
   query.exec(queryString);
@@ -404,7 +429,8 @@ double Profile::getFrameRuntimeMax() {
 }
 
 double Profile::getFrameEnergyMin(unsigned sensor) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT frameEnergyMin" + QString::number(sensor+1) + " FROM meta";
 
   query.exec(queryString);
@@ -416,7 +442,8 @@ double Profile::getFrameEnergyMin(unsigned sensor) {
 }
 
 double Profile::getFrameEnergyAvg(unsigned sensor) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT frameEnergyAvg" + QString::number(sensor+1) + " FROM meta";
 
   query.exec(queryString);
@@ -428,7 +455,8 @@ double Profile::getFrameEnergyAvg(unsigned sensor) {
 }
 
 double Profile::getFrameEnergyMax(unsigned sensor) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
   QString queryString = QString() + "SELECT frameEnergyMax" + QString::number(sensor+1) + " FROM meta";
 
   query.exec(queryString);

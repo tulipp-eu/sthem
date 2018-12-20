@@ -68,9 +68,8 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
   timer.start();
 
   // create run
-  Sdsoc *project = Sdsoc::copySdsoc(mainProject);
-
-  DseRun dseRun(genome, project, new Profile);
+  Profile *profile = new Profile;
+  Sdsoc *project = Sdsoc::copySdsoc(mainProject, profile);
 
   // clear and set temp directory
   QDir oldDir = QDir::current();
@@ -78,6 +77,10 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
   if(dir.exists()) dir.removeRecursively();
   dir.mkpath(".");
   QDir::setCurrent(dir.path());
+
+  profile->connect();
+
+  DseRun dseRun(genome, project, profile);
 
   // transform source files
   QMap<QString,QStringList> hwFiles = getFilesToTransform(loops, genome);
@@ -129,7 +132,6 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
     } else {
       fitness = fitnessFunction(&dseRun);
       dseRun.time = (timer.elapsed() / (double)1000);
-
       dseRun.project->clear();
       dseRun.profile->clean();
     }

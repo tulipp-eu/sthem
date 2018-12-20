@@ -505,8 +505,9 @@ void Project::loadXmlFile(const QString &fileName) {
 ///////////////////////////////////////////////////////////////////////////////
 // object construction, destruction and management
 
-Project::Project() {
+Project::Project(Profile *profile) {
   cfg = NULL;
+  this->profile = profile;
   close();
 }
 
@@ -519,13 +520,26 @@ void Project::copy(Project *p) {
   systemXmls = p->systemXmls;
   cfgOptLevel = p->cfgOptLevel;
   tcfUploadScript = p->tcfUploadScript;
-  //pmu = p->pmu;
-  ultrascale = p->ultrascale;
+  for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    pmu.rl[i] = p->pmu.rl[i];
+    pmu.supplyVoltage[i] = p->pmu.supplyVoltage[i];
+  }
+
+  samplingModeGpio = p->samplingModeGpio;
+  runTcf = p->runTcf;
+  samplePc = p->samplePc;
+
   startFunc = p->startFunc;
+
+  stopAt = p->stopAt;
   stopFunc = p->stopFunc;
-  createBbInfo = p->createBbInfo;
+  samplePeriod = p->samplePeriod;
+
   frameFunc = p->frameFunc;
-  
+
+  instrument = p->instrument;
+  createBbInfo = p->createBbInfo;
+
   // settings from either sdsoc project or user
   sources = p->sources;
   name = p->name;
@@ -534,6 +548,7 @@ void Project::copy(Project *p) {
   cppOptions = p->cppOptions;
   cppOptLevel = p->cppOptLevel;
   linkerOptions = p->linkerOptions;
+  ultrascale = p->ultrascale;
 
   // settings from sdsoc project, unused otherwise
   configType = p->configType;
@@ -679,7 +694,8 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 }
 
 void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations) {
-  QSqlQuery query;
+  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlQuery query(db);
   query.exec("SELECT * FROM location WHERE core = " + QString::number(core));
 
   while(query.next()) {
@@ -704,8 +720,9 @@ void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locat
   }
 }
 
-bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile *profile) {
-  QSqlQuery query;
+bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
+  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlQuery query(db);
 
   ElfSupport elfSupport;
   elfSupport.addElf(elfFileName);
@@ -722,7 +739,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
 
   std::map<BasicBlock*,Location*> locations;
 
-  QSqlDatabase::database().transaction();
+  db.transaction();
 
   struct gmonhdr hdr;
   file.read((char*)&hdr, sizeof(struct gmonhdr));
@@ -762,7 +779,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
 
   for(auto location : locations) {
     if(!location.second->inDb) {
-      QSqlQuery query;
+      QSqlQuery query(db);
 
       query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
                     "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
@@ -785,7 +802,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
       bool success = query.exec();
       assert(success);
     } else {
-      QSqlQuery query;
+      QSqlQuery query(db);
 
       query.prepare("UPDATE location SET loopcount=:loopcount WHERE id=:id");
 
@@ -797,7 +814,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
     }
 
     for(auto it : location.second->callers) {
-      QSqlQuery arcQuery;
+      QSqlQuery arcQuery(db);
       int caller = it.first;
       int count =  it.second;
 
@@ -814,13 +831,14 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName, Profile
     delete location.second;
   }
 
-  QSqlDatabase::database().commit();
+  db.commit();
 
   return true;
 }
 
-bool Project::parseProfFile(QString fileName, Profile *profile) {
-  QSqlQuery query;
+bool Project::parseProfFile(QString fileName) {
+  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlQuery query(db);
 
   ElfSupport elfSupport;
   elfSupport.addElf(elfFile);
@@ -862,7 +880,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
 
   unknownPower = Pmu::currentToPower(sensor, unknownPower, pmu.rl, pmu.supplyVoltage, offsetData, gainData);
 
-  QSqlDatabase::database().transaction();
+  db.transaction();
 
   if((unknownPower != 0) || (unknownRuntime != 0)) {
     double energy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
@@ -918,7 +936,7 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   }
 
   for(auto location : locations) {
-    QSqlQuery query;
+    QSqlQuery query(db);
 
     query.prepare("INSERT INTO location (id,core,basicblock,function,module,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,loopcount) "
                   "VALUES (:id,:core,:basicblock,:function,:module,:runtime,:energy1,:energy2,:energy3,:energy4,:energy5,:energy6,:energy7,:loopcount)");
@@ -944,9 +962,9 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
     delete location.second;
   }
 
-  QSqlDatabase::database().commit();
+  db.commit();
 
-  QSqlDatabase::database().transaction();
+  db.transaction();
 
   query.prepare("INSERT INTO meta"
                 " (samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,"
@@ -985,12 +1003,13 @@ bool Project::parseProfFile(QString fileName, Profile *profile) {
   bool success = query.exec();
   assert(success);
 
-  QSqlDatabase::database().commit();
+  db.commit();
 
   return true;
 }
 
 bool Project::runProfiler() {
+  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
 
   ElfSupport elfSupport;
   elfSupport.addElf(elfFile);
@@ -1087,7 +1106,7 @@ bool Project::runProfiler() {
   unsigned frameCount = 0;
   {
     int64_t lastTime = 0;
-    QSqlQuery query;
+    QSqlQuery query(db);
     query.exec("SELECT time,delay FROM frames");
     while(query.next()) {
       int64_t time = query.value("time").toLongLong();
@@ -1118,15 +1137,15 @@ bool Project::runProfiler() {
 
     std::map<BasicBlock*,Location*> locations[LYNSYN_MAX_CORES];
 
-    QSqlQuery query;
+    QSqlQuery query(db);
     query.setForwardOnly(true);
     query.exec("SELECT rowid,time,timeSinceLast,pc1,pc2,pc3,pc4,power1,power2,power3,power4,power5,power6,power7 FROM measurements");
 
     int counter = 0;
 
-    QSqlDatabase::database().transaction();
+    db.transaction();
 
-    QSqlQuery updateQuery;
+    QSqlQuery updateQuery(db);
     updateQuery.prepare("UPDATE measurements SET"
                         " basicblock1=:basicblock1,module1=:module1"
                         ", basicblock2=:basicblock2,module2=:module2"
@@ -1230,13 +1249,13 @@ bool Project::runProfiler() {
 
     printf("Processed %d samples...\n", counter);
 
-    QSqlDatabase::database().commit();
+    db.commit();
 
-    QSqlDatabase::database().transaction();
+    db.transaction();
 
     for(unsigned c = 0; c < LYNSYN_MAX_CORES; c++) {
       for(auto location : locations[c]) {
-        QSqlQuery query;
+        QSqlQuery query(db);
 
         query.prepare("INSERT INTO location (core,basicblock,function,module,"
                       "runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7,"
@@ -1276,9 +1295,9 @@ bool Project::runProfiler() {
       }
     }
 
-    QSqlDatabase::database().commit();
+    db.commit();
 
-    QSqlDatabase::database().transaction();
+    db.transaction();
 
     query.prepare("INSERT INTO meta ("
                   "samples,minTime,maxTime,minPower1,minPower2,minPower3,minPower4,minPower5,minPower6,minPower7,"
@@ -1359,10 +1378,12 @@ bool Project::runProfiler() {
     bool success = query.exec();
     assert(success);
 
-    QSqlDatabase::database().commit();
+    db.commit();
 
     query.exec("CREATE INDEX measurements_time_idx ON measurements(time)");
   }
+
+  profile->update();
 
   emit finished(0, "");
 

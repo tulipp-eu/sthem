@@ -61,7 +61,7 @@ public:
 
   virtual void copy(Sdsoc *p);
 
-  Sdsoc() {}
+  Sdsoc(Profile *profile) : Project(profile) {}
   Sdsoc(Sdsoc *p);
 
   bool openProject(QString path, QString configType, bool fast = false);
@@ -90,8 +90,8 @@ public:
 
   virtual unsigned getVersion() = 0;
 
-  static Sdsoc *createSdsoc(unsigned version);
-  static Sdsoc *copySdsoc(Sdsoc *project);
+  static Sdsoc *createSdsoc(unsigned version, Profile *profile);
+  static Sdsoc *copySdsoc(Sdsoc *project, Profile *profile);
 
 	friend std::ostream& operator<<(std::ostream &os, const Sdsoc &p) {
     // only streams out the necessary parts for DSE
@@ -118,10 +118,10 @@ protected:
   virtual void parseSynthesisReport();
 
 public:
-  Sdsoc20162() {
+  Sdsoc20162(Profile *profile) : Sdsoc(profile) {
     platformKey = "sdsoc.platform";
   }
-  Sdsoc20162(Sdsoc20162 *p) {
+  Sdsoc20162(Sdsoc20162 *p) : Sdsoc(p->profile) {
     copy(p);
   }
   virtual unsigned getVersion() { return 20162; }
@@ -141,10 +141,10 @@ protected:
   virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
 
 public:
-  Sdsoc20172() {
+  Sdsoc20172(Profile *profile) : Sdsoc(profile) {
     platformKey = "sdx.custom.platform.repository.locations";
   }
-  Sdsoc20172(Sdsoc20172 *p) {
+  Sdsoc20172(Sdsoc20172 *p) : Sdsoc(p->profile) {
     copy(p);
   }
 
@@ -170,8 +170,8 @@ protected:
   virtual bool getProjectOptions();
 
 public:
-  Sdsoc20174() {}
-  Sdsoc20174(Sdsoc20174 *p) {
+  Sdsoc20174(Profile *profile) : Sdsoc20172(profile) {}
+  Sdsoc20174(Sdsoc20174 *p) : Sdsoc20172(p->profile) {
     copy(p);
   }
 
@@ -191,8 +191,8 @@ public:
 class Sdsoc20182 : public Sdsoc20174 {
 
 public:
-  Sdsoc20182() {}
-  Sdsoc20182(Sdsoc20182 *p) {
+  Sdsoc20182(Profile *profile) : Sdsoc20174(profile) {}
+  Sdsoc20182(Sdsoc20182 *p) : Sdsoc20174(p->profile) {
     copy(p);
   }
 

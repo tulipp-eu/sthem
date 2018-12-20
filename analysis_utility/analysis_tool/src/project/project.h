@@ -57,6 +57,8 @@ protected:
   void getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations);
 
 public:
+  Profile *profile;
+
   bool opened;
   bool isCpp;
 
@@ -106,7 +108,7 @@ public:
 
   int errorCode;
 
-  Project();
+  Project(Profile *profile);
   Project(Project *p);
   virtual ~Project();
 
@@ -123,8 +125,8 @@ public:
     return name + ".elf";
   }
 
-  bool parseProfFile(QString fileName, Profile *profile);
-  bool parseGProfFile(QString gprofFileName, QString elfFileName, Profile *profile);
+  bool parseProfFile(QString fileName);
+  bool parseGProfFile(QString gprofFileName, QString elfFileName);
 
   void loadFiles();
   void loadXmlFile(const QString &fileName);

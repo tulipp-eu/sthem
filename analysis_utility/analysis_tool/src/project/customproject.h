@@ -30,7 +30,7 @@ private:
   void writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
 
 public:
-  CustomProject() {
+  CustomProject(Profile *profile) : Project(profile) {
     configType = "";
   }
 

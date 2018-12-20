@@ -40,16 +40,21 @@ private:
   double runtime;
   double energy[Pmu::MAX_SENSORS];
 
-  void clear();
   void addMeasurement(Measurement measurement);
   int getId(unsigned core, BasicBlock *bb);
 
 public:
+  QString dbConnection;
+
   std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[Pmu::MAX_CORES];
   QVector<Measurement> measurements;
 
   Profile();
   virtual ~Profile();
+
+  void connect();
+  void disconnect();
+  void update();
 
   void setMeasurements(QVector<Measurement> *measurements);
   void getProfData(unsigned core, BasicBlock *bb,
@@ -90,6 +95,7 @@ public:
   }
 
   void clean();
+  void clear();
 
   void addExternalFunctions(Cfg *cfg);
 
