@@ -70,6 +70,7 @@
   "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
   "rst -system\n" \
   "\n" \
+  "after 1000\n" \
   "con\n" \
   "after 3000\n" \
   "stop\n" \
