@@ -67,31 +67,6 @@ ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(pa
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
 
-  QGroupBox *targetGroup = NULL;
-
-  if(!project->isSdSocProject()) {
-    targetGroup = new QGroupBox("Target");
-    QHBoxLayout *zynqLayout = new QHBoxLayout;
-
-    QLabel *zynqLabel = new QLabel("Zynq version:");
-    zynqCombo = new QComboBox;
-    zynqCombo->addItem("Zynq 7000");
-    zynqCombo->addItem("Zynq Ultrascale+");
-    if(project->ultrascale) {
-      zynqCombo->setCurrentIndex(1);
-    } else {
-      zynqCombo->setCurrentIndex(0);
-    }
-
-    zynqLayout->addWidget(zynqLabel);
-    zynqLayout->addWidget(zynqCombo);
-    zynqLayout->addStretch(1);
-
-    targetGroup->setLayout(zynqLayout);
-
-    mainLayout->addWidget(targetGroup);
-  }
-
   //---------------------------------------------------------------------------
 
   QGroupBox *xmlGroup = new QGroupBox("XML files to load at startup");
@@ -144,101 +119,19 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
   createBbInfoCheckBox = new QCheckBox("Insert BB information in binary");
   createBbInfoCheckBox->setCheckState(project->createBbInfo ? Qt::Checked : Qt::Unchecked);
 
-  QVBoxLayout *compLayout = new QVBoxLayout;
-  compLayout->addWidget(instrumentCheckBox);
-  compLayout->addLayout(optLayout);
-  compLayout->addWidget(createBbInfoCheckBox);
+  if(project->isSdSocProject()) {
+    QVBoxLayout *compLayout = new QVBoxLayout;
+    compLayout->addWidget(instrumentCheckBox);
+    compLayout->addLayout(optLayout);
+    compLayout->addWidget(createBbInfoCheckBox);
 
-  if(!project->isSdSocProject()) {
-    QLabel *cOptLabel = new QLabel("C optimization level:");
-
-    cOptCombo = new QComboBox;
-    cOptCombo->addItem("-O0");
-    cOptCombo->addItem("-O1");
-    cOptCombo->addItem("-O2");
-    cOptCombo->addItem("-O3");
-    cOptCombo->addItem("-Os");
-    if(project->cOptLevel < 0) {
-      cOptCombo->setCurrentIndex(4);
-    } else {
-      cOptCombo->setCurrentIndex(project->cOptLevel);
-    }
-
-    QHBoxLayout *cOptLayout = new QHBoxLayout;
-    cOptLayout->addWidget(cOptLabel);
-    cOptLayout->addWidget(cOptCombo);
-    cOptLayout->addStretch(1);
-
-    QLabel *cOptionsLabel = new QLabel("C flags:");
-    cOptionsEdit = new QLineEdit(project->cOptions);
-    QHBoxLayout *cOptionsLayout = new QHBoxLayout;
-    cOptionsLayout->addWidget(cOptionsLabel);
-    cOptionsLayout->addWidget(cOptionsEdit);
-
-    QLabel *cppOptLabel = new QLabel("Cpp optimization level:");
-
-    cppOptCombo = new QComboBox;
-    cppOptCombo->addItem("-O0");
-    cppOptCombo->addItem("-O1");
-    cppOptCombo->addItem("-O2");
-    cppOptCombo->addItem("-O3");
-    cppOptCombo->addItem("-Os");
-    if(project->cppOptLevel < 0) {
-      cppOptCombo->setCurrentIndex(4);
-    } else {
-      cppOptCombo->setCurrentIndex(project->cppOptLevel);
-    }
-
-    QHBoxLayout *cppOptLayout = new QHBoxLayout;
-    cppOptLayout->addWidget(cppOptLabel);
-    cppOptLayout->addWidget(cppOptCombo);
-    cppOptLayout->addStretch(1);
-
-    QLabel *cppOptionsLabel = new QLabel("Cpp flags:");
-    cppOptionsEdit = new QLineEdit(project->cppOptions);
-    QHBoxLayout *cppOptionsLayout = new QHBoxLayout;
-    cppOptionsLayout->addWidget(cppOptionsLabel);
-    cppOptionsLayout->addWidget(cppOptionsEdit);
-
-    QLabel *linkerOptionsLabel = new QLabel("Linker flags:");
-    linkerOptionsEdit = new QLineEdit(project->linkerOptions);
-    QHBoxLayout *linkerOptionsLayout = new QHBoxLayout;
-    linkerOptionsLayout->addWidget(linkerOptionsLabel);
-    linkerOptionsLayout->addWidget(linkerOptionsEdit);
-
-    compLayout->addLayout(cOptLayout);
-    compLayout->addLayout(cOptionsLayout);
-    compLayout->addLayout(cppOptLayout);
-    compLayout->addLayout(cppOptionsLayout);
-    compLayout->addLayout(linkerOptionsLayout);
+    compGroup->setLayout(compLayout);
   }
-
-  compGroup->setLayout(compLayout);
 
   //---------------------------------------------------------------------------
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(compGroup);
-
-  if(!project->isSdSocProject()) {
-    QGroupBox *sourcesGroup = new QGroupBox("Source files");
-
-    {
-      sourcesEdit = new QPlainTextEdit;
-      QFontMetrics m(sourcesEdit->font());
-      sourcesEdit->setFixedHeight((m.lineSpacing()+2) * 10);
-      sourcesEdit->setFixedWidth(m.maxWidth() * 20);
-
-      sourcesEdit->insertPlainText(project->sources.join('\n'));
-
-      QVBoxLayout *sourcesLayout = new QVBoxLayout;
-      sourcesLayout->addWidget(sourcesEdit);
-
-      sourcesGroup->setLayout(sourcesLayout);
-    }
-
-    mainLayout->addWidget(sourcesGroup);
-  }
 
   //---------------------------------------------------------------------------
 
@@ -452,8 +345,10 @@ ProjectDialog::ProjectDialog(Project *project) {
   mainPage = new ProjectMainPage(project);
   pagesWidget->addWidget(mainPage);
 
-  buildPage = new ProjectBuildPage(project);
-  pagesWidget->addWidget(buildPage);
+  if(project->isSdSocProject()) {
+    buildPage = new ProjectBuildPage(project);
+    pagesWidget->addWidget(buildPage);
+  }
 
   profPage = new ProjectProfPage(project);
   pagesWidget->addWidget(profPage);
@@ -465,10 +360,12 @@ ProjectDialog::ProjectDialog(Project *project) {
   mainButton->setTextAlignment(Qt::AlignHCenter);
   mainButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
-  QListWidgetItem *buildButton = new QListWidgetItem(contentsWidget);
-  buildButton->setText("Build");
-  buildButton->setTextAlignment(Qt::AlignHCenter);
-  buildButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+  if(project->isSdSocProject()) {
+    QListWidgetItem *buildButton = new QListWidgetItem(contentsWidget);
+    buildButton->setText("Build");
+    buildButton->setTextAlignment(Qt::AlignHCenter);
+    buildButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+  }
 
   QListWidgetItem *profButton = new QListWidgetItem(contentsWidget);
   profButton->setText("Profiler");
@@ -513,43 +410,20 @@ void ProjectDialog::changePage(QListWidgetItem *current, QListWidgetItem *previo
 void ProjectDialog::closeEvent(QCloseEvent *e) {
   // main page
 
-  if(!project->isSdSocProject()) {
-    if(mainPage->zynqCombo->currentIndex() == 1) project->ultrascale = true;
-    else project->ultrascale = false;
-  }
-
   project->systemXmls = mainPage->xmlEdit->toPlainText().split("\n");
 
   // build page
 
-  if(buildPage->optCombo->currentIndex() == 4) {
-    project->cfgOptLevel = -1;
-  } else {
-    project->cfgOptLevel = buildPage->optCombo->currentIndex();
-  }
-
-  project->instrument = buildPage->instrumentCheckBox->checkState() == Qt::Checked;
-
-  project->createBbInfo = buildPage->createBbInfoCheckBox->checkState() == Qt::Checked;
-
-  if(!project->isSdSocProject()) {
-    project->sources = buildPage->sourcesEdit->toPlainText().split("\n");
-  
-    if(buildPage->cOptCombo->currentIndex() == 4) {
-      project->cOptLevel = -1;
+  if(project->isSdSocProject()) {
+    if(buildPage->optCombo->currentIndex() == 4) {
+      project->cfgOptLevel = -1;
     } else {
-      project->cOptLevel = buildPage->cOptCombo->currentIndex();
+      project->cfgOptLevel = buildPage->optCombo->currentIndex();
     }
-    project->cOptions = buildPage->cOptionsEdit->text();
 
-    if(buildPage->cppOptCombo->currentIndex() == 4) {
-      project->cppOptLevel = -1;
-    } else {
-      project->cppOptLevel = buildPage->cppOptCombo->currentIndex();
-    }
-    project->cppOptions = buildPage->cppOptionsEdit->text();
+    project->instrument = buildPage->instrumentCheckBox->checkState() == Qt::Checked;
 
-    project->linkerOptions = buildPage->linkerOptionsEdit->text();
+    project->createBbInfo = buildPage->createBbInfoCheckBox->checkState() == Qt::Checked;
   }
 
   // prof page

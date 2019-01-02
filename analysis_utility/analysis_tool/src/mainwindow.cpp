@@ -128,6 +128,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   setCentralWidget(tabWidget);
 
   // actions
+  refreshAct = new QAction("Refresh", this);
+  connect(refreshAct, SIGNAL(triggered()), this, SLOT(refreshEvent()));
+
   cleanAct = new QAction("Clean", this);
   connect(cleanAct, SIGNAL(triggered()), this, SLOT(cleanEvent()));
 
@@ -243,15 +246,6 @@ MainWindow::MainWindow(Analysis *analysis) {
 
   projectToolBar = addToolBar("ProjectTB");
   projectToolBar->setObjectName("ProjectTB");
-  projectToolBar->addAction(cleanAct);
-  projectToolBar->addAction(cleanBinAct);
-  projectToolBar->addAction(makeXmlAct);
-  projectToolBar->addAction(makeBinAct);
-  projectToolBar->addAction(runAct);
-  projectToolBar->addAction(profileAct);
-  projectToolBar->addAction(showProfileAct);
-  projectToolBar->addAction(showFrameAct);
-  projectToolBar->addAction(showDseAct);
 
   // statusbar
   statusBar()->showMessage("Ready");
@@ -408,6 +402,7 @@ void MainWindow::closeProject() {
 
   projectDialogAct->setEnabled(false);
   closeProjectAct->setEnabled(false);
+  projectToolBar->clear();
 
   setWindowTitle(QString(APP_NAME));
 }
@@ -460,9 +455,28 @@ bool MainWindow::openProject(QString path, QString configType) {
   QApplication::setOverrideCursor(Qt::WaitCursor);
 
   if(analysis->openProject(path, configType)) {
+    projectToolBar->clear();
+
     if(configType == "") {
+      projectToolBar->addAction(refreshAct);
+      projectToolBar->addAction(runAct);
+      projectToolBar->addAction(profileAct);
+      projectToolBar->addAction(showProfileAct);
+      projectToolBar->addAction(showFrameAct);
+
       setWindowTitle(QString(APP_NAME) + " : " + analysis->project->name + " (custom)");
+
     } else {
+      projectToolBar->addAction(cleanAct);
+      projectToolBar->addAction(cleanBinAct);
+      projectToolBar->addAction(makeXmlAct);
+      projectToolBar->addAction(makeBinAct);
+      projectToolBar->addAction(runAct);
+      projectToolBar->addAction(profileAct);
+      projectToolBar->addAction(showProfileAct);
+      projectToolBar->addAction(showFrameAct);
+      projectToolBar->addAction(showDseAct);
+
       setWindowTitle(QString(APP_NAME) + " : " + analysis->project->name + " (" + analysis->project->configType + ")");
     }
   }
@@ -641,6 +655,12 @@ void MainWindow::projectDialog() {
   dialog.exec();
   analysis->project->saveProjectFile();
   cfgScene->redraw();
+}
+
+void MainWindow::refreshEvent() {
+  if(analysis->project) {
+    loadFiles();
+  }
 }
 
 void MainWindow::cleanEvent() {

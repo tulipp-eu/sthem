@@ -96,6 +96,7 @@ private:
   QAction *openGProfAct;
   QAction *createProjectAct;
   QAction *closeProjectAct;
+  QAction *refreshAct;
   QAction *cleanAct;
   QAction *cleanBinAct;
   QAction *makeXmlAct;
@@ -130,6 +131,7 @@ private slots:
   void openCustomProject();
   void createProject();
   void closeProject();
+  void refreshEvent();
   void cleanEvent();
   void cleanBinEvent();
   void makeXmlEvent();

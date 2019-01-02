@@ -36,7 +36,6 @@ class QStackedWidget;
 class ProjectMainPage : public QWidget {
 public:
   QPlainTextEdit *xmlEdit;
-  QComboBox *zynqCombo;
 
   ProjectMainPage(Project *project, QWidget *parent = 0);
 };
@@ -49,12 +48,6 @@ public:
 
   QComboBox *optCombo;
 
-  QPlainTextEdit *sourcesEdit;
-  QComboBox *cOptCombo;
-  QLineEdit *cOptionsEdit;
-  QComboBox *cppOptCombo;
-  QLineEdit *cppOptionsEdit;
-  QLineEdit *linkerOptionsEdit;
   QCheckBox *instrumentCheckBox;
 
   ProjectBuildPage(Project *project, QWidget *parent = 0);

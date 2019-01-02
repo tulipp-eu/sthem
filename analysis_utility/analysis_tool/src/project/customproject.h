@@ -26,9 +26,6 @@
 
 class CustomProject : public Project {
 
-private:
-  void writeCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
-
 public:
   CustomProject(Profile *profile) : Project(profile) {
     configType = "";
@@ -36,7 +33,7 @@ public:
 
   bool openProject(QString path);
   bool createProject(QString path);
-  virtual bool createMakefile();
+  virtual bool createMakefile() { return false; }
 };
 
 #endif
