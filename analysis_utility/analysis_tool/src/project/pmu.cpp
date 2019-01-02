@@ -37,7 +37,7 @@
 #include "profile/measurement.h"
 
 uint32_t acceptedFirmwares[] = {
-  0x5d0067bc // V1.4
+  0xc50bdcc8 // V1.4
 };
 
 ///////////////////////////////////////////////////////////////////////////////
