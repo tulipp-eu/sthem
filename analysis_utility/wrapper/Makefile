@@ -1,5 +1,7 @@
+CPPFLAGS=-std=c++11
+
 wrapper : wrapper.cpp
-	g++ $< -o $@
+	g++ ${CPPFLAGS} $< -o $@
 
 .PHONY : clean
 clean :
