@@ -38,9 +38,10 @@
 #include <unistd.h>
 #include "gmon.h"
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 
-#include "compatibility_layer.h"
+#include <ff.h>
 
 #define MINUS_ONE_P (-1)
 #define bzero(ptr,size) memset (ptr, 0, size);
@@ -53,6 +54,8 @@ static int    s_scale;
 #define        SCALE_1_TO_1    0x10000L
 
 static void moncontrol(int mode);
+
+static FATFS fatfs;
 
 void monstartup (size_t lowpc, size_t highpc) {
     register size_t o;
@@ -123,9 +126,8 @@ void monstartup (size_t lowpc, size_t highpc) {
     moncontrol(1); /* start */
 }
 
-void _mcleanup(unsigned core) {
-    static const char gmon_out[] = "gmon.out";
-    int fd;
+bool _mcleanup(unsigned core) {
+    static const char gmon_out[] = "1:/gmon.out";
     int hz;
     int fromindex;
     int endfrom;
@@ -135,12 +137,8 @@ void _mcleanup(unsigned core) {
     struct gmonparam *p = &_gmonparam;
     struct gmonhdr gmonhdr, *hdr;
     const char *proffile;
-#ifdef DEBUG
-    int log, len;
-    char dbuf[200];
-#endif
     if (p->state != GMON_PROF_ON) {
-    	return;
+    	return false;
     }
 
     if (p->state == GMON_PROF_ERROR) {
@@ -150,21 +148,21 @@ void _mcleanup(unsigned core) {
     hz = 0;
     moncontrol(0); /* stop */
     proffile = gmon_out;
-    fd = open(proffile , O_CREAT|O_TRUNC|O_WRONLY|O_BINARY, 0666);
-    if (fd < 0) {
-        perror( proffile );
-        return;
+
+		FRESULT res = f_mount(&fatfs, "1:/", 1);
+		if(res != FR_OK) {
+			printf("CALLTRACER: Could not mount (%d)\n", res);
+      return false;
+		}
+
+    FIL fp;
+    int mode = FA_OPEN_ALWAYS | FA_CREATE_ALWAYS | FA_WRITE;
+    res = f_open(&fp, proffile, mode);
+    if(res != FR_OK) {
+			printf("CALLTRACER: Could not open (%d)\n", res);
+      return false;
     }
-#ifdef DEBUG
-    log = open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY, 0664);
-    if (log < 0) {
-        perror("mcount: gmon.log");
-        return;
-    }
-    len = sprintf(dbuf, "[mcleanup1] kcount 0x%x ssiz %d\n",
-        p->kcount, p->kcountsize);
-    write(log, dbuf, len);
-#endif
+
     hdr = (struct gmonhdr *)&gmonhdr;
     hdr->lpc = p->lowpc;
     hdr->hpc = p->highpc;
@@ -180,13 +178,15 @@ void _mcleanup(unsigned core) {
       }
     }
 
-    write(fd, (char *)hdr, sizeof *hdr);
+    UINT bw;
+
+    f_write(&fp, (char *)hdr, sizeof *hdr, &bw);
 
     for(int i = 0; i < (p->textsize/4); i++) {
       if(p->loopcounts[i]) {
-        uint64_t pc = i*4;
-        write(fd, &pc, sizeof(uint64_t));
-        write(fd, &(p->loopcounts[i]), sizeof(uint64_t));
+        uint64_t pc = (i*4) + p->lowpc;
+        f_write(&fp, &pc, sizeof(uint64_t), &bw);
+        f_write(&fp, &(p->loopcounts[i]), sizeof(uint64_t), &bw);
       }
     }
 
@@ -198,20 +198,16 @@ void _mcleanup(unsigned core) {
         frompc = p->lowpc;
         frompc += fromindex * HASHFRACTION * sizeof(*p->froms);
         for (toindex = p->froms[fromindex]; toindex != 0; toindex = p->tos[toindex].link) {
-#ifdef DEBUG
-            len = sprintf(dbuf,
-            "[mcleanup2] frompc 0x%x selfpc 0x%x count %d\n" ,
-                frompc, p->tos[toindex].selfpc,
-                p->tos[toindex].count);
-            write(log, dbuf, len);
-#endif
             rawarc.raw_frompc = frompc;
             rawarc.raw_selfpc = p->tos[toindex].selfpc;
             rawarc.raw_count = p->tos[toindex].count;
-            write(fd, &rawarc, sizeof rawarc);
+            f_write(&fp, &rawarc, sizeof rawarc, &bw);
         }
     }
-    close(fd);
+
+    f_close(&fp);
+
+    return true;
 }
 
 /*
@@ -370,8 +366,9 @@ void __tulipp_loop_body (void *loopAddr) {
 }
  
 void __tulipp_exit(void) {
-  _mcleanup(0);
-  printf("CALLTRACER: Call trace file written\n"); 
+  if(_mcleanup(0)) {
+    printf("CALLTRACER: Call trace file written\n");
+  }
 }
 
 void __tulipp_init(void) {

@@ -95,8 +95,6 @@ void Analysis::load() {
         std::ifstream inputFile(path.toUtf8()); 
         inputFile >> *dse;
         inputFile.close();
-      } else if(suffix == "elf") {
-        project->elfFile = path;
       }
     }
   }

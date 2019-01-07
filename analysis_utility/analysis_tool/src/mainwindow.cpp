@@ -539,7 +539,7 @@ void MainWindow::about() {
   QMessageBox::about(this, "About Analysis Tool",
                      QString("Analysis Tool ") + SW_VERSION_STRING + "\n"
                      "A performance measurement and analysis utility\n"
-                     "TULIPP EU Project, NTNU 2018");
+                     "TULIPP EU Project, NTNU, 2018-2019");
 }
 
 void MainWindow::upgrade() {
@@ -764,7 +764,6 @@ void MainWindow::finishBin(int error, QString msg) {
     msgBox.exec();
 
   } else {
-    analysis->project->elfFile = analysis->project->elfFilename();
     loadFiles();
 
     QMessageBox msgBox;

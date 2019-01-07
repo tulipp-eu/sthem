@@ -163,7 +163,11 @@ void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList object
     options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
   }
 
-  makefile.write((name + ".elf : " + objects.join(' ') + "\n").toUtf8());
+  if(instrument) {
+    makefile.write((name + "_instrumented.elf : " + objects.join(' ') + "\n").toUtf8());
+  } else {
+    makefile.write((name + ".elf : " + objects.join(' ') + "\n").toUtf8());
+  }
   makefile.write((QString("\t") + linker + " " + options.join(' ') + " $^ " + linkerOptions + " -o $@\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
@@ -645,13 +649,28 @@ bool Sdsoc::createMakefile() {
     Module *mod = cfg->getModuleById(info.completeBaseName());
     if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
 
+    bool linkIt = true;
+    for(auto acc : accelerators) {
+      QFileInfo accInfo(acc.filepath);
+      if(accInfo.completeBaseName() == info.completeBaseName()) {
+        linkIt = false;
+        break;
+      }
+    }
+
     if(info.suffix() == "c") {
       if(tulippCompile) {
         writeTulippCompileRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
       } else {
         writeSdsRule("sdscc", makefile, source, cOptions);
       }
-      objects << info.completeBaseName() + ".o";
+      if(linkIt) {
+        if(instrument) {
+          objects << info.completeBaseName() + "_instrumented.o";
+        } else {
+          objects << info.completeBaseName() + ".o";
+        }
+      }
 
     } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
       if(tulippCompile) {
@@ -659,8 +678,13 @@ bool Sdsoc::createMakefile() {
       } else {
         writeSdsRule("sds++", makefile, source, cppOptions);
       }
-      objects << info.completeBaseName() + ".o";
-
+      if(linkIt) {
+        if(instrument) {
+          objects << info.completeBaseName() + "_instrumented.o";
+        } else {
+          objects << info.completeBaseName() + ".o";
+        }
+      }
     }
   }
 

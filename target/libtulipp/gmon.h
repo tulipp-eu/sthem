@@ -34,6 +34,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
  * This file is taken from Cygwin distribution. Please keep it in sync.
@@ -180,7 +181,7 @@ extern struct gmonparam _gmonparam;
 
 void _mcount(void);
 
-void _mcleanup(unsigned core); /* routine to be called to write gmon.out file */
+bool _mcleanup(unsigned core); /* routine to be called to write gmon.out file */
 void _monInit(void); /* initialization routine */
 
 #endif /* !_SYS_GMONH_ */

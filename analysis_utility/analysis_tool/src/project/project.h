@@ -46,7 +46,6 @@ class Project : public QObject {
 
 protected:
   void writeTulippCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
-  void writeLinkRule(QString linker, QFile &makefile, QStringList objects);
   void writeCleanRule(QFile &makefile);
 
   bool createXmlMakefile();
@@ -102,7 +101,6 @@ public:
   QString cppSysInc;
 
   QString customElfFile;
-  QString elfFile;
 
   Cfg *cfg;
 
@@ -122,7 +120,11 @@ public:
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
 
   QString elfFilename() {
-    return name + ".elf";
+    if(instrument) {
+      return name + "_instrumented.elf";
+    } else {
+      return name + ".elf";
+    }
   }
 
   bool parseProfFile(QString fileName);

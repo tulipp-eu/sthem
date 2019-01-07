@@ -120,7 +120,6 @@ double DseAlgorithm::testGenome(std::ostream &outStream, QVector<Loop*> loops, Q
 
   } else {
     // profile
-    dseRun.project->elfFile = dseRun.project->elfFilename();
     dseRun.project->runProfiler();
 
     if(dseRun.project->errorCode) {

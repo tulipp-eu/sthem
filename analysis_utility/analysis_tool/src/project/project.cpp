@@ -100,10 +100,11 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
 
   // _2.ll
   {
-    makefile.write((fileInfo.completeBaseName() + "_2.ll : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
     if(instrument) {
+      makefile.write((fileInfo.completeBaseName() + "_instrumented_2.ll : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
       makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@ --instrument\n\n").toUtf8());
     } else {
+      makefile.write((fileInfo.completeBaseName() + "_2.ll : " + fileInfo.completeBaseName() + ".ll\n").toUtf8());
       makefile.write((QString("\t") + Config::llvm_ir_parser + " $< -ll $@\n\n").toUtf8());
     }
   }
@@ -117,7 +118,12 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
       options << QString("-Os");
     }
 
-    makefile.write((fileInfo.completeBaseName() + "_3.ll : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
+    if(instrument) {
+      makefile.write((fileInfo.completeBaseName() + "_instrumented_3.ll : " + fileInfo.completeBaseName() + "_instrumented_2.ll\n").toUtf8());
+    } else {
+      makefile.write((fileInfo.completeBaseName() + "_3.ll : " + fileInfo.completeBaseName() + "_2.ll\n").toUtf8());
+    }
+
     makefile.write((QString("\t") + Config::opt + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
@@ -131,7 +137,12 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     }
     options << QString(llcTarget).split(' ');
 
-    makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_3.ll\n").toUtf8());
+    if(instrument) {
+      makefile.write((fileInfo.completeBaseName() + "_instrumented.s : " + fileInfo.completeBaseName() + "_instrumented_3.ll\n").toUtf8());
+    } else {
+      makefile.write((fileInfo.completeBaseName() + ".s : " + fileInfo.completeBaseName() + "_3.ll\n").toUtf8());
+    }
+
     makefile.write((QString("\t") + Config::llc + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
 
@@ -148,16 +159,14 @@ void Project::writeTulippCompileRule(QString compiler, QFile &makefile, QString 
     QStringList options;
     options << QString(asTarget).split(' ');
 
-    makefile.write((fileInfo.completeBaseName() + ".o : " + fileInfo.completeBaseName() + ".s\n").toUtf8());
+    if(instrument) {
+      makefile.write((fileInfo.completeBaseName() + "_instrumented.o : " + fileInfo.completeBaseName() + "_instrumented.s\n").toUtf8());
+    } else {
+      makefile.write((fileInfo.completeBaseName() + ".o : " + fileInfo.completeBaseName() + ".s\n").toUtf8());
+    }
+
     makefile.write((QString("\t") + as + " " + options.join(' ') + " $< -o $@\n\n").toUtf8());
   }
-
-  makefile.write(QString("###############################################################################\n\n").toUtf8());
-}
-
-void Project::writeLinkRule(QString linker, QFile &makefile, QStringList objects) {
-  makefile.write((name + ".elf : " + objects.join(' ') + "\n").toUtf8());
-  makefile.write(QString("\t" + linker + " $^ " + linkerOptions + " -o $@\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 }
@@ -200,7 +209,7 @@ bool Project::createXmlMakefile() {
   }
 
   makefile.write(QString(".PHONY : xml\n").toUtf8());
-  makefile.write((QString("xml : ") + xmlFiles.join(' ') + "\n").toUtf8());
+  makefile.write((QString("xml : ") + xmlFiles.join(' ') + "\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -223,7 +232,7 @@ bool Project::createMakefile(QFile &makefile) {
   makefile.write(QString("###################################################\n\n").toUtf8());
 
   makefile.write(QString(".PHONY : binary\n").toUtf8());
-  makefile.write((QString("binary : ") + name + ".elf\n\n").toUtf8());
+  makefile.write((QString("binary : ") + elfFilename() + "\n\n").toUtf8());
 
   makefile.write(QString("###############################################################################\n\n").toUtf8());
 
@@ -556,8 +565,7 @@ void Project::copy(Project *p) {
   cSysInc = p->cSysInc;
   cppSysInc = p->cppSysInc;
   
-  QString customElfFile;
-  elfFile = p->elfFile;
+  customElfFile = p->customElfFile;
 
   cfg = NULL;
 }
@@ -841,7 +849,7 @@ bool Project::parseProfFile(QString fileName) {
   QSqlQuery query(db);
 
   ElfSupport elfSupport;
-  elfSupport.addElf(elfFile);
+  elfSupport.addElf(elfFilename());
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -1012,7 +1020,7 @@ bool Project::runProfiler() {
   QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
 
   ElfSupport elfSupport;
-  elfSupport.addElf(elfFile);
+  elfSupport.addElf(elfFilename());
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -1035,7 +1043,13 @@ bool Project::runProfiler() {
     Q_UNUSED(success);
     assert(success);
 
-    QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
+    QString tcl;
+
+    if(instrument) {
+      tcl = QString() + "set name " + name + "_instrumented\n" + tcfUploadScript;
+    } else {
+      tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
+    }
       
     tclFile.write(tcl.toUtf8());
 
