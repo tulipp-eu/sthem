@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifndef HIPPEROS
+
 // PMU events that can be counted by the Cortex A53 core
 
 #define PMU_EVENT_EXT_MEM_REQ 0xc0
@@ -94,6 +96,8 @@ uint64_t getCounter(unsigned i);
 bool setupCallTracer(void);
 /** End call tracer, write to file */
 bool endCallTracer(unsigned core);
+
+#endif
 
 void __attribute__ ((noinline)) tulippFrameDone(void);
 

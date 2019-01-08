@@ -1,3 +1,7 @@
+#include "profiler.h"
+
+#ifndef HIPPEROS
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -23,8 +27,6 @@
 
 #define SHARED_PC			(*(volatile unsigned long *)(COMM_DATA_ADDR(0)))
 #define LOCK_INT			(*(volatile unsigned long *)(COMM_ADDR(1)))
-
-#include "profiler.h"
 
 #define ARMV8_PMCR_E            (1 << 0) /* Enable all counters */
 #define ARMV8_PMCR_P            (1 << 1) /* Reset all counters */
@@ -455,6 +457,8 @@ void profilerOn(void) {
 void profilerOff(void) {
   XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
 }
+
+#endif
 
 void __attribute__ ((noinline)) tulippFrameDone(void) {
   asm("nop");

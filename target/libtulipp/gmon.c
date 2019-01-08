@@ -43,6 +43,15 @@
 
 #include <ff.h>
 
+#ifdef HIPPEROS
+#include <SdMmc.h>
+#include <hipperos/hstdio.h>
+#endif
+
+#ifdef HIPPEROS
+#define printf h_printf
+#endif
+
 #define MINUS_ONE_P (-1)
 #define bzero(ptr,size) memset (ptr, 0, size);
 #define ERR(s) write(2, s, sizeof(s))
@@ -127,7 +136,7 @@ void monstartup (size_t lowpc, size_t highpc) {
 }
 
 bool _mcleanup(unsigned core) {
-    static const char gmon_out[] = "1:/gmon.out";
+    static const char gmon_out[] = SDDRIVE "tulipp.gmn";
     int hz;
     int fromindex;
     int endfrom;
@@ -149,7 +158,11 @@ bool _mcleanup(unsigned core) {
     moncontrol(0); /* stop */
     proffile = gmon_out;
 
-		FRESULT res = f_mount(&fatfs, "1:/", 1);
+#ifdef HIPPEROS
+    sdmmc_hostInit();
+#endif
+
+		FRESULT res = f_mount(&fatfs, SDDRIVE, 1);
 		if(res != FR_OK) {
 			printf("CALLTRACER: Could not mount (%d)\n", res);
       return false;
@@ -236,9 +249,15 @@ void _mcount_internal(u_short *frompcindex, u_short *selfpc) {
   struct gmonparam *p = &_gmonparam;
 
   if (!already_setup) {
-    extern char __rodata_start;
     already_setup = 1;
+#ifdef HIPPEROS
+    extern char __init_start;
+    extern char _rodata_start;
+    monstartup((size_t)&__init_start, (size_t)&_rodata_start);
+#else
+    extern char __rodata_start;
     monstartup(0x0, (size_t)&__rodata_start);
+#endif
   }
   /*
    *    check that we are profiling
@@ -366,7 +385,15 @@ void __tulipp_loop_body (void *loopAddr) {
 }
  
 void __tulipp_exit(void) {
-  if(_mcleanup(0)) {
+#ifdef HIPPEROS
+  unsigned core = 0; // FIXME
+#else
+  uint64_t mpidr;
+  asm ("mrs %0, MPIDR_EL1\n":"=r"(mpidr)::);
+  unsigned core = mpidr & 0xff;
+#endif
+
+  if(_mcleanup(core)) {
     printf("CALLTRACER: Call trace file written\n");
   }
 }
