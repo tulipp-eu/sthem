@@ -849,7 +849,7 @@ bool Project::parseProfFile(QString fileName) {
   QSqlQuery query(db);
 
   ElfSupport elfSupport;
-  elfSupport.addElf(elfFilename());
+  if(isSdSocProject()) elfSupport.addElf(elfFilename());
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
@@ -1020,7 +1020,7 @@ bool Project::runProfiler() {
   QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
 
   ElfSupport elfSupport;
-  elfSupport.addElf(elfFilename());
+  if(isSdSocProject()) elfSupport.addElf(elfFilename());
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }

@@ -192,7 +192,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   openProfileAct = new QAction("Open profile", this);
   connect(openProfileAct, SIGNAL(triggered()), this, SLOT(openProfileEvent()));
 
-  openGProfAct = new QAction("Open GProf", this);
+  openGProfAct = new QAction("Open statistics from instrumented run", this);
   connect(openGProfAct, SIGNAL(triggered()), this, SLOT(openGProfEvent()));
 
   createProjectAct = new QAction("Create custom project", this);
@@ -353,17 +353,28 @@ void MainWindow::openProfileEvent() {
 }
 
 void MainWindow::openGProfEvent() {
-  QFileDialog gprofDialog(this, "Select GProf file");
-  if(gprofDialog.exec()) {
-    QFileDialog elfDialog(this, "Select instrumented elf file");
-    if(elfDialog.exec()) {
-      if(analysis->project) {
-        QString gprofPath = gprofDialog.selectedFiles()[0];
-        QString elfPath = elfDialog.selectedFiles()[0];
-        analysis->loadGProfFile(gprofPath, elfPath);
-        loadFiles();
+  if(analysis->project) {
+    QString gprofPath;
+    QString elfPath;
+
+    QFileDialog gprofDialog(this, "Select tulipp.gmn file");
+    gprofDialog.setNameFilter(tr("TULIPP gmn file (*.gmn)"));
+
+    if(gprofDialog.exec()) {
+      if(analysis->project->isSdSocProject()) {
+        gprofPath = gprofDialog.selectedFiles()[0];
+        elfPath = analysis->project->elfFilename(true);
+      } else {
+        QFileDialog elfDialog(this, "Select instrumented elf file");
+        if(elfDialog.exec()) {
+          gprofPath = gprofDialog.selectedFiles()[0];
+          elfPath = elfDialog.selectedFiles()[0];
+        }
       }
     }
+
+    analysis->loadGProfFile(gprofPath, elfPath);
+    loadFiles();
   }
 }
 

@@ -119,12 +119,16 @@ public:
   virtual void print();
   int runSourceTool(QString inputFilename, QString outputFilename, QStringList loopsToPipeline, QString opt);
 
-  QString elfFilename() {
-    if(instrument) {
+  QString elfFilename(bool instr) {
+    if(instr) {
       return name + "_instrumented.elf";
     } else {
       return name + ".elf";
     }
+  }
+
+  QString elfFilename() {
+    return elfFilename(instrument);
   }
 
   bool parseProfFile(QString fileName);
