@@ -192,7 +192,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   openProfileAct = new QAction("Open profile", this);
   connect(openProfileAct, SIGNAL(triggered()), this, SLOT(openProfileEvent()));
 
-  openGProfAct = new QAction("Open statistics from instrumented run", this);
+  openGProfAct = new QAction("Open data file from instrumented run", this);
   connect(openGProfAct, SIGNAL(triggered()), this, SLOT(openGProfEvent()));
 
   createProjectAct = new QAction("Create custom project", this);

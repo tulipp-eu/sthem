@@ -386,7 +386,7 @@ void __tulipp_loop_body (void *loopAddr) {
  
 void __tulipp_exit(void) {
 #ifdef HIPPEROS
-  unsigned core = 0; // FIXME
+  unsigned core = ~0; // FIXME
 #else
   uint64_t mpidr;
   asm ("mrs %0, MPIDR_EL1\n":"=r"(mpidr)::);

@@ -29,6 +29,7 @@
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QSettings>
+#include <QInputDialog>
 
 #include "analysis_tool.h"
 #include "project.h"
@@ -753,6 +754,10 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
   file.read((char*)&hdr, sizeof(struct gmonhdr));
 
   unsigned core = hdr.core;
+
+  if(core == (unsigned)~0) {
+    core = QInputDialog::getInt(NULL, "Enter core", "Core that produced the data file:", 0, 0, LYNSYN_MAX_CORES-1);
+  }
 
   getLocations(core, &locations);
 
