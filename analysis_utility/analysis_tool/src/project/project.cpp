@@ -1068,13 +1068,13 @@ bool Project::runProfiler() {
     }
   }
 
-  uint64_t samples;
-  int64_t minTime;
-  int64_t maxTime;
-  double minPower[LYNSYN_SENSORS];
-  double maxPower[LYNSYN_SENSORS];
-  double runtime;
-  double energy[LYNSYN_SENSORS];
+  uint64_t samples = 0;
+  int64_t minTime = 0;
+  int64_t maxTime = 0;
+  double minPower[LYNSYN_SENSORS] = {0};
+  double maxPower[LYNSYN_SENSORS] = {0};
+  double runtime = 0;
+  double energy[LYNSYN_SENSORS] = {0};
 
   // collect samples
   {
@@ -1146,10 +1146,10 @@ bool Project::runProfiler() {
 
   if(frameCount) frameRuntimeAvg /= frameCount;
   
-  double frameEnergyMin[LYNSYN_SENSORS];
-  double frameEnergyMax[LYNSYN_SENSORS];
-  double frameEnergyAvg[LYNSYN_SENSORS];
-  double currentFrameEnergy[LYNSYN_SENSORS];
+  double frameEnergyMin[LYNSYN_SENSORS] = {0};
+  double frameEnergyMax[LYNSYN_SENSORS] = {0};
+  double frameEnergyAvg[LYNSYN_SENSORS] = {0};
+  double currentFrameEnergy[LYNSYN_SENSORS] = {0};
 
   {
     emit advance(2, "Processing samples");

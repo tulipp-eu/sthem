@@ -46,7 +46,7 @@ public:
     head = 0;
   }
   ~MovingAverage() {
-    delete buf;
+    delete[] buf;
   }
   void initialize(double d) {
     buf[0] = 0;
