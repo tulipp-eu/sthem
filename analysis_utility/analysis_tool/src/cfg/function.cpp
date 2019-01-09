@@ -36,3 +36,11 @@ BasicBlock *Function::getFirstBb() {
 QString Function::getTableName() {
   return getModule()->id + ":" + name + "()";
 }
+
+QString Function::getCfgName() {
+  if(name == "main") {
+    return getModule()->id + ":" + name + "()";
+  } else {
+    return name + "()";
+  }
+}

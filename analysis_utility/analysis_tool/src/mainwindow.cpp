@@ -603,8 +603,10 @@ void MainWindow::topEvent() {
 
   if(topGroup) delete topGroup;
   topGroup = new Group("Overview", analysis->project->cfg);
-  Vertex *main = analysis->project->cfg->getMain();
-  if(main) topGroup->appendChild(main);
+  QVector<Function*> mainVector = analysis->project->cfg->getMain();
+  for(auto main : mainVector) {
+    topGroup->appendChild(main);
+  }
   topGroup->appendChild(analysis->project->cfg->externalMod);
   
   topGroup->toggleExpanded();

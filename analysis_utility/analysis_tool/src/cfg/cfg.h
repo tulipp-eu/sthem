@@ -59,8 +59,18 @@ public:
     return NULL;
   }
 
-  Function *getMain() {
-    return getFunctionById("main");
+  QVector<Function*> getMain() {
+    QVector<Function*> mainVector;
+
+    for(auto child : children) {
+      if(child != externalMod) {
+        Module *module = static_cast<Module*>(child);
+        Function *function = module->getFunctionById("main");
+        if(function) mainVector.push_back(function);
+      }
+    }
+
+    return mainVector;
   }
 
   virtual Function *getFunctionById(QString id) {

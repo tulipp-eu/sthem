@@ -129,6 +129,8 @@ public:
     return getTableName();
   }
 
+  virtual QString getCfgName();
+
   virtual QString getTableName();
 
   virtual void clearCallers() {
