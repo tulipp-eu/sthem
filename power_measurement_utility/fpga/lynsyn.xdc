@@ -42,6 +42,8 @@ set_property PACKAGE_PIN C13 [get_ports JTAG_IN_TDO]
 set_property PACKAGE_PIN E12 [get_ports JTAG_IN_TDI]
 set_property PACKAGE_PIN E13 [get_ports JTAG_IN_TRST]
 
+set_property PULLTYPE PULLUP [get_ports JTAG_IN_TRST]
+
 # JTAG_OUT
 set_property PACKAGE_PIN R8 [get_ports JTAG_OUT_TMS]
 set_property PACKAGE_PIN T7 [get_ports JTAG_OUT_TCK]

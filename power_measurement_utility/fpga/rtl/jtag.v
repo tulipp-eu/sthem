@@ -55,7 +55,7 @@ module jtag_controller
    output reg       in_seq_flushed
    );
 
-   assign jtag_trst = 0;
+   assign jtag_trst = 1;
 
    reg              jtag_ce_i;
 
