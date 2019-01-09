@@ -37,13 +37,11 @@ protected:
   virtual void appendLocalItems(int xx, int yy, Vertex *visualTop, QVector<BasicBlock*> callStack, float scaling);
 
 public:
-  bool frameDone;
   Entry *entryNode;
   std::vector<Exit*> exitNodes;
 
-  BasicBlock(QString id, Container *parent, unsigned treeviewRow, bool frameDone = false) : Container(id, id, parent, treeviewRow) {
+  BasicBlock(QString id, Container *parent, unsigned treeviewRow) : Container(id, id, parent, treeviewRow) {
     entryNode = new Entry("bb" + id + "entry", this);
-    this->frameDone = frameDone;
   }
   virtual ~BasicBlock() {
     delete entryNode;
@@ -127,10 +125,7 @@ public:
 
   bool containsFunctionCall(Function *func);
 
-  virtual BasicBlock *getFrameDoneBb() {
-    if(frameDone) return this;
-    else return NULL;
-  }
+  virtual BasicBlock *getFrameDoneBb(QString frameDoneFunction);
 
 };
 

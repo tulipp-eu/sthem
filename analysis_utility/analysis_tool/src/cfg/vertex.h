@@ -224,7 +224,7 @@ public:
   virtual Cfg *getTop();
 
   // get basic block representing frame done
-  virtual BasicBlock *getFrameDoneBb() {
+  virtual BasicBlock *getFrameDoneBb(QString frameDoneFunction) {
     return NULL;
   }
 

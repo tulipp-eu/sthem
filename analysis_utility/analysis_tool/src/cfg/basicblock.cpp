@@ -391,8 +391,6 @@ QString BasicBlock::getCfgName() {
     }
   }
 
-  if(frameDone) text += "[frame]";
-
   return text;
 }
 
@@ -414,3 +412,16 @@ bool BasicBlock::containsFunctionCall(Function *func) {
   }
   return false;
 }
+
+BasicBlock *BasicBlock::getFrameDoneBb(QString frameDoneFunction) {
+  for(auto child : children) {
+    Instruction *instr = dynamic_cast<Instruction*>(child);
+    if(instr) {
+      if(instr->name == INSTR_ID_CALL) {
+        if(instr->target == frameDoneFunction) return this;
+      }
+    }
+  }
+  return NULL;
+}
+

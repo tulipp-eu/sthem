@@ -133,9 +133,9 @@ public:
   //---------------------------------------------------------------------------
   // information about the rest of the graph
 
-  virtual BasicBlock *getFrameDoneBb() {
+  virtual BasicBlock *getFrameDoneBb(QString frameDoneFunction) {
     for(auto child : children) {
-      BasicBlock *frameDoneBb = child->getFrameDoneBb();
+      BasicBlock *frameDoneBb = child->getFrameDoneBb(frameDoneFunction);
       if(frameDoneBb) return frameDoneBb;
     }
     return NULL;

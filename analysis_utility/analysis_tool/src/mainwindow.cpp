@@ -621,9 +621,11 @@ void MainWindow::frameEvent() {
   cfgModel->collapseAll();
   cfgModel->clearColors();
 
-  BasicBlock *frameDoneBb = analysis->project->cfg->getFrameDoneBb();
+  Cfg *cfg = analysis->project->cfg;
+
+  BasicBlock *frameDoneBb = cfg->getFrameDoneBb(analysis->project->frameFunc);
   if(frameDoneBb) {
-    frameLoop = analysis->project->cfg->getFrameDoneBb()->getLoop();
+    frameLoop = frameDoneBb->getLoop();
     if(frameLoop) {
       frameLoop->toggleExpanded();
       cfgScene->drawElement(frameLoop);

@@ -178,7 +178,6 @@ public:
   std::vector<Instruction*> instructions;
   int id;
   int nextId;
-  bool frameDone;
 
   BbNode(BasicBlock *bb, Node *parent, bool isEntry = false);
 
