@@ -1260,9 +1260,9 @@ bool Project::runProfiler() {
       assert(success);
     }
 
-    if(frameCount) {
+    if(frameCount > 1) {
       for(int i = 0; i < LYNSYN_SENSORS; i++) {
-        frameEnergyAvg[i] /= frameCount;
+        frameEnergyAvg[i] /= (frameCount-1);
       }
     }
 
