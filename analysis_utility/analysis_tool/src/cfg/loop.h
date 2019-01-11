@@ -48,11 +48,11 @@ public:
   }
 
   virtual bool isVisibleInTable() {
-    return true;
+    return Config::loopsInTable;
   }
 
   virtual bool isVisibleInGantt() {
-    return false;
+    return Config::loopsInTable;
   }
 
   virtual QString getTableName() {

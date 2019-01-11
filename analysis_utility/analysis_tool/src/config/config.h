@@ -134,6 +134,10 @@ public:
   static double overrideSamplePeriod;
   static bool overrideSamplePc;
   static bool overrideNoSamplePc;
+  static bool functionsInTable;
+  static bool regionsInTable;
+  static bool loopsInTable;
+  static bool basicblocksInTable;
 };
 
 #endif

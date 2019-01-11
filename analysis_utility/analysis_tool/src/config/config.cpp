@@ -47,3 +47,7 @@ QString Config::projectDir;
 double Config::overrideSamplePeriod;
 bool Config::overrideSamplePc;
 bool Config::overrideNoSamplePc;
+bool Config::functionsInTable;
+bool Config::regionsInTable;
+bool Config::loopsInTable;
+bool Config::basicblocksInTable;

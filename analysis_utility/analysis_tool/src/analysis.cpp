@@ -51,6 +51,10 @@ Analysis::Analysis() {
   Config::core = settings.value("core", 0).toUInt();
   Config::sensor = settings.value("sensor", 0).toUInt();
   Config::window = settings.value("window", 1).toUInt();
+  Config::functionsInTable = settings.value("functionsInTable", true).toBool();
+  Config::regionsInTable = settings.value("regionsInTable", false).toBool();
+  Config::loopsInTable = settings.value("loopsInTable", false).toBool();
+  Config::basicblocksInTable = settings.value("basicblocksInTable", false).toBool();
   
   Config::sdsocVersion = Sdsoc::getSdsocVersion();
 

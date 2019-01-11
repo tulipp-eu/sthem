@@ -127,6 +127,14 @@ public:
 
   virtual BasicBlock *getFrameDoneBb(QString frameDoneFunction);
 
+  virtual bool isVisibleInTable() {
+    return Config::basicblocksInTable;
+  }
+
+  virtual bool isVisibleInGantt() {
+    return Config::basicblocksInTable;
+  }
+
 };
 
 #endif

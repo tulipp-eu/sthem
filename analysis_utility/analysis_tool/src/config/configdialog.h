@@ -62,13 +62,18 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class CfgPage : public QWidget {
+class VisualisationPage : public QWidget {
 public:
   QCheckBox *allInstructionsCheckBox;
   QCheckBox *profDataCheckBox;
   QCheckBox *idCheckBox;
 
-  CfgPage(QWidget *parent = 0);
+  QCheckBox *functionsCheckBox;
+  QCheckBox *regionsCheckBox;
+  QCheckBox *loopsCheckBox;
+  QCheckBox *basicblocksCheckBox;
+
+  VisualisationPage(QWidget *parent = 0);
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -88,7 +93,7 @@ public slots:
 private:
   MainPage *mainPage;
   BuildPage *buildPage;
-  CfgPage *cfgPage;
+  VisualisationPage *visualisationPage;
 
   QListWidget *contentsWidget;
   QStackedWidget *pagesWidget;

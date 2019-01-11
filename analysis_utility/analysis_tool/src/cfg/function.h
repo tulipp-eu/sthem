@@ -94,11 +94,11 @@ public:
   }
 
   virtual bool isVisibleInTable() {
-    return true;
+    return Config::functionsInTable;
   }
 
   virtual bool isVisibleInGantt() {
-    return true;
+    return Config::functionsInTable;
   }
 
   bool isFunction() {

@@ -53,6 +53,14 @@ public:
     return getCfgName();
   }
 
+  virtual bool isVisibleInTable() {
+    return Config::regionsInTable;
+  }
+
+  virtual bool isVisibleInGantt() {
+    return Config::regionsInTable;
+  }
+
 };
 
 #endif

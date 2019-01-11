@@ -542,6 +542,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   settings.setValue("core", Config::core);
   settings.setValue("sensor", Config::sensor);
   settings.setValue("window", Config::window);
+  settings.setValue("functionsInTable", Config::functionsInTable);
+  settings.setValue("regionsInTable", Config::regionsInTable);
+  settings.setValue("loopsInTable", Config::loopsInTable);
+  settings.setValue("basicblocksInTable", Config::basicblocksInTable);
 
   QMainWindow::closeEvent(event);
 }
@@ -662,7 +666,7 @@ void MainWindow::configDialog() {
   ConfigDialog dialog;
   dialog.exec();
   if(Config::sdsocVersion) buildProjectMenu();
-  cfgScene->redraw();
+  loadFiles();
 }
 
 void MainWindow::projectDialog() {

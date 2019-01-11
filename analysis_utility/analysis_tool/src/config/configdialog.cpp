@@ -146,8 +146,8 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
   setLayout(mainLayout);
 }
 
-CfgPage::CfgPage(QWidget *parent) : QWidget(parent) {
-  QGroupBox *cfgGroup = new QGroupBox("Visualization");
+VisualisationPage::VisualisationPage(QWidget *parent) : QWidget(parent) {
+  QGroupBox *cfgGroup = new QGroupBox("CFG");
 
   allInstructionsCheckBox = new QCheckBox("Show all instructions");
   allInstructionsCheckBox->setCheckState(Config::includeAllInstructions ? Qt::Checked : Qt::Unchecked);
@@ -166,8 +166,32 @@ CfgPage::CfgPage(QWidget *parent) : QWidget(parent) {
 
   //---------------------------------------------------------------------------
 
+  QGroupBox *tableGroup = new QGroupBox("Tables");
+
+  functionsCheckBox = new QCheckBox("Show functions");
+  functionsCheckBox->setCheckState(Config::functionsInTable ? Qt::Checked : Qt::Unchecked);
+
+  regionsCheckBox = new QCheckBox("Show regions");
+  regionsCheckBox->setCheckState(Config::regionsInTable ? Qt::Checked : Qt::Unchecked);
+
+  loopsCheckBox = new QCheckBox("Show loops");
+  loopsCheckBox->setCheckState(Config::loopsInTable ? Qt::Checked : Qt::Unchecked);
+
+  basicblocksCheckBox = new QCheckBox("Show basicblocks");
+  basicblocksCheckBox->setCheckState(Config::basicblocksInTable ? Qt::Checked : Qt::Unchecked);
+
+  QVBoxLayout *tableLayout = new QVBoxLayout;
+  tableLayout->addWidget(functionsCheckBox);
+  tableLayout->addWidget(regionsCheckBox);
+  tableLayout->addWidget(loopsCheckBox);
+  tableLayout->addWidget(basicblocksCheckBox);
+  tableGroup->setLayout(tableLayout);
+
+  //---------------------------------------------------------------------------
+
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(cfgGroup);
+  mainLayout->addWidget(tableGroup);
   mainLayout->addStretch(1);
   setLayout(mainLayout);
 }
@@ -189,8 +213,8 @@ ConfigDialog::ConfigDialog() {
   buildPage = new BuildPage;
   pagesWidget->addWidget(buildPage);
 
-  cfgPage = new CfgPage;
-  pagesWidget->addWidget(cfgPage);
+  visualisationPage = new VisualisationPage;
+  pagesWidget->addWidget(visualisationPage);
 
   QPushButton *closeButton = new QPushButton("Close");
 
@@ -204,10 +228,10 @@ ConfigDialog::ConfigDialog() {
   buildButton->setTextAlignment(Qt::AlignHCenter);
   buildButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
-  QListWidgetItem *cfgButton = new QListWidgetItem(contentsWidget);
-  cfgButton->setText("CFG");
-  cfgButton->setTextAlignment(Qt::AlignHCenter);
-  cfgButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+  QListWidgetItem *visualisationButton = new QListWidgetItem(contentsWidget);
+  visualisationButton->setText("Visualisation");
+  visualisationButton->setTextAlignment(Qt::AlignHCenter);
+  visualisationButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
   connect(contentsWidget, &QListWidget::currentItemChanged, this, &ConfigDialog::changePage);
 
@@ -246,9 +270,9 @@ void ConfigDialog::changePage(QListWidgetItem *current, QListWidgetItem *previou
 
 void ConfigDialog::closeEvent(QCloseEvent *e) {
   Config::workspace = mainPage->workspaceEdit->text();
-  Config::includeAllInstructions = cfgPage->allInstructionsCheckBox->checkState() == Qt::Checked;
-  Config::includeProfData = cfgPage->profDataCheckBox->checkState() == Qt::Checked;
-  Config::includeId = cfgPage->idCheckBox->checkState() == Qt::Checked;
+  Config::includeAllInstructions = visualisationPage->allInstructionsCheckBox->checkState() == Qt::Checked;
+  Config::includeProfData = visualisationPage->profDataCheckBox->checkState() == Qt::Checked;
+  Config::includeId = visualisationPage->idCheckBox->checkState() == Qt::Checked;
   Config::clang = buildPage->clangEdit->text();
   Config::clangpp = buildPage->clangppEdit->text();
   Config::opt = buildPage->optEdit->text();
@@ -261,4 +285,8 @@ void ConfigDialog::closeEvent(QCloseEvent *e) {
   Config::asUs = buildPage->asUsEdit->text();
   Config::linkerUs = buildPage->linkerUsEdit->text();
   Config::linkerppUs = buildPage->linkerppUsEdit->text();
+  Config::functionsInTable = visualisationPage->functionsCheckBox->checkState() == Qt::Checked;
+  Config::regionsInTable = visualisationPage->regionsCheckBox->checkState() == Qt::Checked;
+  Config::loopsInTable = visualisationPage->loopsCheckBox->checkState() == Qt::Checked;
+  Config::basicblocksInTable = visualisationPage->basicblocksCheckBox->checkState() == Qt::Checked;
 }

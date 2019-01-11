@@ -131,15 +131,15 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
             }
             if(func) {
               if(!callStack.contains(this)) {
-                if(func->callers == 1) {
-                  double runtimeChild;
-                  double runtimeChildFrame;
-                  double energyChild[Pmu::MAX_SENSORS];
-                  double energyChildFrame[Pmu::MAX_SENSORS];
-                  uint64_t countChild;
-                  callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
+                double runtimeChild;
+                double runtimeChildFrame;
+                double energyChild[Pmu::MAX_SENSORS];
+                double energyChildFrame[Pmu::MAX_SENSORS];
+                uint64_t countChild;
+                callStack.push_back(this);
+                func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
 
+                if((func->callers == 1) && (func->caller.contains(this))) {
                   cachedRuntime += runtimeChild;
                   cachedRuntimeFrame += runtimeChildFrame;
                   for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
@@ -147,13 +147,6 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
                     cachedEnergyFrame[i] += energyChildFrame[i];
                   }
                 } else {
-                  double runtimeChild;
-                  double runtimeChildFrame;
-                  double energyChild[Pmu::MAX_SENSORS];
-                  double energyChildFrame[Pmu::MAX_SENSORS];
-                  uint64_t countChild;
-                  callStack.push_back(this);
-                  func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
                   double ratio = profile->getArcRatio(core, this, func);
 
                   cachedRuntime += runtimeChild * ratio;
@@ -204,7 +197,7 @@ void BasicBlock::getMeasurements(unsigned core, QVector<BasicBlock*> callStack, 
           }
           if(func) {
             if(!callStack.contains(this)) {
-              if(func->callers == 1) {
+              if((func->callers == 1) && (func->caller.contains(this))) {
                 callStack.push_back(this);
                 func->getMeasurements(core, callStack, measurements);
               }
