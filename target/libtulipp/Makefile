@@ -6,15 +6,18 @@ all : libtulipp.a libhtulipp.a
 CC = aarch64-none-elf-gcc
 AR = aarch64-none-elf-ar
 
-CFLAGS = -DSDDRIVE="\"1:/\"" -I../../../sthem-benchmarks/libs -I/opt/Xilinx/SDx/2017.4/target/aarch64-none/include/
+CFLAGS = -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2017.4/target/aarch64-none/include/
 
-libtulipp.a : gmon.o profiler.o
+libtulipp.a : interruptWrapper.o gmon.o tulipp.o
 	${AR} cr $@ $^
+
+interruptWrapper.o : interruptWrapper.c
+	${CC} ${CFLAGS} $< -c -o $@
 
 gmon.o : gmon.c gmon.h
 	${CC} ${CFLAGS} $< -c -o $@
 
-profiler.o : profiler.c profiler.h
+tulipp.o : tulipp.c tulipp.h
 	${CC} ${CFLAGS} $< -c -o $@
 
 ###############################################################################
@@ -28,13 +31,13 @@ HIPPEROS_CFLAGS = -DSDDRIVE="\"\"" -DHIPPEROS -isystem ${HIPPEROS_DIR}/hipperos-
 
 ###############################################################################
 
-libhtulipp.a : gmon_hipperos.o profiler_hipperos.o 
+libhtulipp.a : gmon_hipperos.o tulipp_hipperos.o 
 	${HIPPEROS_AR} cr $@ $^
 
 gmon_hipperos.o : gmon.c gmon.h
 	${HIPPEROS_CC} ${HIPPEROS_CFLAGS} $< -c -o $@
 
-profiler_hipperos.o : profiler.c profiler.h
+tulipp_hipperos.o : tulipp.c tulipp.h
 	${HIPPEROS_CC} ${HIPPEROS_CFLAGS} $< -c -o $@
 
 ###############################################################################

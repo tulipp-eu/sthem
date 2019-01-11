@@ -1,4 +1,4 @@
-#include "profiler.h"
+#include "tulipp.h"
 
 #ifndef HIPPEROS
 
@@ -16,10 +16,11 @@
 #include <xgpiops.h>
 #include <xil_cache.h>
 
+#include <ff.h>
+
 #include <sds_lib.h>
 
-#include <compatibility_layer.h>
-#include <gmon.h>
+#include "gmon.h"
 
 #include "interruptWrapper.h"
 #define MYSELF 	CPU1
@@ -74,6 +75,8 @@ static uint32_t bufSize;
 static volatile bool profilerActive;
 
 static double pcSamplerPeriod;
+
+static FATFS fatfs;
 
 static bool iicReadData(uint8_t *recBuf, int size);
 
@@ -396,9 +399,17 @@ void stopProfiler(char *filename) {
     Xil_ExceptionDisable();
   }
 
-  FILE *fp = fopen(filename, "w");
-  if(fp == NULL) {
-    printf("PROFILER: Can't open file\n");
+  FRESULT res = f_mount(&fatfs, SDDRIVE, 1);
+  if(res != FR_OK) {
+    printf("PROFILER: Could not mount (%d)\n", res);
+    return;
+  }
+
+  FIL fp;
+  int mode = FA_OPEN_ALWAYS | FA_CREATE_ALWAYS | FA_WRITE;
+  res = f_open(&fp, filename, mode);
+  if(res != FR_OK) {
+    printf("PROFILER: Could not open (%d)\n", res);
     return;
   }
 
@@ -414,15 +425,17 @@ void stopProfiler(char *filename) {
   double unknownCurrentAvg = unknownCurrent / (double)unknownTicks;
   double unknownRuntime = unknownTicks * pcSamplerPeriod;
 
-  fwrite(&core, sizeof(uint8_t), 1, fp);
-  fwrite(&sensor, sizeof(uint8_t), 1, fp);
-  for(int i = 0; i < 14; i++) {
-    fwrite(&(calData[i]), sizeof(double), 1, fp);
-  }
-  fwrite(&pcSamplerPeriod, sizeof(double), 1, fp);
+  UINT bw;
 
-  fwrite(&unknownCurrentAvg, sizeof(double), 1, fp);
-  fwrite(&unknownRuntime, sizeof(double), 1, fp);
+  f_write(&fp, &core, sizeof(uint8_t), &bw);
+  f_write(&fp, &sensor, sizeof(uint8_t), &bw);
+  for(int i = 0; i < 14; i++) {
+    f_write(&fp, &(calData[i]), sizeof(double), &bw);
+  }
+  f_write(&fp, &pcSamplerPeriod, sizeof(double), &bw);
+
+  f_write(&fp, &unknownCurrentAvg, sizeof(double), &bw);
+  f_write(&fp, &unknownRuntime, sizeof(double), &bw);
 
   uint32_t count = 0;
   for(int i = 0; i < bufSize; i++) {
@@ -431,7 +444,7 @@ void stopProfiler(char *filename) {
     }
   }
 
-  fwrite(&count, sizeof(uint32_t), 1, fp);
+  f_write(&fp, &count, sizeof(uint32_t), &bw);
 
   for(int i = 0; i < bufSize; i++) {
     if((currentBuf[i] != 0) || (ticksBuf[i] != 0)) {
@@ -439,13 +452,13 @@ void stopProfiler(char *filename) {
       double current = currentBuf[i] / (double)ticksBuf[i];
       double runtime = ticksBuf[i] * pcSamplerPeriod;
 
-      fwrite(&pc, sizeof(uint64_t), 1, fp);
-      fwrite(&current, sizeof(double), 1, fp);
-      fwrite(&runtime, sizeof(double), 1, fp);
+      f_write(&fp, &pc, sizeof(uint64_t), &bw);
+      f_write(&fp, &current, sizeof(double), &bw);
+      f_write(&fp, &runtime, sizeof(double), &bw);
     }
   }
 
-  fclose(fp);
+  f_close(&fp);
 
   printf("PROFILER: Done\n");
 }
@@ -459,6 +472,14 @@ void profilerOff(void) {
 }
 
 #endif
+
+void __attribute__ ((noinline)) tulippStart(void) {
+  asm("nop");
+}
+
+void __attribute__ ((noinline)) tulippEnd(void) {
+  asm("nop");
+}
 
 void __attribute__ ((noinline)) tulippFrameDone(void) {
   asm("nop");

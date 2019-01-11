@@ -1,8 +1,12 @@
-#ifndef PROFILER_H
-#define PROFILER_H
+#ifndef TULIPP_H
+#define TULIPP_H
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef HIPPEROS
 
@@ -99,6 +103,12 @@ bool endCallTracer(unsigned core);
 
 #endif
 
+void __attribute__ ((noinline)) tulippStart(void);
+void __attribute__ ((noinline)) tulippEnd(void);
 void __attribute__ ((noinline)) tulippFrameDone(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
