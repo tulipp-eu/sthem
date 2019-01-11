@@ -226,7 +226,11 @@ void BasicBlock::calculateCallers() {
           func = getTop()->getFunctionById(instr->target);
         }
         if(func) {
+          int callers = func->callers;
           func->addCaller(this);
+          if(!callers) {
+            func->calculateCallers();
+          }
         }
       }
     }

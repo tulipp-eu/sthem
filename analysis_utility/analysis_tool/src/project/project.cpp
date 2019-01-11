@@ -453,6 +453,12 @@ void Project::loadFiles() {
       loadXmlFile(fileInfo.filePath());
     }
   }
+
+  cfg->clearCallers();
+  QVector<Function*> mainVector = cfg->getMain();
+  for(auto main : mainVector) {
+    main->calculateCallers();
+  }
 }
 
 void Project::loadXmlFile(const QString &fileName) {
@@ -500,9 +506,6 @@ void Project::loadXmlFile(const QString &fileName) {
     }
 
     cfg->appendChild(module);
-
-    cfg->clearCallers();
-    cfg->calculateCallers();
 
   } catch (std::exception &e) {
     QMessageBox msgBox;
