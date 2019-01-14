@@ -245,6 +245,20 @@ bool Project::createMakefile(QFile &makefile) {
 ///////////////////////////////////////////////////////////////////////////////
 // make
 
+bool Project::make() {
+  emit advance(0, "Building");
+
+  errorCode = system(QString("make").toUtf8().constData());
+
+  if(errorCode) {
+    emit finished(errorCode, "Make failed");
+  } else {
+    emit finished(errorCode, "");
+  }
+
+  return errorCode == 0;
+}
+
 bool Project::makeXml() {
   emit advance(0, "Building XML");
 

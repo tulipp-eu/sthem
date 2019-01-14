@@ -143,6 +143,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   makeBinAct = new QAction("Make bin", this);
   connect(makeBinAct, SIGNAL(triggered()), this, SLOT(makeBinEvent()));
 
+  makeAct = new QAction("Make", this);
+  connect(makeAct, SIGNAL(triggered()), this, SLOT(makeEvent()));
+
   runAct = new QAction("Run", this);
   connect(runAct, SIGNAL(triggered()), this, SLOT(runEvent()));
 
@@ -469,6 +472,7 @@ bool MainWindow::openProject(QString path, QString configType) {
     projectToolBar->clear();
 
     if(configType == "") {
+      projectToolBar->addAction(makeAct);
       projectToolBar->addAction(refreshAct);
       projectToolBar->addAction(runAct);
       projectToolBar->addAction(profileAct);
@@ -787,6 +791,53 @@ void MainWindow::finishBin(int error, QString msg) {
 
     QMessageBox msgBox;
     msgBox.setText("Binary build completed");
+    msgBox.exec();
+  }
+
+  disconnect(&thread, SIGNAL (started()), 0, 0);
+  disconnect(analysis->project, SIGNAL(finished(int, QString)), 0, 0);
+
+  thread.quit();
+}
+
+void MainWindow::makeEvent() {
+  if(analysis->project) {
+    treeView->setModel(NULL);
+
+    if(analysis->profile) analysis->profile->clean();
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    progDialog = new QProgressDialog("Making...", QString(), 0, analysis->project->makeSteps(), this);
+    progDialog->setWindowModality(Qt::WindowModal);
+    progDialog->setMinimumDuration(0);
+    progDialog->setValue(0);
+
+    thread.wait();
+    analysis->project->moveToThread(&thread);
+    connect(&thread, SIGNAL (started()), analysis->project, SLOT (make()));
+    connect(analysis->project, SIGNAL(finished(int, QString)), this, SLOT(finishMake(int, QString)));
+    thread.start();
+  }
+}
+
+void MainWindow::finishMake(int error, QString msg) {
+  delete progDialog;
+  progDialog = NULL;
+
+  QApplication::restoreOverrideCursor();
+
+  if(error) {
+    loadFiles();
+    QMessageBox msgBox;
+    msgBox.setText(msg);
+    msgBox.exec();
+
+  } else {
+    loadFiles();
+
+    QMessageBox msgBox;
+    msgBox.setText("Build completed");
     msgBox.exec();
   }
 

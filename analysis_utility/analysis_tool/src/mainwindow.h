@@ -101,6 +101,7 @@ private:
   QAction *cleanBinAct;
   QAction *makeXmlAct;
   QAction *makeBinAct;
+  QAction *makeAct;
   QAction *profileAct;
   QAction *runAct;
   QAction *showProfileAct;
@@ -136,11 +137,13 @@ private slots:
   void cleanBinEvent();
   void makeXmlEvent();
   void makeBinEvent();
+  void makeEvent();
   void profileEvent();
   void runEvent();
   void showFrameSummary();
   void showProfileSummary();
   void showDseSummary();
+  void finishMake(int error, QString msg);
   void finishXml(int error, QString msg);
   void finishBin(int error, QString msg);
   void finishProfile(int error, QString msg);

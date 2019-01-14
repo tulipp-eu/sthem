@@ -139,6 +139,7 @@ public:
   void loadProjectFile();
   void saveProjectFile();
 
+  int makeSteps() { return 1; }
   int xmlBuildSteps() { return 1; }
   int binBuildSteps() { return 2; }
   int profileSteps() { return 3; }
@@ -147,6 +148,7 @@ public:
   virtual bool isSdSocProject() { return false; }
 
 public slots:
+  bool make();
   bool makeXml();
   virtual bool makeBin();
   bool runProfiler();
