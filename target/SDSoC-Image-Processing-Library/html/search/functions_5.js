@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['imgabsdiff',['imgAbsDiff',['../img__pixelop__base_8h.html#ab996a49ed33edec7565344508d1b8c5a',1,'img_pixelop_base.h']]],
+  ['imgadd',['imgAdd',['../img__pixelop__base_8h.html#a8996e08171ae40fc9cbb1f6dbdf34673',1,'img_pixelop_base.h']]],
+  ['imgand',['imgAnd',['../img__pixelop__base_8h.html#a846891b183571c8d965e4f65123daae7',1,'img_pixelop_base.h']]],
+  ['imgboxfilter',['imgBoxFilter',['../img__filter__base_8h.html#a211f38516a5e946c159222aa1d6a05d4',1,'img_filter_base.h']]],
+  ['imgconvertcolor',['imgConvertColor',['../img__other__base_8h.html#a0f00f607a5e8e816de686ecb45416d63',1,'img_other_base.h']]],
+  ['imgconvertdepth',['imgConvertDepth',['../img__other__base_8h.html#a4cbdb6208ee73fcee984ee1753a8c1e4',1,'img_other_base.h']]],
+  ['imgcustomconvolution',['imgCustomConvolution',['../img__filter__base_8h.html#a1ba9fac721da544d3492b88e2b3eefec',1,'img_filter_base.h']]],
+  ['imggaussian',['imgGaussian',['../img__filter__base_8h.html#ad3f29c779c335d7b4501f6367c070604',1,'img_filter_base.h']]],
+  ['imghistogram',['imgHistogram',['../img__other__base_8h.html#a5178c18d414eb5e9cd0fd9583221cc13',1,'img_other_base.h']]],
+  ['imgintegral',['imgIntegral',['../img__other__base_8h.html#a04d36b4695f817d8dc4e87011b567530',1,'img_other_base.h']]],
+  ['imgmagnitude',['imgMagnitude',['../img__pixelop__base_8h.html#a36261274be724c1271ad6c40bc36f36e',1,'img_pixelop_base.h']]],
+  ['imgmedianfilter3x3',['imgMedianFilter3x3',['../img__filter__base_8h.html#a76a19429f6d8d29eb16a5aa83a075c65',1,'img_filter_base.h']]],
+  ['imgmultiply',['imgMultiply',['../img__pixelop__base_8h.html#a1bca9c2b849407381907a44246792be3',1,'img_pixelop_base.h']]],
+  ['imgnot',['imgNot',['../img__pixelop__base_8h.html#a6307ddb6bac4a3b4127d5f78e76c5e91',1,'img_pixelop_base.h']]],
+  ['imgor',['imgOr',['../img__pixelop__base_8h.html#a679a348c60090f91ed12fb7fb33343ab',1,'img_pixelop_base.h']]],
+  ['imgscaledown',['imgScaleDown',['../img__other__base_8h.html#a321593f15cf8c1c81487cafee0bca9a8',1,'img_other_base.h']]],
+  ['imgscharr3x3',['imgScharr3x3',['../img__filter__base_8h.html#ac4e6b568d9435eaf9b973f89caf6e289',1,'img_filter_base.h']]],
+  ['imgsobel3x3',['imgSobel3x3',['../img__filter__base_8h.html#a2dfa982d4de938b6535a820015999777',1,'img_filter_base.h']]],
+  ['imgsubtract',['imgSubtract',['../img__pixelop__base_8h.html#a113890d5bc760e72ebfaa40ef82b4123',1,'img_pixelop_base.h']]],
+  ['imgtablelookup',['imgTableLookup',['../img__other__base_8h.html#a4c9c126a47f1212ce1a3d07677b19f39',1,'img_other_base.h']]],
+  ['imgxor',['imgXor',['../img__pixelop__base_8h.html#a8539a755a3513ad16cbdd916140de125',1,'img_pixelop_base.h']]],
+  ['integral',['integral',['../img__other__core_8h.html#a2e89200ccc9037b4a2088681495fff7d',1,'img_other_core.h']]]
+];
