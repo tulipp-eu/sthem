@@ -6,7 +6,7 @@ all : libtulipp.a libhtulipp.a
 CC = aarch64-none-elf-gcc
 AR = aarch64-none-elf-ar
 
-CFLAGS = -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2017.4/target/aarch64-none/include/
+CFLAGS = -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch64-none/include/
 
 libtulipp.a : interruptWrapper.o gmon.o tulipp.o
 	${AR} cr $@ $^
