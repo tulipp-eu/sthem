@@ -208,7 +208,8 @@ bool Pmu::init() {
     if((initReply.swVersion != SW_VERSION_1_0) &&
        (initReply.swVersion != SW_VERSION_1_1) &&
        (initReply.swVersion != SW_VERSION_1_3) &&
-       (initReply.swVersion != SW_VERSION_1_4)) {
+       (initReply.swVersion != SW_VERSION_1_4) &&
+       (initReply.swVersion != SW_VERSION_1_5)) {
       printf("Unsupported Lynsyn SW Version: %x\n", initReply.swVersion);
       return false;
     }

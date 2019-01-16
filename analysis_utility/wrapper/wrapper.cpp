@@ -56,6 +56,12 @@ int main(int argc, char *argv[]) {
     if(ext(argstring) == std::string("c")) {
       input = argstring;
       arg++;
+    } else if(ext(argstring) == std::string("cpp")) {
+      input = argstring;
+      arg++;
+    } else if(ext(argstring) == std::string("cc")) {
+      input = argstring;
+      arg++;
     } else if(argstring == std::string("-o")) {
       output = std::string(argv[arg+1]);
       arg += 2;
@@ -84,11 +90,17 @@ int main(int argc, char *argv[]) {
   std::string llcline = std::string(argv[4]) + " " + optlevel + " -mcpu=cortex-a53 " + base(input) + "_3.ll -o " + base(input) + ".s";
   std::string asline = std::string(argv[5]) + " -mcpu=cortex-a53 " + base(input) + ".s -o " + output;
 
+  printf("%s\n", clangline.c_str());
   if(!system(clangline.c_str())) {
+    printf("%s\n", parserline1.c_str());
     if(!system(parserline1.c_str())) {
+      printf("%s\n", parserline2.c_str());
       if(!system(parserline2.c_str())) {
+        printf("%s\n", optline.c_str());
         if(!system(optline.c_str())) {
+          printf("%s\n", llcline.c_str());
           if(!system(llcline.c_str())) {
+            printf("%s\n", asline.c_str());
             if(!system(asline.c_str())) {
               return 0;
             }

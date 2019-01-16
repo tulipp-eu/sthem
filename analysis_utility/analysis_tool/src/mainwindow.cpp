@@ -26,8 +26,6 @@
 
 #include <QtSql>
 
-#include "usbprotocol.h"
-
 #include "config/config.h"
 #include "mainwindow.h"
 #include "cfg/cfgview.h"
@@ -556,7 +554,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 
 void MainWindow::about() {
   QMessageBox::about(this, "About Analysis Tool",
-                     QString("Analysis Tool ") + SW_VERSION_STRING + "\n"
+                     QString("Analysis Tool V") + QString::number(VERSION) + "\n"
                      "A performance measurement and analysis utility\n"
                      "TULIPP EU Project, NTNU, 2018-2019");
 }

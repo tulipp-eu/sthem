@@ -2,4 +2,4 @@
 
 . toolsettings.sh
 
-$WRAPPER $CLANG $LLVM_IR_PARSER $OPT $LLC $AS $@
+$WRAPPER $CLANGPP $LLVM_IR_PARSER $OPT $LLC $AS $@

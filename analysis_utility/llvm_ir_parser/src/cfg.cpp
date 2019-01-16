@@ -570,8 +570,13 @@ LoopNode::LoopNode(Loop *loop, Node *parent) : Node(parent) {
 
 void LoopNode::printXML(FILE *fp) {
   DebugLoc loc = loop->getStartLoc();
+  std::string fileName = loc->getFilename().str();
 
-  fprintf(fp, "<loop id=\"loop%d\" file=\"%s\" line=\"%d\" col=\"%d\">\n", id, loc->getFilename().str().c_str(), loc.getLine(), loc.getCol());
+  if(fileName[0] != '/') {
+    fileName.insert(0, std::string(get_current_dir_name()) + "/");
+  }
+
+  fprintf(fp, "<loop id=\"loop%d\" file=\"%s\" line=\"%d\" col=\"%d\">\n", id, fileName.c_str(), loc.getLine(), loc.getCol());
 
   for(auto child : children) {
     child->printXML(fp);
