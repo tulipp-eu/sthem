@@ -9,10 +9,6 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include <xstatus.h>
-#include <xtime_l.h>
-#include <xil_io.h>
-
 #include <ff.h>
 
 #include <tulipp.h>
@@ -30,8 +26,6 @@
 #define COLS     1920
 
 #define SIZE_ARR (ROWS*COLS)
-
-#define FATFS_MOUNT "1:/"
 
 /*****************************************************************************/
 /* Variables */
