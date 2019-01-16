@@ -118,6 +118,5 @@
 
 void setLed(int led);
 void clearLed(int led);
-void panic(const char *fmt, ...);
 
 #endif

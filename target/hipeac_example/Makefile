@@ -18,7 +18,7 @@ PLATFORM = ${PLATFORM_REPO}/TE0820_4EV_1E_2018_2/export/TE0820_4EV_1E_2018_2/
 
 SDSFLAGS = -sds-pf ${PLATFORM} -target-os standalone -dmclkid 0 -sds-sys-config Standalone -sds-proc psu_cortexa53_0
 
-FLAGS = -DFATFS_MOUNT="\"1:/\"" \
+FLAGS = -DFATFS_MOUNT='\"1:/\"' \
 	-I../SDSoC-Image-Processing-Library/ \
 	-I../libtulipp
 

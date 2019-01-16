@@ -20,7 +20,6 @@
  *****************************************************************************/
 
 #include <stdio.h>
-#include <stdarg.h>
 
 #include "lynsyn.h"
 
@@ -44,15 +43,5 @@ void setLed(int led) {
       GPIO_PinOutClear(LED1_PORT, LED1_BIT);
       break;
   }
-}
-
-void panic(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  printf("\nPanic: ");
-  vprintf(fmt, args);
-  printf("\n");
-  va_end(args);
-  while(true);
 }
 

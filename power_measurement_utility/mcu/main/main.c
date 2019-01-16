@@ -23,6 +23,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include <em_device.h>
 #include <em_chip.h>
@@ -58,6 +59,19 @@ static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned
 static int16_t i2cCurrent[7];
 
 #endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+void panic(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  printf("\nPanic: ");
+  vprintf(fmt, args);
+  printf("\n");
+  va_end(args);
+  jtagExt();
+  while(true);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 

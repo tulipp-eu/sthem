@@ -109,6 +109,9 @@ int main(void) {
   swoInit();
 #endif
 
+  // communicate version to main
+  *(uint32_t*)FLASH_BOOT_VERSION = BOOT_VERSION;
+
   printf("Lynsyn bootloader %s\n", BOOT_VERSION_STRING);
 
   printf("Checking for new firmware...\n");

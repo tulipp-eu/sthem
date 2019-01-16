@@ -56,10 +56,15 @@ static unsigned getIrLen(uint32_t idcode) {
   if(idcode == PL_US_TAP_IDCODE) {
     return PL_US_TAP_IRLEN;
   }
+  if(idcode == PL_ZU4_US_TAP_IDCODE) {
+    return PL_ZU4_US_TAP_IRLEN;
+  }
 
   if(idcode == PS_TAP_IDCODE) {
     return PS_TAP_IRLEN;
   }
+
+  panic("Unknown IDCODE\n");
 
   return 0;
 }

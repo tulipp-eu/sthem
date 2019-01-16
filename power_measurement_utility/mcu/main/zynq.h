@@ -41,20 +41,33 @@
 #define CORTEXA_AP_IDR       0x04770002
 #define CORTEXA_CSW          0x80000042
 
+///////////////////////////////////////////////////////////////////////////////
+
 #define CORTEXA9_TAP_IRLEN 4
 #define CORTEXA9_TAP_IDCODE 0x4ba00477
 
 #define PL_TAP_IRLEN  6
 #define PL_TAP_IDCODE 0x1372c093
 
+///////////////////////////////////////////////////////////////////////////////
+
 #define CORTEXA53_TAP_IRLEN 4
 #define CORTEXA53_TAP_IDCODE 0x5ba00477
+
+//----------------------------------------------------------------------------
 
 #define PL_US_TAP_IRLEN  12
 #define PL_US_TAP_IDCODE 0x14710093
 
+#define PL_ZU4_US_TAP_IRLEN  12
+#define PL_ZU4_US_TAP_IDCODE 0x04721093
+
+///////////////////////////////////////////////////////////////////////////////
+
 #define PS_TAP_IRLEN  12
 #define PS_TAP_IDCODE 0x28e20126
+
+///////////////////////////////////////////////////////////////////////////////
 
 #define JTAG_CTRL_ARM_DAP 2
 #define JTAG_CTRL_PL_TAP  1
