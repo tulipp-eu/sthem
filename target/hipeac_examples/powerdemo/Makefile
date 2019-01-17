@@ -39,7 +39,7 @@ CPPFLAGS = ${FLAGS} \
 
 LDFLAGS = -L${STHEM}/target/libtulipp -ltulipp -lm
 
-hipeac_example.elf : main.o filters.o ppm.o __tulipp__.o
+powerdemo.elf : main.o __tulipp__.o
 	${LD} ${LDFLAGS} $^ -o $@
 
 __tulipp__.c :
@@ -48,15 +48,9 @@ __tulipp__.c :
 __tulipp__.o : __tulipp__.c
 	sdscc ${SDSFLAGS} $< -c -o $@
 
-ppm.o : src/ppm_library/ppm.c
-	${CPP} ${CPPFLAGS} $< -c -o $@
-
-filters.o : src/filters.cpp
-	${CPP} ${CPPFLAGS} $< -c -o $@
-
 main.o : src/main.cpp
 	${CPP} ${CPPFLAGS} $< -c -o $@
 
 .PHONY : clean
 clean :
-	rm -rf *.ll *.xml *.s *.o *.elf *.bit .Xil sd_card _sds
+	rm -rf *.ll *.xml *.s *.o *.elf *.bit .Xil sd_card _sds __tulipp__*
