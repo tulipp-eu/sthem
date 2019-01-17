@@ -98,3 +98,4 @@ void hwSobelX(vx_uint32 *input, vx_uint32* output);
 void hwSobelY(vx_uint32 *input, vx_uint32* output);
 void hwScharrX(vx_uint32 *input, vx_uint32* output);
 void hwScharrY(vx_uint32 *input, vx_uint32* output);
+void hwMedian(vx_uint32 *input, vx_uint32* output);

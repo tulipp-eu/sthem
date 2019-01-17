@@ -280,3 +280,32 @@ void hwScharrY(vx_uint32 *input, vx_uint32* output) {
 	imageSignedToUnsigned<int8_t, uint8_t, PIXELS_FHD>(SignedSobelChannel1, UnsignedSobelChannel1);
 	ReplicateChannel(UnsignedSobelChannel1, output);
 }
+
+
+// Median Filter.
+#pragma SDS data mem_attribute(input:PHYSICAL_CONTIGUOUS, output:PHYSICAL_CONTIGUOUS)
+#pragma SDS data copy(input[O:PIXELS_FHD], output[0:PIXELS_FHD])
+#pragma SDS data data_mover(input:AXIDMA_SIMPLE, output:AXIDMA_SIMPLE)
+#pragma SDS data access_pattern(input:SEQUENTIAL, output:SEQUENTIAL)
+void hwMedian(vx_uint32 *input, vx_uint32* output) {
+#pragma HLS INTERFACE axis port=input
+#pragma HLS INTERFACE axis port=output
+#pragma HLS inline
+
+	// FIFOs to stream data between functions
+	vx_uint8 output_fhd_8[PIXELS_FHD];
+#pragma HLS STREAM variable = output_fhd_8 depth = 512
+
+	static vx_uint8 UnsignedMedianChannel1[PIXELS_FHD];
+#pragma HLS STREAM variable = UnsignedMedianChannel1 depth = 512
+
+	vx_int8 tmp[PIXELS_FHD];
+
+// Pragma to stream between loops/functions
+#pragma HLS DATAFLOW
+
+	imgConvertColor<vx_uint32, vx_uint8, COLS_FHD, ROWS_FHD, VX_DF_IMAGE_RGBX, VX_DF_IMAGE_U8>(input, output_fhd_8);
+	imgMedianFilter3x3<vx_uint8, vx_uint8, COLS_FHD, ROWS_FHD, MEDIAN_BORDER>(output_fhd_8, UnsignedMedianChannel1);
+	ReplicateChannel(UnsignedMedianChannel1, output);
+
+}
