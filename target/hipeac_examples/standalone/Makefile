@@ -15,8 +15,8 @@ XILINX_VERSION = 2018.2
 
 PLATFORM_REPO = /opt/Xilinx/SDx/default/custom-platforms
 
-PLATFORM = ${PLATFORM_REPO}/TE0820_3EG_1E_2018_2
-#PLATFORM = ${PLATFORM_REPO}/TE0820_4EV_1E_2018_2
+#PLATFORM = ${PLATFORM_REPO}/TE0820_3EG_1E_2018_2
+PLATFORM = ${PLATFORM_REPO}/TE0820_4EV_1E_2018_2
 
 STHEM = /opt/sthem
 
@@ -39,7 +39,7 @@ CPPFLAGS = ${FLAGS} \
 
 LDFLAGS = -L${STHEM}/target/libtulipp -ltulipp -lm
 
-hipeac_example.elf : main.o filters.o ppm.o __tulipp__.o
+standalone.elf : main.o filters.o ppm.o __tulipp__.o
 	${LD} ${LDFLAGS} $^ -o $@
 
 __tulipp__.c :
