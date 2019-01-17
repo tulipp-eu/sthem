@@ -7,6 +7,7 @@
  *****************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 #include <tulipp.h>
@@ -16,8 +17,8 @@
 
 #define TESTS 10
 
-#define TIMES 4
-#define LOW_POWER 3000000
+#define TIMES 100
+#define LOW_POWER 300000
 #define HIGH_POWER 2000000
 
 /*****************************************************************************/
@@ -61,6 +62,12 @@ void __attribute__ ((noinline)) lowPower(void) {
 
 int main(void) {
   printf("Starting TULIPP example\n");
+
+  testBuf = (uint64_t*)malloc(HIGH_POWER * sizeof(uint64_t));
+  if(!testBuf) {
+    printf("Can't allocate test buffer\n");
+    return 1;
+  }
 
   tulippStart();
 
