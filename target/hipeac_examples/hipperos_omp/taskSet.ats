@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<taskSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.hipperos.com/schema/TaskSet"
+        xsi:schemaLocation="http://www.hipperos.com/schema/TaskSet taskSet.xsd">
+    <task>
+        <identifier>1</identifier>
+        <name>hipeac</name>
+        <stackSize>6291456</stackSize>
+        <recurrence>UNIQUE</recurrence>
+        <entryPoint>hipeac_main</entryPoint>
+        <executableName>hipeac</executableName>
+        <maxNbThreads>4</maxNbThreads>
+        <coreAffinity>0</coreAffinity>
+    </task>
+</taskSet>
+
