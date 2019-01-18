@@ -20,10 +20,13 @@ PLATFORM = ${PLATFORM_REPO}/TE0820_4EV_1E_2018_2
 
 STHEM = /opt/sthem
 
-SDSFLAGS = -sds-pf ${PLATFORM} -target-os standalone -dmclkid 0 -sds-sys-config Standalone -sds-proc psu_cortexa53_0
+SDSHW = -sds-hw hwMedian $(pwd)/src/filters.cpp -clkid 0 -sds-end
 
-FLAGS = -DFATFS_MOUNT='\"1:/\"' \
-	-I${STHEM}/target/SDSoC-Image-Processing-Library/ \
+SDSFLAGS = -sds-pf ${PLATFORM} -target-os standalone -dmclkid 0 -sds-sys-config Standalone -sds-proc psu_cortexa53_0 ${SDSHW}
+
+DEFINES =  -DFATFS_MOUNT='\"1:/\"'
+
+FLAGS = -I${STHEM}/target/SDSoC-Image-Processing-Library/ \
 	-I${STHEM}/target/libtulipp
 
 CPPFLAGS = ${FLAGS} \
@@ -39,23 +42,21 @@ CPPFLAGS = ${FLAGS} \
 
 LDFLAGS = -L${STHEM}/target/libtulipp -ltulipp -lm
 
-standalone.elf : main.o filters.o ppm.o __tulipp__.o
+standalone.elf : main.o filters.o ppm.o
 	${LD} ${LDFLAGS} $^ -o $@
 
-__tulipp__.c :
-	echo "/* TULIPP dummy file */" > __tulipp__.c
-
-__tulipp__.o : __tulipp__.c
-	sdscc ${SDSFLAGS} $< -c -o $@
-
 ppm.o : src/ppm_library/ppm.c
-	${CPP} ${CPPFLAGS} $< -c -o $@
+	${CPP} $(DEFINES) ${CPPFLAGS} $< -c -o $@
 
-filters.o : src/filters.cpp
-	${CPP} ${CPPFLAGS} $< -c -o $@
+filters.xml: src/filters.cpp
+	${CPP} ${CPPFLAGS} $< -c -o filters.o
+	rm filters.o
+
+filters.o : src/filters.cpp filters.xml
+	${LD} ${CPPFLAGS} $< -c -o $@
 
 main.o : src/main.cpp
-	${CPP} ${CPPFLAGS} $< -c -o $@
+	${CPP} $(DEFINES) ${CPPFLAGS} $< -c -o $@
 
 .PHONY : clean
 clean :
