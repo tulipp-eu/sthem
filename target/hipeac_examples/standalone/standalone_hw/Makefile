@@ -20,7 +20,9 @@ PLATFORM = ${PLATFORM_REPO}/TE0820_4EV_1E_2018_2
 
 STHEM = /opt/sthem
 
-SDSFLAGS = -sds-pf ${PLATFORM} -target-os standalone -dmclkid 0 -sds-sys-config Standalone -sds-proc psu_cortexa53_0
+SDWHW = -sds-hw hwMedian src/filters.cpp -clkid 0 -sds-end
+
+SDSFLAGS = -sds-pf ${PLATFORM} -target-os standalone -dmclkid 0 -sds-sys-config Standalone -sds-proc psu_cortexa53_0 $(SDSHW)
 
 FLAGS = -DFATFS_MOUNT='\"1:/\"' \
 	-I${STHEM}/target/SDSoC-Image-Processing-Library/ \
