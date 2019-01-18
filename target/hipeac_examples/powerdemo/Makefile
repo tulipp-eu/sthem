@@ -1,5 +1,5 @@
 ###################################################
-# Makefile for the HiPEAC TULIPP bare metal example
+# Makefile for the HiPEAC TULIPP powerdemo example
 # 2019
 ###################################################
 

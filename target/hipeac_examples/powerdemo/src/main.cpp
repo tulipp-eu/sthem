@@ -2,7 +2,10 @@
  *
  * HiPEAC TULIPP Tutorial Example
  *
- * January 2019
+ * Powerdemo
+ * Designed to generate a clock-like powergraph, once cycle per frame
+ *
+ * Asbjørn Djupdal January 2019
  *
  *****************************************************************************/
 
@@ -20,9 +23,6 @@
 #define TIMES 100
 #define LOW_POWER 300000
 #define HIGH_POWER 2000000
-
-/*****************************************************************************/
-/* Variables */
 
 /*****************************************************************************/
 /* Functions */
