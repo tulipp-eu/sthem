@@ -74,11 +74,11 @@ int main(void) {
     //hwPassthrough(inStreamData, outStreamData);
     //hwSepia(inStreamData, outStreamData);
     //hwColorConversionRgbxToGray(inStreamData, outStreamData);
-    hwSobelX(inStreamData, outStreamData);
+    //hwSobelX(inStreamData, outStreamData);
     //hwSobelY(inStreamData, outStreamData);
     //hwScharrX(inStreamData, outStreamData);
     //hwScharrY(inStreamData, outStreamData);
-	//hwMedian(inStreamData, outStreamData);
+	hwMedian(inStreamData, outStreamData);
 
     /* Mark that a frame has been processed */
     tulippFrameDone();
@@ -106,4 +106,3 @@ int main(void) {
 
   return 0;
 }
-
