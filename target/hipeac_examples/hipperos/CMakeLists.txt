@@ -9,8 +9,8 @@ cmake_minimum_required(VERSION 3.5.1)
 
 set(APP_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CMAKE_C_COMPILER "tulippcc")
-set(CMAKE_CXX_COMPILER "tulipp++")
+#set(CMAKE_C_COMPILER "tulippcc")
+#set(CMAKE_CXX_COMPILER "tulipp++")
 
 find_package(
     hipperos

@@ -299,8 +299,6 @@ void hwMedian(vx_uint32 *input, vx_uint32* output) {
 	static vx_uint8 UnsignedMedianChannel1[PIXELS_FHD];
 #pragma HLS STREAM variable = UnsignedMedianChannel1 depth = 512
 
-	vx_int8 tmp[PIXELS_FHD];
-
 // Pragma to stream between loops/functions
 #pragma HLS DATAFLOW
 
