@@ -16,6 +16,8 @@
 #include "filters.h"
 #include "ppm_library/ppm.h"
 
+#define FATFS_MOUNT "1:/"
+
 /*****************************************************************************/
 /* Defines */
 
