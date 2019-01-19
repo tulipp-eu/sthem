@@ -73,6 +73,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fshort-enums")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libomp")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-pragmas") # TODO reput
 
