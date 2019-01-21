@@ -124,7 +124,7 @@ static int tulippTutorialLab()
     writeFile("hwScharrY.ppm", outStreamData);
 
     /* Stop measurements here */
-    tulippStop(); 
+    tulippEnd(); 
 
     /* Deallocate DMA buffers */
     DMA_FREE(inStreamData);

@@ -137,7 +137,7 @@ static int tulippTutorialLab()
     #endif /* APP_OPENMP */
 
     /* Stop measurements here */
-    tulippStop();
+    tulippEnd();
 
     /* Deallocate DMA buffers */
     DMA_FREE(inStreamData);

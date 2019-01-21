@@ -182,11 +182,11 @@ add_executable(${PROJECT_NAME} ${APP_SRCS})
 
 add_library(htulipp STATIC IMPORTED)
 set_target_properties(htulipp PROPERTIES
-    IMPORTED_LOCATION "/opt/sthem/target/libhtulipp/libhtulipp.a"
+    IMPORTED_LOCATION "/opt/sthem/target/libtulipp/libhtulipp.a"
     INTERFACE_LINK_LIBRARIES "hipperos::api"
 )
 set_target_properties(htulipp PROPERTIES
-    INCLUDE_DIRECTORIES "/opt/sthem/target/libhtulipp"
+    INTERFACE_INCLUDE_DIRECTORIES "/opt/sthem/target/libtulipp"
 )
 
 
