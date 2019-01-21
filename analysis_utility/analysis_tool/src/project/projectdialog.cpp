@@ -456,5 +456,7 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
 
   project->customElfFile = profPage->customElfEdit->text();
 
-  project->cmakeArgs = buildPage->cmakeOptions->text();
+  if(!project->isSdSocProject()) {
+    project->cmakeArgs = buildPage->cmakeOptions->text();
+  }
 }
