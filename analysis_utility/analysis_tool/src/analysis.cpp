@@ -36,6 +36,7 @@ Analysis::Analysis() {
   Config::includeAllInstructions = settings.value("includeAllInstructions", false).toBool();
   Config::includeProfData = settings.value("includeProfData", true).toBool();
   Config::includeId = settings.value("includeId", false).toBool();
+  Config::cmake = settings.value("cmake", "cmake").toString();
   Config::clang = settings.value("clang", "clang").toString();
   Config::clangpp = settings.value("clangpp", "clang++").toString();
   Config::opt = settings.value("opt", "opt").toString();

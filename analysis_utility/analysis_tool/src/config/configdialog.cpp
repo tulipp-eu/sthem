@@ -50,6 +50,12 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
 
   QGroupBox *toolGroup = new QGroupBox("Tools");
 
+  QLabel *cmakeLabel = new QLabel("cmake:");
+  cmakeEdit = new QLineEdit(Config::cmake);
+  QHBoxLayout *cmakeLayout = new QHBoxLayout;
+  cmakeLayout->addWidget(cmakeLabel);
+  cmakeLayout->addWidget(cmakeEdit);
+
   QLabel *clangLabel = new QLabel("clang:");
   clangEdit = new QLineEdit(Config::clang);
   QHBoxLayout *clangLayout = new QHBoxLayout;
@@ -123,6 +129,7 @@ BuildPage::BuildPage(QWidget *parent) : QWidget(parent) {
   linkerppUsLayout->addWidget(linkerppUsEdit);
 
   QVBoxLayout *toolLayout = new QVBoxLayout;
+  toolLayout->addLayout(cmakeLayout);
   toolLayout->addLayout(clangLayout);
   toolLayout->addLayout(clangppLayout);
   toolLayout->addLayout(optLayout);
@@ -273,6 +280,7 @@ void ConfigDialog::closeEvent(QCloseEvent *e) {
   Config::includeAllInstructions = visualisationPage->allInstructionsCheckBox->checkState() == Qt::Checked;
   Config::includeProfData = visualisationPage->profDataCheckBox->checkState() == Qt::Checked;
   Config::includeId = visualisationPage->idCheckBox->checkState() == Qt::Checked;
+  Config::cmake = buildPage->cmakeEdit->text();
   Config::clang = buildPage->clangEdit->text();
   Config::clangpp = buildPage->clangppEdit->text();
   Config::opt = buildPage->optEdit->text();

@@ -113,6 +113,7 @@ public:
   static bool includeAllInstructions;
   static bool includeProfData;
   static bool includeId;
+  static QString cmake;
   static QString clang;
   static QString clangpp;
   static QString opt;

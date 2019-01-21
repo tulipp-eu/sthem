@@ -42,6 +42,8 @@ public:
 
 class BuildPage : public QWidget {
 public:
+  QLineEdit *cmakeEdit;
+
   QLineEdit *clangEdit;
   QLineEdit *clangppEdit;
   QLineEdit *optEdit;

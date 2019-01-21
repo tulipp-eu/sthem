@@ -533,6 +533,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     settings.setValue("currentProject", "");
     settings.setValue("currentBuildConfig", "");
   }
+  settings.setValue("cmake", Config::cmake);
   settings.setValue("clang", Config::clang);
   settings.setValue("clangpp", Config::clangpp);
   settings.setValue("opt", Config::opt);

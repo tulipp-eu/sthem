@@ -26,6 +26,7 @@ Config::ColorMode Config::colorMode;
 bool Config::includeAllInstructions;
 bool Config::includeProfData;
 bool Config::includeId;
+QString Config::cmake;
 QString Config::clang;
 QString Config::clangpp;
 QString Config::opt;

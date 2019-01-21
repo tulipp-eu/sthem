@@ -27,8 +27,9 @@ bool CustomProject::openProject(QString path) {
   close();
 
   this->path = path;
-  QFileInfo fileInfo(path);
-  name = fileInfo.completeBaseName();
+  QDir fileInfo(path);
+  printf("Path: %s\n",fileInfo.dirName().toUtf8().constData());
+  name = fileInfo.dirName();
 
   opened = true;
 

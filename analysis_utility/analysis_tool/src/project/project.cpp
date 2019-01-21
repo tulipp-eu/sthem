@@ -248,7 +248,7 @@ bool Project::createMakefile(QFile &makefile) {
 bool Project::cmake() {
   emit advance(0, "Running CMake");
 
-  errorCode = system((QString("cmake ") + cmakeArgs).toUtf8().constData());
+  errorCode = system((Config::cmake + " " + cmakeArgs).toUtf8().constData());
 
   if(errorCode) {
     emit finished(errorCode, "CMake failed");
