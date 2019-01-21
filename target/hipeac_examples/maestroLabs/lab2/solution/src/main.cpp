@@ -13,7 +13,7 @@
 
 #include <ff.h>
 
-//#include <tulipp.h> // TODO Asbjorn/Bjorn
+#include <tulipp.h>
 #include "filters.h"
 #include "sepia_omp.h"
 #include "ppm.h"
@@ -87,7 +87,7 @@ static int tulippTutorialLab()
     PRINTF("Starting processing frames");
 
     /* Start measurements here */
-//    tulippStart();
+    tulippStart();
 
     PRINTF("Start processing frames: hwPassthrough");
     hwPassthrough(inStreamData, outStreamData);
@@ -137,7 +137,7 @@ static int tulippTutorialLab()
     #endif /* APP_OPENMP */
 
     /* Stop measurements here */
-//    tulippStop(); // TODO look with Asbjorn/Bjorn
+    tulippStop();
 
     /* Deallocate DMA buffers */
     DMA_FREE(inStreamData);

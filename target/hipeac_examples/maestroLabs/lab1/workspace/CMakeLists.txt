@@ -178,13 +178,22 @@ endif()
 
 # Create project main target
 add_executable(${PROJECT_NAME} ${APP_SRCS})
+
+add_library(htulipp STATIC IMPORTED)
+set_target_properties(htulipp PROPERTIES
+    IMPORTED_LOCATION "/opt/sthem/target/libhtulipp/libhtulipp.a"
+    INTERFACE_LINK_LIBRARIES "hipperos::api"
+)
+
 target_link_libraries(
     ${PROJECT_NAME}
         hipperos::api
         hipperos::fatfs
         hipperos::drivers
         hipperos::sds_lib
+        htulipp
 )
+
 if(APP_OPENMP)
     target_link_libraries(
         ${PROJECT_NAME}
