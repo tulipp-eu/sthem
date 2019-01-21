@@ -92,46 +92,58 @@ ProjectMainPage::ProjectMainPage(Project *project, QWidget *parent) : QWidget(pa
 
 ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(parent) {
 
-  QGroupBox *compGroup = new QGroupBox("Compiler Options");
-
-  instrumentCheckBox = new QCheckBox("Instrument");
-  instrumentCheckBox->setCheckState(project->instrument ? Qt::Checked : Qt::Unchecked);
-
-  QLabel *optLabel = new QLabel("CFG view optimization level:");
-
-  optCombo = new QComboBox;
-  optCombo->addItem("-O0");
-  optCombo->addItem("-O1");
-  optCombo->addItem("-O2");
-  optCombo->addItem("-O3");
-  optCombo->addItem("-Os");
-  if(project->cfgOptLevel < 0) {
-    optCombo->setCurrentIndex(4);
-  } else {
-    optCombo->setCurrentIndex(project->cfgOptLevel);
-  }
-
-  QHBoxLayout *optLayout = new QHBoxLayout;
-  optLayout->addWidget(optLabel);
-  optLayout->addWidget(optCombo);
-  optLayout->addStretch(1);
-
-  createBbInfoCheckBox = new QCheckBox("Insert BB information in binary");
-  createBbInfoCheckBox->setCheckState(project->createBbInfo ? Qt::Checked : Qt::Unchecked);
+  QVBoxLayout *mainLayout = new QVBoxLayout;
 
   if(project->isSdSocProject()) {
+    QGroupBox *compGroup = new QGroupBox("Compiler Options");
+
+    instrumentCheckBox = new QCheckBox("Instrument");
+    instrumentCheckBox->setCheckState(project->instrument ? Qt::Checked : Qt::Unchecked);
+
+    QLabel *optLabel = new QLabel("CFG view optimization level:");
+
+    optCombo = new QComboBox;
+    optCombo->addItem("-O0");
+    optCombo->addItem("-O1");
+    optCombo->addItem("-O2");
+    optCombo->addItem("-O3");
+    optCombo->addItem("-Os");
+    if(project->cfgOptLevel < 0) {
+      optCombo->setCurrentIndex(4);
+    } else {
+      optCombo->setCurrentIndex(project->cfgOptLevel);
+    }
+
+    QHBoxLayout *optLayout = new QHBoxLayout;
+    optLayout->addWidget(optLabel);
+    optLayout->addWidget(optCombo);
+    optLayout->addStretch(1);
+
+    createBbInfoCheckBox = new QCheckBox("Insert BB information in binary");
+    createBbInfoCheckBox->setCheckState(project->createBbInfo ? Qt::Checked : Qt::Unchecked);
+
     QVBoxLayout *compLayout = new QVBoxLayout;
     compLayout->addWidget(instrumentCheckBox);
     compLayout->addLayout(optLayout);
     compLayout->addWidget(createBbInfoCheckBox);
 
     compGroup->setLayout(compLayout);
+
+    mainLayout->addWidget(compGroup);
+
+  } else {
+    QGroupBox *buildGroup = new QGroupBox("Build Options");
+
+    QLabel *cmakeLabel = new QLabel("Cmake arguments:");
+    cmakeOptions = new QLineEdit(project->cmakeArgs);
+    QHBoxLayout *cmakeLayout = new QHBoxLayout;
+    cmakeLayout->addWidget(cmakeLabel);
+    cmakeLayout->addWidget(cmakeOptions);
+    
+    buildGroup->setLayout(cmakeLayout);
+
+    mainLayout->addWidget(buildGroup);
   }
-
-  //---------------------------------------------------------------------------
-
-  QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addWidget(compGroup);
 
   //---------------------------------------------------------------------------
 
@@ -345,10 +357,8 @@ ProjectDialog::ProjectDialog(Project *project) {
   mainPage = new ProjectMainPage(project);
   pagesWidget->addWidget(mainPage);
 
-  if(project->isSdSocProject()) {
-    buildPage = new ProjectBuildPage(project);
-    pagesWidget->addWidget(buildPage);
-  }
+  buildPage = new ProjectBuildPage(project);
+  pagesWidget->addWidget(buildPage);
 
   profPage = new ProjectProfPage(project);
   pagesWidget->addWidget(profPage);
@@ -360,12 +370,10 @@ ProjectDialog::ProjectDialog(Project *project) {
   mainButton->setTextAlignment(Qt::AlignHCenter);
   mainButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
-  if(project->isSdSocProject()) {
-    QListWidgetItem *buildButton = new QListWidgetItem(contentsWidget);
-    buildButton->setText("Build");
-    buildButton->setTextAlignment(Qt::AlignHCenter);
-    buildButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-  }
+  QListWidgetItem *buildButton = new QListWidgetItem(contentsWidget);
+  buildButton->setText("Build");
+  buildButton->setTextAlignment(Qt::AlignHCenter);
+  buildButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
   QListWidgetItem *profButton = new QListWidgetItem(contentsWidget);
   profButton->setText("Profiler");
@@ -447,4 +455,6 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->frameFunc = profPage->frameFuncEdit->text();
 
   project->customElfFile = profPage->customElfEdit->text();
+
+  project->cmakeArgs = buildPage->cmakeOptions->text();
 }

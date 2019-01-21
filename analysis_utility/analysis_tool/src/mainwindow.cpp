@@ -144,6 +144,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   makeAct = new QAction("Make", this);
   connect(makeAct, SIGNAL(triggered()), this, SLOT(makeEvent()));
 
+  cmakeAct = new QAction("CMake", this);
+  connect(cmakeAct, SIGNAL(triggered()), this, SLOT(cmakeEvent()));
+
   runAct = new QAction("Run", this);
   connect(runAct, SIGNAL(triggered()), this, SLOT(runEvent()));
 
@@ -470,6 +473,7 @@ bool MainWindow::openProject(QString path, QString configType) {
     projectToolBar->clear();
 
     if(configType == "") {
+      projectToolBar->addAction(cmakeAct);
       projectToolBar->addAction(makeAct);
       projectToolBar->addAction(refreshAct);
       projectToolBar->addAction(runAct);
@@ -836,6 +840,53 @@ void MainWindow::finishMake(int error, QString msg) {
 
     QMessageBox msgBox;
     msgBox.setText("Build completed");
+    msgBox.exec();
+  }
+
+  disconnect(&thread, SIGNAL (started()), 0, 0);
+  disconnect(analysis->project, SIGNAL(finished(int, QString)), 0, 0);
+
+  thread.quit();
+}
+
+void MainWindow::cmakeEvent() {
+  if(analysis->project) {
+    treeView->setModel(NULL);
+
+    if(analysis->profile) analysis->profile->clean();
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    progDialog = new QProgressDialog("Running CMake...", QString(), 0, analysis->project->cmakeSteps(), this);
+    progDialog->setWindowModality(Qt::WindowModal);
+    progDialog->setMinimumDuration(0);
+    progDialog->setValue(0);
+
+    thread.wait();
+    analysis->project->moveToThread(&thread);
+    connect(&thread, SIGNAL (started()), analysis->project, SLOT (cmake()));
+    connect(analysis->project, SIGNAL(finished(int, QString)), this, SLOT(finishCMake(int, QString)));
+    thread.start();
+  }
+}
+
+void MainWindow::finishCMake(int error, QString msg) {
+  delete progDialog;
+  progDialog = NULL;
+
+  QApplication::restoreOverrideCursor();
+
+  if(error) {
+    loadFiles();
+    QMessageBox msgBox;
+    msgBox.setText(msg);
+    msgBox.exec();
+
+  } else {
+    loadFiles();
+
+    QMessageBox msgBox;
+    msgBox.setText("CMake completed");
     msgBox.exec();
   }
 

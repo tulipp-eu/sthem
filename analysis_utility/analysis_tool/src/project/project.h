@@ -81,6 +81,7 @@ public:
 
   QString frameFunc;
 
+  QString cmakeArgs;
   bool instrument;
   bool createBbInfo;
 
@@ -139,6 +140,7 @@ public:
   void loadProjectFile();
   void saveProjectFile();
 
+  int cmakeSteps() { return 1; }
   int makeSteps() { return 1; }
   int xmlBuildSteps() { return 1; }
   int binBuildSteps() { return 2; }
@@ -149,6 +151,7 @@ public:
 
 public slots:
   bool make();
+  bool cmake();
   bool makeXml();
   virtual bool makeBin();
   bool runProfiler();

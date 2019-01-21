@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#define FATFS_MOUNT "1:/"
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>

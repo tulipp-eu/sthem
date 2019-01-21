@@ -245,6 +245,20 @@ bool Project::createMakefile(QFile &makefile) {
 ///////////////////////////////////////////////////////////////////////////////
 // make
 
+bool Project::cmake() {
+  emit advance(0, "Running CMake");
+
+  errorCode = system((QString("cmake ") + cmakeArgs).toUtf8().constData());
+
+  if(errorCode) {
+    emit finished(errorCode, "CMake failed");
+  } else {
+    emit finished(errorCode, "");
+  }
+
+  return errorCode == 0;
+}
+
 bool Project::make() {
   emit advance(0, "Building");
 
@@ -353,6 +367,7 @@ void Project::loadProjectFile() {
 
   customElfFile = settings.value("customElfFile", "").toString();
   instrument = settings.value("instrument", false).toBool();
+  cmakeArgs = settings.value("cmakeArgs", "..").toString();
 
   if(!isSdSocProject()) {
     ultrascale = settings.value("ultrascale", true).toBool();
@@ -405,6 +420,7 @@ void Project::saveProjectFile() {
   settings.setValue("frameFunc", frameFunc);
 
   settings.setValue("instrument", instrument);
+  settings.setValue("cmakeArgs", cmakeArgs);
 
   settings.setValue("sources", sources);
   settings.setValue("cOptLevel", cOptLevel);

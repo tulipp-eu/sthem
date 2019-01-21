@@ -50,6 +50,8 @@ public:
 
   QCheckBox *instrumentCheckBox;
 
+  QLineEdit *cmakeOptions;
+
   ProjectBuildPage(Project *project, QWidget *parent = 0);
 };
 
