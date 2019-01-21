@@ -185,6 +185,10 @@ set_target_properties(htulipp PROPERTIES
     INTERFACE_LINK_LIBRARIES "hipperos::api"
 )
 
+set_target_properties(htulipp PROPERTIES
+    INCLUDE_DIRECTORIES "/opt/sthem/target/libhtulipp"
+)
+
 target_link_libraries(
     ${PROJECT_NAME}
         hipperos::api
