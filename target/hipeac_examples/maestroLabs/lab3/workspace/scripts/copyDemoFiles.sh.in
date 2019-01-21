@@ -1,0 +1,22 @@
+#! /bin/bash
+
+# (c) Copyright 2014-2019 HIPPEROS S.A.
+# (c) Copyright 2010-2013 Universite Libre de Bruxelles
+# (c) Copyright 2006-2013 MangoGem S.A.
+#
+# The license and distribution terms for this file may be
+# found in the file LICENSE.txt in this distribution.
+
+# copyDemoFiles.sh
+# Copy demo files.
+#   ./copyDemoFiles.sh
+
+fatStorePy=@kernel_SCRIPTS_DIR@/utils/remoteStore.py
+
+fileDir=@APP_DIR@/files
+${fatStorePy} dir ${fileDir}
+
+if [ "x@HIPPEROS_TOOLCHAIN@x" = "xSDSCCx" ]; then
+    bitstream=@CMAKE_BINARY_DIR@/bin/tulippTutorial.bit.bin
+    ${fatStorePy} file ${bitstream}
+fi

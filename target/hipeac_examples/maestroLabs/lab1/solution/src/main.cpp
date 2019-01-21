@@ -15,7 +15,6 @@
 
 //#include <tulipp.h> // TODO Asbjorn/Bjorn
 #include "filters.h"
-#include "sepia_omp.h"
 #include "ppm.h"
 
 #include "os.h"
@@ -123,18 +122,6 @@ static int tulippTutorialLab()
     hwScharrY(inStreamData, outStreamData);
     PRINTF("Done processing frames: hwScharrY");
     writeFile("hwScharrY.ppm", outStreamData);
-
-    #if APP_OPENMP
-    PRINTF("Start processing frames: sepia_noOmp");
-    sepia_noOmp(inStreamData, outStreamData);
-    PRINTF("Done processing frames: sepia_noOmp");
-    writeFile("sepia_noOmp.ppm", outStreamData);
-
-    PRINTF("Start processing frames: sepia_omp");
-    sepia_omp(inStreamData, outStreamData);
-    PRINTF("Done processing frames: sepia_omp");
-    writeFile("sepia_omp.ppm", outStreamData);
-    #endif /* APP_OPENMP */
 
     /* Stop measurements here */
 //    tulippStop(); // TODO look with Asbjorn/Bjorn

@@ -15,7 +15,6 @@
 
 //#include <tulipp.h> // TODO Asbjorn/Bjorn
 #include "filters.h"
-#include "sepia_omp.h"
 #include "ppm.h"
 
 #include "os.h"
