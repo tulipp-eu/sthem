@@ -294,17 +294,14 @@ void Pmu::getBytes(uint8_t *bytes, int numBytes) {
 
 bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived) {
   int transfered = 0;
-  int ret = LIBUSB_ERROR_TIMEOUT;
-
-  while((transfered == 0) && (ret == LIBUSB_ERROR_TIMEOUT)) {
-    ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, maxNum * numBytes, &transfered, 100);
-
-    if((ret != 0) && (ret != LIBUSB_ERROR_TIMEOUT)) {
-      printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
-    }
-  }
+  int ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, maxNum * numBytes, &transfered, 1000);
 
   *elementsReceived = transfered / numBytes;
+
+  if(ret != 0) {
+    printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
+    return false;
+  }
 
   if(transfered % numBytes) {
     printf("Warning: Incomplete USB transfer\n");
