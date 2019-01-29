@@ -104,6 +104,7 @@ void Profile::update() {
   QSqlQuery query(db);
 
   bool success = query.exec("SELECT mintime,maxtime,runtime,energy1,energy2,energy3,energy4,energy5,energy6,energy7 FROM meta");
+  Q_UNUSED(success);
   assert(success);
 
   if(query.next()) {

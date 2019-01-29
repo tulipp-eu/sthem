@@ -1,5 +1,6 @@
 #export QMAKE = qmake
 export QMAKE = qmake CONFIG+=debug
+#export QMAKE = /opt/Qt/5.12.0/gcc_64/bin/qmake CONFIG+=debug
 export CLANGPP = clang++
 export LLVM_CONFIG = llvm-config
 

@@ -961,6 +961,8 @@ void MainWindow::profileEvent() {
 void MainWindow::finishProfile(int error, QString msg) {
   delete progDialog;
   progDialog = NULL;
+  
+  analysis->profile->update();
 
   QApplication::restoreOverrideCursor();
 

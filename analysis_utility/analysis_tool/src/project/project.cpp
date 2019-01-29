@@ -736,9 +736,11 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 }
 
 void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations) {
-  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
   QSqlQuery query(db);
-  query.exec("SELECT * FROM location WHERE core = " + QString::number(core));
+  bool success = query.exec("SELECT * FROM location WHERE core = " + QString::number(core));
+  Q_UNUSED(success);
+  assert(success);
 
   while(query.next()) {
     int id = query.value("id").toInt();
@@ -756,14 +758,16 @@ void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locat
     (*locations)[bb] = location;
   }
 
-  query.exec("SELECT * FROM location ORDER BY id DESC LIMIT 1");
+  success = query.exec("SELECT * FROM location ORDER BY id DESC LIMIT 1");
+  assert(success);
+  
   if(query.next()) {
     Location::idCounter = query.value(0).toInt() + 1;
   }
 }
 
 bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
-  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
   QSqlQuery query(db);
 
   ElfSupport elfSupport;
@@ -777,7 +781,9 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
     return false;
   }
 
-  query.exec("DELETE FROM arc");
+  bool success = query.exec("DELETE FROM arc");
+  Q_UNUSED(success);
+  assert(success);
 
   std::map<BasicBlock*,Location*> locations;
 
@@ -846,6 +852,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
       query.bindValue(":loopcount", (qulonglong)location.second->loopCount);
 
       bool success = query.exec();
+      Q_UNUSED(success);
       assert(success);
     } else {
       QSqlQuery query(db);
@@ -856,6 +863,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
       query.bindValue(":id", location.second->id);
 
       bool success = query.exec();
+      Q_UNUSED(success);
       assert(success);
     }
 
@@ -871,6 +879,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
       arcQuery.bindValue(":num", count);
 
       bool success = arcQuery.exec();
+      Q_UNUSED(success);
       assert(success);
     }
 
@@ -883,7 +892,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
 }
 
 bool Project::parseProfFile(QString fileName) {
-  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
   QSqlQuery query(db);
 
   ElfSupport elfSupport;
@@ -953,6 +962,7 @@ bool Project::parseProfFile(QString fileName) {
     query.bindValue(":loopcount", 0);
 
     bool success = query.exec();
+    Q_UNUSED(success);
     assert(success);
   }
 
@@ -1003,6 +1013,7 @@ bool Project::parseProfFile(QString fileName) {
     query.bindValue(":loopcount", 0);
 
     bool success = query.exec();
+    Q_UNUSED(success);
     assert(success);
 
     delete location.second;
@@ -1047,6 +1058,7 @@ bool Project::parseProfFile(QString fileName) {
   query.bindValue(":energy7", totalEnergy[6]);
 
   bool success = query.exec();
+  Q_UNUSED(success);
   assert(success);
 
   db.commit();
@@ -1055,7 +1067,14 @@ bool Project::parseProfFile(QString fileName) {
 }
 
 bool Project::runProfiler() {
-  QSqlDatabase db = QSqlDatabase::database(profile->dbConnection);
+  QSqlDatabase db;
+  {
+    db = QSqlDatabase::addDatabase("QSQLITE", dbConnection);
+    db.setDatabaseName("profile.db3");
+    bool success = db.open();
+    Q_UNUSED(success);
+    assert(success);
+  }
 
   ElfSupport elfSupport;
   if(isSdSocProject()) elfSupport.addElf(elfFilename());
@@ -1159,7 +1178,9 @@ bool Project::runProfiler() {
   {
     int64_t lastTime = 0;
     QSqlQuery query(db);
-    query.exec("SELECT time,delay FROM frames");
+    bool success = query.exec("SELECT time,delay FROM frames");
+    Q_UNUSED(success);
+    assert(success);
     while(query.next()) {
       int64_t time = query.value("time").toLongLong();
       int64_t delay = query.value("delay").toLongLong();
@@ -1191,7 +1212,9 @@ bool Project::runProfiler() {
 
     QSqlQuery query(db);
     query.setForwardOnly(true);
-    query.exec("SELECT rowid,time,timeSinceLast,pc1,pc2,pc3,pc4,power1,power2,power3,power4,power5,power6,power7 FROM measurements");
+    bool success = query.exec("SELECT rowid,time,timeSinceLast,pc1,pc2,pc3,pc4,power1,power2,power3,power4,power5,power6,power7 FROM measurements");
+    Q_UNUSED(success);
+    assert(success);
 
     int counter = 0;
 
@@ -1290,6 +1313,7 @@ bool Project::runProfiler() {
       updateQuery.bindValue(":module4", modText[3]);
 
       bool success = updateQuery.exec();
+      Q_UNUSED(success);
       assert(success);
     }
 
@@ -1341,6 +1365,7 @@ bool Project::runProfiler() {
         query.bindValue(":loopcount", 0);
 
         bool success = query.exec();
+        Q_UNUSED(success);
         assert(success);
 
         delete location.second;
@@ -1427,7 +1452,7 @@ bool Project::runProfiler() {
     query.bindValue(":frameEnergyAvg7", frameEnergyAvg[6]);
     query.bindValue(":frameEnergyMax7", frameEnergyMax[6]);
 
-    bool success = query.exec();
+    success = query.exec();
     assert(success);
 
     db.commit();
@@ -1435,7 +1460,10 @@ bool Project::runProfiler() {
     query.exec("CREATE INDEX measurements_time_idx ON measurements(time)");
   }
 
-  profile->update();
+  {
+    QSqlDatabase projectDb = QSqlDatabase::database("project");
+    projectDb.close();
+  }
 
   emit finished(0, "");
 

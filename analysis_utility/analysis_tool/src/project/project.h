@@ -45,6 +45,8 @@ class Project : public QObject {
   Q_OBJECT
 
 protected:
+  const QString dbConnection = "project";
+
   void writeTulippCompileRule(QString compiler, QFile &makefile, QString path, QString opt);
   void writeCleanRule(QFile &makefile);
 

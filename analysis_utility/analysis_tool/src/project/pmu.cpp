@@ -93,6 +93,7 @@ void DBStorer::storeRawSample(Sample *sample) {
     frameQuery.bindValue(":delay", (qint64)sample->sample.pc[0] - (qint64)sample->sample.time);
 
     bool success = frameQuery.exec();
+    Q_UNUSED(success);
     assert(success);
 
   } else {
