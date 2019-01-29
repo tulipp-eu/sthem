@@ -673,7 +673,7 @@ void MainWindow::configDialog() {
   ConfigDialog dialog;
   dialog.exec();
   if(Config::sdsocVersion) buildProjectMenu();
-  loadFiles();
+  if(analysis->project) loadFiles();
 }
 
 void MainWindow::projectDialog() {
