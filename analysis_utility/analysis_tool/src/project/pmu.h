@@ -98,8 +98,8 @@ private:
   double sensorGain[LYNSYN_SENSORS];        // V1.4
 
   void sendBytes(uint8_t *bytes, int numBytes);
-  void getBytes(uint8_t *bytes, int numBytes);
-  bool getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived);
+  bool getBytes(uint8_t *bytes, int numBytes, uint32_t timeout = 0);
+  bool getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived, uint32_t timeout = 0);
 
   static uint32_t crc32(uint32_t crc, uint32_t *data, int length);
 

@@ -276,25 +276,26 @@ void Pmu::sendBytes(uint8_t *bytes, int numBytes) {
   }
 }
 
-void Pmu::getBytes(uint8_t *bytes, int numBytes) {
+bool Pmu::getBytes(uint8_t *bytes, int numBytes, uint32_t timeout) {
   int transfered = 0;
-  int ret = LIBUSB_ERROR_TIMEOUT;
+  int ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, numBytes, &transfered, timeout);
 
-  while(ret == LIBUSB_ERROR_TIMEOUT) {
-    ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, numBytes, &transfered, 100);
-    if((ret != 0) && (ret != LIBUSB_ERROR_TIMEOUT)) {
-      printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
-    }
+  if(ret != 0) {
+    printf("LIBUSB ERROR: %s\n", libusb_error_name(ret));
+    return false;
   }
 
-  assert(transfered == numBytes);
+  if(transfered != numBytes) {
+    printf("Warning: Incomplete USB transfer\n");
+    return false;
+  }
 
-  return;
+  return true;
 }
 
-bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived) {
+bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsReceived, uint32_t timeout) {
   int transfered = 0;
-  int ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, maxNum * numBytes, &transfered, 1000);
+  int ret = libusb_bulk_transfer(lynsynHandle, inEndpoint, bytes, maxNum * numBytes, &transfered, timeout);
 
   *elementsReceived = transfered / numBytes;
 
@@ -449,18 +450,21 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
 
     unsigned n = 1;
 
-    if(swVersion <= SW_VERSION_1_1) {
-      getBytes(buf, sizeof(struct SampleReplyPacketV1_0));
+    bool transferOk = false;
+    uint32_t timeout = (counter > 1) ? 1000 : 0;
 
+    if(swVersion <= SW_VERSION_1_1) {
+      transferOk = getBytes(buf, sizeof(struct SampleReplyPacketV1_0), timeout);
     } else {
-      bool transferOk = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket), &n);
-      if(!transferOk) {
-        printf("Warning: Incomplete USB transfer, stopping\n");
-        printf("Got %ld samples...\n", *samples);
-        printf("Sampling done\n");
-        done = true;
-        break;
-      }
+      transferOk = getArray(buf, MAX_SAMPLES, sizeof(struct SampleReplyPacket), &n, timeout);
+    }
+
+    if(!transferOk) {
+      printf("Warning: Incomplete USB transfer, stopping\n");
+      printf("Got %ld samples...\n", *samples);
+      printf("Sampling done\n");
+      done = true;
+      break;
     }
 
     *samples += n;
