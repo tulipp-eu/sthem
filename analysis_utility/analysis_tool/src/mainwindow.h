@@ -89,6 +89,7 @@ private:
   QAction *topAct;
   QAction *frameAct;
   QAction *hwAct;
+  QAction *exportAct;
   QAction *configDialogAct;
   QAction *projectDialogAct;
   QAction *openProjectAct;
@@ -126,6 +127,7 @@ private slots:
   void frameEvent();
   void hwEvent();
   void configDialog();
+  void exportEvent();
   void projectDialog();
   void openProjectEvent(QAction *action);
   void openProfileEvent();

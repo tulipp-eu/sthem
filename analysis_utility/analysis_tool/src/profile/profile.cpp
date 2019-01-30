@@ -467,3 +467,69 @@ double Profile::getFrameEnergyMax(unsigned sensor) {
   }
   return 0;
 }
+
+bool Profile::exportMeasurements(QString fileName, Cfg *cfg) {
+  QFile csvFile(fileName);
+  bool success = csvFile.open(QIODevice::WriteOnly);
+  if(!success) return false;
+
+  QString header =
+    "Time;Power 1;Power 2;Power 3;Power 4;Power 5;Power 6;Power 7;"
+    "Module 0;Function 0;Module 1;Function 1;Module 2;Function 2;Module 3;Function 3\n";
+
+  csvFile.write(header.toUtf8());
+  
+  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlQuery query(db);
+  
+  success = query.exec(QString() + "SELECT mintime FROM meta");
+  if(!query.next()) {
+    csvFile.close();
+    return false;
+  }
+  int64_t minTime = query.value("mintime").toDouble();
+
+  success = query.exec("SELECT "
+                       "time,"
+                       "module1,module2,module3,module4,"
+                       "basicblock1,basicblock2,basicblock3,basicblock4,"
+                       "power1,power2,power3,power4,power5,power6,power7 "
+                       "FROM measurements");
+  assert(success);
+
+  while(query.next()) {
+    QString measurement;
+
+    double time = Pmu::cyclesToSeconds(query.value("time").toLongLong() - minTime);
+    measurement += QString::number(time);
+
+    for(int sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
+      double power = query.value("power" + QString::number(sensor+1)).toDouble();
+      measurement += ";" + QString::number(power);
+    }
+
+
+    for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
+      QString moduleId = query.value("module" + QString::number(core+1)).toString();
+      measurement += ";" + moduleId;
+
+      QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
+      Module *mod = cfg->getModuleById(moduleId);
+      if(!mod) {
+        csvFile.close();
+        return false;
+      }
+      BasicBlock *bb = mod->getBasicBlockById(bbId);
+      Function *func = bb->getFunction();
+      measurement += ";" + func->id;
+    }
+
+    measurement += "\n";
+
+    csvFile.write(measurement.toUtf8());
+  }
+
+  csvFile.close();
+
+  return true;
+}

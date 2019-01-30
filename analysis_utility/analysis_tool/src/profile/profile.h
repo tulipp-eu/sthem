@@ -94,6 +94,8 @@ public:
     this->energy[sensor] = energy;
   }
 
+  bool exportMeasurements(QString fileName, Cfg *cfg);
+
   void clean();
   void clear();
 

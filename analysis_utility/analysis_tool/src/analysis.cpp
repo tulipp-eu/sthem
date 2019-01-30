@@ -213,6 +213,11 @@ bool Analysis::profileApp() {
   return project->runProfiler();
 }
 
+bool Analysis::exportMeasurements(QString fileName) {
+  assert(profile);
+  return profile->exportMeasurements(fileName, project->cfg);
+}
+
 void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   double runtime;
   double runtimeFrame;

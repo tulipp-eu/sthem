@@ -184,6 +184,9 @@ MainWindow::MainWindow(Analysis *analysis) {
   configDialogAct = new QAction("Settings", this);
   connect(configDialogAct, SIGNAL(triggered()), this, SLOT(configDialog()));
 
+  exportAct = new QAction("Export measurements", this);
+  connect(exportAct, SIGNAL(triggered()), this, SLOT(exportEvent()));
+
   aboutAct = new QAction("About", this);
   connect(aboutAct, SIGNAL(triggered()), this, SLOT(about()));
 
@@ -216,9 +219,11 @@ MainWindow::MainWindow(Analysis *analysis) {
   fileMenu->addAction(openProjectAct);
   fileMenu->addAction(createProjectAct);
   fileMenu->addAction(closeProjectAct);
+  fileMenu->addSeparator();
   fileMenu->addAction(openProfileAct);
   fileMenu->addAction(openGProfAct);
   fileMenu->addAction(projectDialogAct);
+  fileMenu->addAction(exportAct);
   fileMenu->addSeparator();
   fileMenu->addAction(configDialogAct);
   fileMenu->addSeparator();
@@ -286,8 +291,11 @@ MainWindow::MainWindow(Analysis *analysis) {
   cfgToolBar->setEnabled(true);
   graphToolBar->setEnabled(false);
 
-  projectDialogAct->setEnabled(false);
   closeProjectAct->setEnabled(false);
+  openProfileAct->setEnabled(false);
+  openGProfAct->setEnabled(false);
+  projectDialogAct->setEnabled(false);
+  exportAct->setEnabled(false);
 
   Config::colorMode = Config::STRUCT;
 }
@@ -415,8 +423,12 @@ void MainWindow::closeProject() {
   topGroup = NULL;
   if(frameLoop) frameLoop = NULL;
 
-  projectDialogAct->setEnabled(false);
   closeProjectAct->setEnabled(false);
+  openProfileAct->setEnabled(false);
+  openGProfAct->setEnabled(false);
+  projectDialogAct->setEnabled(false);
+  exportAct->setEnabled(false);
+
   projectToolBar->clear();
 
   setWindowTitle(QString(APP_NAME));
@@ -460,8 +472,11 @@ void MainWindow::loadFiles() {
 
   topEvent();
 
-  projectDialogAct->setEnabled(true);
   closeProjectAct->setEnabled(true);
+  openProfileAct->setEnabled(true);
+  openGProfAct->setEnabled(true);
+  projectDialogAct->setEnabled(true);
+  exportAct->setEnabled(true);
 
   QApplication::restoreOverrideCursor();
 }
@@ -681,6 +696,30 @@ void MainWindow::projectDialog() {
   dialog.exec();
   analysis->project->saveProjectFile();
   cfgScene->redraw();
+}
+
+void MainWindow::exportEvent() {
+  QFileDialog dialog(this, "Select export file");
+  dialog.setNameFilter(tr("CSV files (*.csv)"));
+  if(dialog.exec()) {
+    QString path = dialog.selectedFiles()[0];
+    QFileInfo fileInfo(path);
+    if(fileInfo.suffix().toUpper() != "CSV") {
+      path += ".csv";
+    }
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    if(analysis->exportMeasurements(path)) {
+      QApplication::restoreOverrideCursor();
+      QMessageBox msgBox;
+      msgBox.setText("Export done");
+      msgBox.exec();
+    } else {
+      QApplication::restoreOverrideCursor();
+      QMessageBox msgBox;
+      msgBox.setText("Can't export measurements");
+      msgBox.exec();
+    }
+  }
 }
 
 void MainWindow::refreshEvent() {

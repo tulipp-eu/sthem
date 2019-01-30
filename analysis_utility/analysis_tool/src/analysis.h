@@ -64,6 +64,7 @@ public:
   bool cleanBin();
   bool runApp();
   bool profileApp();
+  bool exportMeasurements(QString fileName);
   void dump(unsigned core, unsigned sensor);
 };
 

@@ -71,6 +71,8 @@ int main(int argc, char *argv[]) {
   parser.addOption(runOption);
   QCommandLineOption profileOption("profile", QCoreApplication::translate("main", "Profile Application"));
   parser.addOption(profileOption);
+  QCommandLineOption exportOption("export", QCoreApplication::translate("main", "Export Measurements"));
+  parser.addOption(exportOption);
   QCommandLineOption buildOption("build", QCoreApplication::translate("main", "Build Application"));
   parser.addOption(buildOption);
   QCommandLineOption cleanOption("clean", QCoreApplication::translate("main", "Clean Application"));
@@ -185,6 +187,7 @@ int main(int argc, char *argv[]) {
     parser.isSet(buildOption) || 
     parser.isSet(loadProfileOption) || 
     parser.isSet(runOption) || 
+    parser.isSet(exportOption) || 
     parser.isSet(dumpRoiOption) || 
     parser.isSet(profileOption);
 
@@ -233,6 +236,16 @@ int main(int argc, char *argv[]) {
       if(!analysis.profileApp()) {
         printf("Can't run profiler\n");
         return -1;
+      }
+    }
+
+    if(parser.isSet(exportOption)) {
+      if(analysis.profile) {
+        printf("Exporting measurements to data.csv\n");
+        if(!analysis.exportMeasurements("data.csv")) {
+          printf("Can't export\n");
+          return -1;
+        }
       }
     }
 
