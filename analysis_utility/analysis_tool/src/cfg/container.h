@@ -229,6 +229,17 @@ public:
   //---------------------------------------------------------------------------
   // HLS compatibility
 
+  virtual QStringList getSourceHierarchy(QVector<BasicBlock*> callStack) {
+    QStringList sources;
+
+    for(auto child : children) {
+      sources << child->getSourceHierarchy(callStack);
+    }
+    sources.removeDuplicates();
+
+    return sources;
+  }
+
   virtual QVector<AnalysisInfo> getRecursiveFunctions(QVector<BasicBlock*> callStack) {
     QVector<AnalysisInfo> recursiveCalls;
 

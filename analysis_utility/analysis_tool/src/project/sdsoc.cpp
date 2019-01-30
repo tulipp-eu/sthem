@@ -127,6 +127,30 @@ void Sdsoc::print() {
   printf("C++ system includes: %s\n", cppSysInc.toUtf8().constData());
 }
 
+QStringList Sdsoc::getSdsHwOptions() {
+  QStringList options;
+
+  for(auto acc : accelerators) {
+    options << "-sds-hw" << acc.name << acc.filepath;
+
+    QFileInfo info(acc.filepath);
+    Module *mod = cfg->getModuleById(info.completeBaseName());
+    QVector<Function*> funcs = mod->getFunctionsByName(acc.name);
+    if(funcs.size() > 0) {
+      QStringList files = funcs[0]->getSourceHierarchy(QVector<BasicBlock*>());
+      files.removeAll(acc.filepath);
+      options << "-files";
+      for(auto file : files) {
+        options << file;
+      }
+    }
+
+    options << "-clkid" << QString::number(acc.clkid) << "-sds-end";
+  }
+
+  return options;
+}
+
 void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt) {
   QStringList options;
 
@@ -137,9 +161,7 @@ void Sdsoc::writeSdsRule(QString compiler, QFile &makefile, QString path, QStrin
 
   options << "-sds-pf" << platform << "-target-os" << os << "-dmclkid" << QString::number(dmclkid);
 
-  for(auto acc : accelerators) {
-    options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
-  }
+  options << getSdsHwOptions();
 
   QFileInfo fileInfo(path);
 
@@ -159,9 +181,7 @@ void Sdsoc::writeSdsLinkRule(QString linker, QFile &makefile, QStringList object
   if(!genbitstream) options << "-mno-bitstream";
   if(!gensdcard) options << "-mno-boot-files";
 
-  for(auto acc : accelerators) {
-    options << "-sds-hw" << acc.name << acc.filepath << "-clkid" << QString::number(acc.clkid) << "-sds-end";
-  }
+  options << getSdsHwOptions();
 
   if(instrument) {
     makefile.write((name + "_instrumented.elf : " + objects.join(' ') + "\n").toUtf8());
@@ -641,52 +661,7 @@ bool Sdsoc::createMakefile() {
 
   Project::createMakefile(makefile);
 
-  // compile normal c files
-  for(auto source : sources) {
-    QFileInfo info(source);
-
-    bool tulippCompile = createBbInfo;
-    Module *mod = cfg->getModuleById(info.completeBaseName());
-    if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
-
-    bool linkIt = true;
-    for(auto acc : accelerators) {
-      QFileInfo accInfo(acc.filepath);
-      if(accInfo.completeBaseName() == info.completeBaseName()) {
-        linkIt = false;
-        break;
-      }
-    }
-
-    if(info.suffix() == "c") {
-      if(tulippCompile) {
-        writeTulippCompileRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
-      } else {
-        writeSdsRule("sdscc", makefile, source, cOptions);
-      }
-      if(linkIt) {
-        if(instrument) {
-          objects << info.completeBaseName() + "_instrumented.o";
-        } else {
-          objects << info.completeBaseName() + ".o";
-        }
-      }
-
-    } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
-      if(tulippCompile) {
-        writeTulippCompileRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
-      } else {
-        writeSdsRule("sds++", makefile, source, cppOptions);
-      }
-      if(linkIt) {
-        if(instrument) {
-          objects << info.completeBaseName() + "_instrumented.o";
-        } else {
-          objects << info.completeBaseName() + ".o";
-        }
-      }
-    }
-  }
+  bool hasSdsFiles = false;
 
   // compile accelerator files
   for(auto acc : accelerators) {
@@ -698,10 +673,55 @@ bool Sdsoc::createMakefile() {
       writeSdsRule("sds++", makefile, acc.filepath, cppOptions);
       objects << info.completeBaseName() + ".o";
     }
+    hasSdsFiles = true;
+  }
+
+  // compile normal c files
+  for(auto source : sources) {
+    QFileInfo info(source);
+
+    if(!instrument && objects.contains(info.completeBaseName() + ".o")) {
+      continue;
+    }
+
+    if(instrument && objects.contains(info.completeBaseName() + "_instrumented.o")) {
+      continue;
+    }
+
+    bool tulippCompile = createBbInfo;
+    Module *mod = cfg->getModuleById(info.completeBaseName());
+    if(mod && createBbInfo) tulippCompile = !mod->hasHwCalls();
+
+    if(info.suffix() == "c") {
+      if(tulippCompile) {
+        writeTulippCompileRule(Config::clang, makefile, source, cOptions + " " + cSysInc);
+      } else {
+        writeSdsRule("sdscc", makefile, source, cOptions);
+        hasSdsFiles = true;
+      }
+      if(instrument) {
+        objects << info.completeBaseName() + "_instrumented.o";
+      } else {
+        objects << info.completeBaseName() + ".o";
+      }
+
+    } else if((info.suffix() == "cpp") || (info.suffix() == "cc")) {
+      if(tulippCompile) {
+        writeTulippCompileRule(Config::clangpp, makefile, source, cppOptions + " " + cppSysInc);
+      } else {
+        writeSdsRule("sds++", makefile, source, cppOptions);
+        hasSdsFiles = true;
+      }
+      if(instrument) {
+        objects << info.completeBaseName() + "_instrumented.o";
+      } else {
+        objects << info.completeBaseName() + ".o";
+      }
+    }
   }
 
   // compile at least one file with sds
-  if(createBbInfo && (accelerators.size() == 0)) {
+  if(!hasSdsFiles) {
     makefile.write(QString("__tulipp__.c :\n").toUtf8());
     makefile.write(QString("\techo \"/* TULIPP dummy file */\" > __tulipp__.c\n\n").toUtf8());
 

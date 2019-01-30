@@ -113,6 +113,8 @@ public:
 
   virtual void calculateCallers();
 
+  virtual QStringList getSourceHierarchy(QVector<BasicBlock*> callStack);
+
   virtual QVector<AnalysisInfo> getRecursiveFunctions(QVector<BasicBlock*> callStack);
 
   virtual QVector<AnalysisInfo> getExternalCalls(QVector<BasicBlock*> callStack);

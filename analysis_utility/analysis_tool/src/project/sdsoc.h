@@ -48,6 +48,7 @@ protected:
   virtual bool getProjectOptions() = 0;
   virtual void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
   virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
+  QStringList getSdsHwOptions();
 
 public:
   QString platform;

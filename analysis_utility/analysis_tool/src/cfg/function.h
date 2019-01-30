@@ -160,6 +160,14 @@ public:
     return cachedCount;
   }
 
+  virtual QStringList getSourceHierarchy(QVector<BasicBlock*> callStack) {
+    QStringList list = Container::getSourceHierarchy(callStack);
+    if(!list.contains(getSourceFilename())) {
+      list << getSourceFilename();
+    }
+    return list;
+  }
+
 };
 
 #endif

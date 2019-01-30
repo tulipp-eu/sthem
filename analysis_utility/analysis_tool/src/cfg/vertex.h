@@ -377,6 +377,10 @@ public:
   //---------------------------------------------------------------------------
   // HLS compatibility
 
+  virtual QStringList getSourceHierarchy(QVector<BasicBlock*> callStack) {
+    return QStringList();
+  }
+
   virtual QVector<AnalysisInfo> getRecursiveFunctions(QVector<BasicBlock*> callStack) {
     return QVector<AnalysisInfo>();
   }

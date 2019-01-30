@@ -230,6 +230,34 @@ void BasicBlock::calculateCallers() {
   }
 }
 
+QStringList BasicBlock::getSourceHierarchy(QVector<BasicBlock*> callStack) {
+  QStringList list;
+  
+  if(callStack.contains(this)) {
+    return list;
+
+  } else for(auto child : children) {
+    Instruction *instr = dynamic_cast<Instruction*>(child);
+    if(instr) {
+      if(instr->name == INSTR_ID_CALL) {
+        Function *func = getModule()->getFunctionById(instr->target);
+
+        if(!func) {
+          func = getTop()->getFunctionById(instr->target);
+        }
+        if(func) {
+          if(!isSystemFile(func->getSourceFilename())) {
+            callStack.push_back(this);
+            list << func->getSourceHierarchy(callStack);
+          }
+        }
+      }
+    }
+  }
+
+  return list;
+}
+
 QVector<AnalysisInfo> BasicBlock::getRecursiveFunctions(QVector<BasicBlock*> callStack) {
   QVector<AnalysisInfo> recursiveFunctions;
 
