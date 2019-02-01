@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <em_usart.h>
+#include <stdlib.h>
 
 static uint32_t initOk = false;
 
@@ -48,6 +49,7 @@ static uint32_t initOk = false;
 #define MAGIC 0xad
 
 bool outputSpiCommands = false;
+uint8_t *tdoData = NULL;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -202,6 +204,11 @@ void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readDa
     }
     endCmd();
   }
+
+  int bytes = size / 8;
+  if(size % 8) bytes++;
+  if(tdoData) free(tdoData);
+  tdoData = (uint8_t*)malloc(bytes);
 }
 
 void executeSeq(void) {
@@ -210,7 +217,8 @@ void executeSeq(void) {
   endCmd();
 }
 
-void readSeq(unsigned size, uint8_t *tdoData) {
+uint8_t *readSeq(unsigned size) {
+  uint8_t *ptr = tdoData;
   unsigned bytes = size/8;
   unsigned bits = size%8;
   if(bits) bytes++;
@@ -222,12 +230,14 @@ void readSeq(unsigned size, uint8_t *tdoData) {
   for(int i = 0; i < bytes; i++) {
     uint8_t data = transfer((i == bytes-1) ? 0xff : 0);
     if((i == bytes-1) && bits) {
-      *tdoData++ = data >> (8 - bits);
+      *ptr++ = data >> (8 - bits);
     } else {
-      *tdoData++ = data;
+      *ptr++ = data;
     }
   }
   endCmd();
+
+  return tdoData;
 }
 
 void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
@@ -266,12 +276,111 @@ void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *td
 
 #else
 
+unsigned storedSize;
+uint8_t *storedTdi;
+uint8_t *storedTms;
+uint8_t *storedRead;
+uint8_t *storedTdo;
+
+static inline void jtagPinWrite(bool clk, bool tdi, bool tms) {
+  GPIO_PortOutSetVal(JTAG_PORT,
+                     (clk << JTAG_TCK_BIT) | (tdi << JTAG_TDI_BIT) | (tms << JTAG_TMS_BIT), 
+                     (1 << JTAG_TCK_BIT) | (1 << JTAG_TDI_BIT) | (1 << JTAG_TMS_BIT));
+}
+
+static inline unsigned readBit(void) {
+  return GPIO_PinInGet(JTAG_PORT, JTAG_TDO_BIT);
+}
+
+static inline void writeBit(bool tdi, bool tms) {
+  jtagPinWrite(false, tdi, tms);
+  jtagPinWrite(true, tdi, tms);
+#ifdef DUMP_PINS
+  printf("  Actual: TMS: %d TDI: %d TDO: %d\n", tms, tdi, readBit());
+#endif
+}
+
+static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData, uint8_t *tdoData) {
+  int bytes = size / 8;
+  int leftovers = size % 8;
+  if(leftovers) bytes++;
+
+  int writePos = 0;
+  uint8_t val = 0;
+  int endPos = 8;
+
+  for(int byte = 0; byte < bytes; byte++) {
+    if(leftovers && (byte == bytes-1)) {
+      endPos = leftovers;
+    }
+
+    for(int readPos = 0; readPos < endPos; readPos++) {
+      writeBit((*tdiData >> readPos) & 1, (*tmsData >> readPos) & 1);
+      if(tdoData) {
+        if(readData) {
+          if((*readData >> readPos) & 1) {
+            val |= readBit() << writePos++;
+          }
+        } else {
+          val |= readBit() << writePos++;
+        }
+        if(writePos == 8) {
+          *tdoData = val;
+          writePos = 0;
+          val = 0;
+          tdoData++;
+        }
+      }
+    }
+    tdiData++;
+    tmsData++;
+    if(readData) readData++;
+  }
+
+  if(tdoData) *tdoData = val;
+}
+
 void jtagInt(void) {
   GPIO_PinOutSet(JTAG_PORT, JTAG_SEL_BIT);
 }
 
 void jtagExt(void) {
   GPIO_PinOutClear(JTAG_PORT, JTAG_SEL_BIT);
+}
+
+void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
+  readWriteSeqMask(size, tdiData, tmsData, NULL, NULL);
+}
+
+void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
+  readWriteSeqMask(size, tdiData, tmsData, NULL, tdoData);
+}
+
+void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData) {
+  int bytes = size / 8;
+  if(size % 8) bytes++;
+
+  storedTdi = (uint8_t*)malloc(bytes);
+  storedTms = (uint8_t*)malloc(bytes);
+  storedRead = (uint8_t*)malloc(bytes);
+  storedTdo = (uint8_t*)malloc(bytes);
+
+  if(!storedTdi || !storedTms || !storedRead || !storedTdo) {
+    panic("Out of memory\n");
+  }
+
+  storedSize = size;
+  memcpy(storedTdi, tdiData, bytes);
+  memcpy(storedTms, tmsData, bytes);
+  memcpy(storedRead, readData, bytes);
+}
+
+void executeSeq(void) {
+  readWriteSeqMask(storedSize, storedTdi, storedTms, storedRead, storedTdo);
+}
+
+uint8_t *readSeq(unsigned size) {
+  return storedTdo;
 }
 
 #endif

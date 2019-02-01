@@ -26,9 +26,6 @@
 #include "zynq.h"
 #include "cortex.h"
 
-#define USE_USART
-//#define DUMP_PINS
-
 struct JtagDevice {
   uint32_t idcode;
   uint32_t irlen;

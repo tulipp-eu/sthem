@@ -25,8 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef USE_FPGA_JTAG_CONTROLLER
-
 ///////////////////////////////////////////////////////////////////////////////
 
 static uint8_t recTdi[2048];
@@ -387,7 +385,7 @@ static void coreReadRegFast(struct Core core, uint16_t reg) {
 
 void writeIr(uint32_t idcode, uint32_t ir) {
 #ifdef DUMP_PINS
-  printf("Write IR %x\n", ir);
+  printf("Write IR %x\n", (unsigned)ir);
 #endif
   startRec();
   writeIrInt(idcode, ir);
@@ -579,6 +577,8 @@ void getIdCodes(uint32_t *idcodes) {
     readWriteSeq(32, tdi, tms, tdo);
 
     *idcodes++ = extractWord(0, tdo);
+
+    printf("Got %x\n", (unsigned)extractWord(0, tdo));
   }
 
   gotoResetThenIdle();
@@ -590,22 +590,6 @@ void gotoResetThenIdle(void) {
 
   writeSeq(6, &tdi, &tms);
 }
-
-#if 0
-void coreReadPcsrInit(void) {}
-
-bool coreReadPcsrFast(uint64_t *pcs) {
-  for(unsigned i = 0; i < numCores; i++) {
-    pcs[i] = coreReadPcsr(&cores[i]);
-  }
-
-  if(zynqUltrascale) {
-    return coreHalted(stopCore);
-  } else {
-    return pcs[0] == 0xffffffff;
-  }
-}
-#else
 
 void coreReadPcsrInit(void) {
   startRec();
@@ -629,12 +613,12 @@ void coreReadPcsrInit(void) {
 
 bool coreReadPcsrFast(uint64_t *pcs) {
   bool halted;
-  uint8_t buf[MAX_CORES * 11];
+  uint8_t *buf;
 
   executeSeq();
 
   if(zynqUltrascale) {
-    readSeq(numEnabledCores*88 + 44, buf);
+    buf = readSeq(numEnabledCores*88 + 44);
     
     unsigned core = 0;
 
@@ -686,7 +670,7 @@ bool coreReadPcsrFast(uint64_t *pcs) {
     halted = prsr & (1 << 4);
 
   } else {
-    readSeq(numCores*44, buf);
+    buf = readSeq(numCores*44);
 
     for(unsigned i = 0; i < numCores; i++) {
       uint8_t ack0 = extractAck(i*44 + 0, buf);
@@ -713,6 +697,3 @@ bool coreReadPcsrFast(uint64_t *pcs) {
 
   return halted;
 }
-#endif
-
-#endif

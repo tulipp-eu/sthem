@@ -11,6 +11,8 @@ all:
 	cp lynsyn_tester/lynsyn_tester bin
 	cd fpga && $(MAKE)
 	cp fpga/build/lynsyn.mcs bin
+	#cd fpga_no_ctrl && $(MAKE)
+	#cp fpga_no_ctrl/build/lynsyn.mcs bin
 
 .PHONY: install_hw
 install_hw:
@@ -22,4 +24,5 @@ clean :
 	cd mcu/boot && $(MAKE) clean
 	cd mcu/main && $(MAKE) clean
 	cd fpga && $(MAKE) clean
+	cd fpga_no_ctrl && $(MAKE) clean
 	cd lynsyn_tester && $(MAKE) clean

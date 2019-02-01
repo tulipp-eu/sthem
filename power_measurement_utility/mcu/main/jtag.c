@@ -64,7 +64,7 @@ static unsigned getIrLen(uint32_t idcode) {
     return PS_TAP_IRLEN;
   }
 
-  panic("Unknown IDCODE\n");
+  panic("Unknown IDCODE %x\n", idcode);
 
   return 0;
 }
@@ -436,7 +436,7 @@ bool jtagInitCores(void) {
     unsigned increment;
 
     if(zynqUltrascale) {
-      numCores = CORTEXA53_CORES;
+      numCores = 2; //CORTEXA53_CORES;
       base = CORTEXA53_CORE0_BASE;
       increment = CORTEXA53_INCREMENT;
 
@@ -483,6 +483,8 @@ bool jtagInitCores(void) {
       }
     }
   }
+
+  printf("JTAG chain init done\n");
 
   return true;
 }
