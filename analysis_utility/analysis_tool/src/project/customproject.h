@@ -32,7 +32,6 @@ public:
   }
 
   bool openProject(QString path);
-  bool createProject(QString path);
   virtual bool createMakefile() { return false; }
 };
 
