@@ -150,26 +150,6 @@ bool Analysis::openProject(QString path, QString configType, bool fast) {
   return project != NULL;
 }
 
-bool Analysis::createProject(QString path) {
-  if(!profile) delete profile;
-  profile = new Profile;
-
-  CustomProject *customProject = new CustomProject(profile);
-
-  if(customProject->createProject(path)) {
-    project = customProject;
-    profile->connect();
-
-  } else {
-    delete customProject;
-    delete profile;
-    profile = NULL;
-    return false;
-  }
-
-  return true;
-}
-
 void Analysis::closeProject() {
   delete project;
   project = NULL;

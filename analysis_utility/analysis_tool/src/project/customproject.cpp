@@ -28,7 +28,6 @@ bool CustomProject::openProject(QString path) {
 
   this->path = path;
   QDir fileInfo(path);
-  printf("Path: %s\n",fileInfo.dirName().toUtf8().constData());
   name = fileInfo.dirName();
 
   opened = true;
@@ -41,8 +40,3 @@ bool CustomProject::openProject(QString path) {
 
   return true;
 }
-
-bool CustomProject::createProject(QString path) {
-  return openProject(path);
-} 
-

@@ -55,7 +55,6 @@ public:
   ~Analysis();
 
   bool openProject(QString path, QString buildConfig, bool fast = false);
-  bool createProject(QString path);
   void closeProject();
   bool loadProfFile(QString path);
   bool loadGProfFile(QString gprofPath, QString elfPath);

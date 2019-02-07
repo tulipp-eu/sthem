@@ -1,0 +1,7 @@
+Simple instructions to use the executable files (Windows / Linux):
+
+1. Copy AutoDPR to your directory
+2. open the terminal
+3. In the terminal write "vivado -version" to check that the SDx tools are set correctly in the environmental variables
+4. cd workDirectoy/autodpr
+5. run AutoDPR using ./autodpr

@@ -193,7 +193,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   upgradeAct = new QAction("Upgrade PMU Firmware", this);
   connect(upgradeAct, SIGNAL(triggered()), this, SLOT(upgrade()));
 
-  openProjectAct = new QAction("Open custom project", this);
+  openProjectAct = new QAction("Create/open custom project", this);
   connect(openProjectAct, SIGNAL(triggered()), this, SLOT(openCustomProject()));
 
   openProfileAct = new QAction("Open profile", this);
@@ -201,9 +201,6 @@ MainWindow::MainWindow(Analysis *analysis) {
 
   openGProfAct = new QAction("Open data file from instrumented run", this);
   connect(openGProfAct, SIGNAL(triggered()), this, SLOT(openGProfEvent()));
-
-  createProjectAct = new QAction("Create custom project", this);
-  connect(createProjectAct, SIGNAL(triggered()), this, SLOT(createProject()));
 
   closeProjectAct = new QAction("Close project", this);
   connect(closeProjectAct, SIGNAL(triggered()), this, SLOT(closeProject()));
@@ -217,7 +214,6 @@ MainWindow::MainWindow(Analysis *analysis) {
   }
 
   fileMenu->addAction(openProjectAct);
-  fileMenu->addAction(createProjectAct);
   fileMenu->addAction(closeProjectAct);
   fileMenu->addSeparator();
   fileMenu->addAction(openProfileAct);
@@ -387,26 +383,6 @@ void MainWindow::openGProfEvent() {
 
     analysis->loadGProfFile(gprofPath, elfPath);
     loadFiles();
-  }
-}
-
-void MainWindow::createProject() {
-  QFileDialog dialog(this, "Select project directory");
-  dialog.setFileMode(QFileDialog::Directory);
-  if(dialog.exec()) {
-    closeProject();
-
-    if(analysis->createProject(dialog.selectedFiles()[0])) {
-      connect(analysis->project, SIGNAL(advance(int, QString)), this, SLOT(advance(int, QString)), Qt::BlockingQueuedConnection);
-
-      setWindowTitle(QString(APP_NAME) + " : " + analysis->project->name + " (custom)");
-      loadFiles();
-
-    } else {
-      QMessageBox msgBox;
-      msgBox.setText("Can't create project");
-      msgBox.exec();
-    }
   }
 }
 

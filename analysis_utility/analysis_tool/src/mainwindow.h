@@ -95,7 +95,6 @@ private:
   QAction *openProjectAct;
   QAction *openProfileAct;
   QAction *openGProfAct;
-  QAction *createProjectAct;
   QAction *closeProjectAct;
   QAction *refreshAct;
   QAction *cleanAct;
@@ -133,7 +132,6 @@ private slots:
   void openProfileEvent();
   void openGProfEvent();
   void openCustomProject();
-  void createProject();
   void closeProject();
   void refreshEvent();
   void cleanEvent();
