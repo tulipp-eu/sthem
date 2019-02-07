@@ -33,8 +33,8 @@
 
 #else
 
-#define MAX_SEQ_SIZE 256
-#define MAX_STORED_SEQ_SIZE 65536
+#define MAX_SEQ_SIZE INT_MAX
+#define MAX_STORED_SEQ_SIZE INT_MAX
 
 #endif
 

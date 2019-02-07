@@ -277,10 +277,10 @@ void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *td
 #else
 
 unsigned storedSize;
-uint8_t *storedTdi;
-uint8_t *storedTms;
-uint8_t *storedRead;
-uint8_t *storedTdo;
+uint8_t *storedTdi = NULL;
+uint8_t *storedTms = NULL;
+uint8_t *storedRead = NULL;
+uint8_t *storedTdo = NULL;
 
 static inline void jtagPinWrite(bool clk, bool tdi, bool tms) {
   GPIO_PortOutSetVal(JTAG_PORT,
@@ -359,6 +359,11 @@ void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *td
 void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData) {
   int bytes = size / 8;
   if(size % 8) bytes++;
+
+  if(storedTdi) free(storedTdi);
+  if(storedTms) free(storedTms);
+  if(storedRead) free(storedRead);
+  if(storedTdo) free(storedTdo);
 
   storedTdi = (uint8_t*)malloc(bytes);
   storedTms = (uint8_t*)malloc(bytes);
