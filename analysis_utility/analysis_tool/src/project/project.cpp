@@ -1229,6 +1229,7 @@ bool Project::runProfiler() {
                         " WHERE rowid = :rowid");
 
     int currentFrame = 0;
+    frameCount = 0;
 
     while(query.next()) {
       if(counter && ((counter % 10000) == 0)) printf("Processed %d samples...\n", counter);
@@ -1253,6 +1254,7 @@ bool Project::runProfiler() {
 
           } else {
             // next frame
+            frameCount++;
             for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
             for(int i = 0; i < LYNSYN_SENSORS; i++) {
               if(currentFrameEnergy[i] > frameEnergyMax[i]) frameEnergyMax[i] = currentFrameEnergy[i];
@@ -1319,7 +1321,7 @@ bool Project::runProfiler() {
 
     if(frameCount > 1) {
       for(int i = 0; i < LYNSYN_SENSORS; i++) {
-        frameEnergyAvg[i] /= (frameCount-1);
+        frameEnergyAvg[i] /= frameCount;
       }
     }
 
