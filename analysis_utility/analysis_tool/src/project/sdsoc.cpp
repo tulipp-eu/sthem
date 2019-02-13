@@ -140,9 +140,15 @@ QStringList Sdsoc::getSdsHwOptions() {
       QStringList files = funcs[0]->getSourceHierarchy(QVector<BasicBlock*>());
       files.removeAll(acc.filepath);
       options << "-files";
+
+      QString filelist;
+      bool first = true;
       for(auto file : files) {
-        options << file;
+        if(!first) filelist += ",";
+        filelist += file;
+        first = false;
       }
+      options << filelist;
     }
 
     options << "-clkid" << QString::number(acc.clkid) << "-sds-end";
