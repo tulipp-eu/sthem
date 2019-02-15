@@ -430,7 +430,8 @@ QString Sdsoc::sdsocExpand(QString text) {
 }
 
 QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) {
-  QString options;
+  QString options = defaultOptions() + " ";
+  QString other = defaultOther();
 
   bool hasOpt = false;
 
@@ -502,7 +503,7 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
         }
 
         if(grandChildElement.attribute("superClass", "") == "xilinx.gnu.compiler.misc.other") {
-          options += grandChildElement.attribute("value", "") + " ";
+          other = sdsocExpand(xmlPurify(grandChildElement.attribute("value", "")));
         }
 
         if(grandChildElement.attribute("superClass", "") == "xilinx.gnu.compiler.misc.ansi") {
@@ -525,6 +526,8 @@ QString Sdsoc::processCompilerOptions(QDomElement &childElement, int *optLevel) 
       *optLevel = 3;
     }
   }
+
+  options += QString(" ") + other;
 
   return options;
 }

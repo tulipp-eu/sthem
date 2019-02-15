@@ -49,6 +49,8 @@ protected:
   virtual void writeSdsRule(QString compiler, QFile &makefile, QString path, QString opt);
   virtual void writeSdsLinkRule(QString linker, QFile &makefile, QStringList objects, QString opt = "");
   QStringList getSdsHwOptions();
+  virtual QString defaultOptions() { return "-MMD -MP"; }
+  virtual QString defaultOther() { return "-fmessage-length=0 -MT\"$@\""; }
 
 public:
   QString platform;
