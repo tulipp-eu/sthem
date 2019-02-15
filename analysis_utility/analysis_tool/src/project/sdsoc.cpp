@@ -139,16 +139,18 @@ QStringList Sdsoc::getSdsHwOptions() {
     if(funcs.size() > 0) {
       QStringList files = funcs[0]->getSourceHierarchy(QVector<BasicBlock*>());
       files.removeAll(acc.filepath);
-      options << "-files";
+      if(files.size()) {
+        options << "-files";
 
-      QString filelist;
-      bool first = true;
-      for(auto file : files) {
-        if(!first) filelist += ",";
-        filelist += file;
-        first = false;
+        QString filelist;
+        bool first = true;
+        for(auto file : files) {
+          if(!first) filelist += ",";
+          filelist += file;
+          first = false;
+        }
+        options << filelist;
       }
-      options << filelist;
     }
 
     options << "-clkid" << QString::number(acc.clkid) << "-sds-end";
