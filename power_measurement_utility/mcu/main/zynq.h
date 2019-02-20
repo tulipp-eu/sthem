@@ -26,20 +26,8 @@
 
 #define MAX_CORES 8
 
-#define CORTEXA9_CORE0_BASE  0x80090000
-#define CORTEXA9_INCREMENT   0x00002000
-#define CORTEXA9_CORES       2
-
-#define CORTEXR5_CORE0_BASE  0x803f0000
-#define CORTEXR5_INCREMENT   0x00002000
-#define CORTEXR5_CORES       2
-
-#define CORTEXA53_CORE0_BASE 0x80410000
-#define CORTEXA53_INCREMENT  0x00100000
-#define CORTEXA53_CORES      4
-
-#define CORTEXA_AP_IDR       0x04770002
-#define CORTEXA_CSW          0x80000042
+#define IDR_APB_AP           0x04770002
+#define IDR_AXI_AP           0x04770004
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -64,8 +52,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define PS_TAP_IRLEN  12
-#define PS_TAP_IDCODE 0x28e20126
+/* #define PS_TAP_IRLEN  12 */
+/* #define PS_TAP_IDCODE 0x28e20126 */
 
 ///////////////////////////////////////////////////////////////////////////////
 

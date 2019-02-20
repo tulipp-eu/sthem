@@ -31,7 +31,14 @@ struct JtagDevice {
   uint32_t irlen;
 };
 
+enum {
+  CORTEX_A9,
+  CORTEX_A53
+};
+
 struct Core {
+  unsigned type;
+  unsigned ap;
   uint32_t baddr;
   bool enabled;
 };
@@ -74,13 +81,11 @@ bool coreHalted(unsigned core);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-extern unsigned apSel;
 extern int numDevices;
 extern struct JtagDevice devices[];
 extern uint32_t dpIdcode;
 extern unsigned numCores;
 extern unsigned numEnabledCores;
 extern struct Core cores[];
-extern bool zynqUltrascale;
 
 #endif

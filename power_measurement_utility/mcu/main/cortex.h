@@ -30,7 +30,11 @@
 #define ADIV5_AP_REG(x)   (ADIV5_APnDP | (x))
 #define ADIV5_AP_CSW      ADIV5_AP_REG(0x00)
 #define ADIV5_AP_TAR      ADIV5_AP_REG(0x04)
+#define ADIV5_AP_TAR_HI   ADIV5_AP_REG(0x08)
 #define ADIV5_AP_DRW      ADIV5_AP_REG(0x0C)
+#define ADIV5_AP_BASE_HI  ADIV5_AP_REG(0xF0)
+#define ADIV5_AP_CFG      ADIV5_AP_REG(0xF4)
+#define ADIV5_AP_BASE     ADIV5_AP_REG(0xF8)
 #define ADIV5_AP_IDR      ADIV5_AP_REG(0xFC)
 
 #define ADIV5_APnDP       0x100

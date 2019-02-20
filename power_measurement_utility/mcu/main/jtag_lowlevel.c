@@ -36,6 +36,8 @@ static uint8_t *tdiPtr;
 static uint8_t *tmsPtr;
 static uint8_t *readPtr;
 
+static unsigned fastBitsToRead;
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static inline uint32_t extractWord(unsigned pos, uint8_t *buf) {
@@ -370,14 +372,14 @@ static void dpWriteFast(uint16_t addr, uint32_t value) {
   dpLowAccessFast(ADIV5_LOW_WRITE, addr, value, true);
 }
 
-static void apWriteFast(uint16_t addr, uint32_t value) {
+static void apWriteFast(unsigned apSel, uint16_t addr, uint32_t value) {
   dpWriteFast(ADIV5_DP_SELECT, ((uint32_t)apSel << 24)|(addr & 0xF0));
   dpWriteFast(addr, value);
 }
 
 static void coreReadRegFast(struct Core core, uint16_t reg) {
   uint32_t addr = core.baddr + 4*reg;
-  apWriteFast(ADIV5_AP_TAR, addr);
+  apWriteFast(core.ap, ADIV5_AP_TAR, addr);
   dpReadFast(ADIV5_AP_DRW);
 }
 
@@ -577,8 +579,6 @@ void getIdCodes(uint32_t *idcodes) {
     readWriteSeq(32, tdi, tms, tdo);
 
     *idcodes++ = extractWord(0, tdo);
-
-    printf("Got %x\n", (unsigned)extractWord(0, tdo));
   }
 
   gotoResetThenIdle();
@@ -594,36 +594,62 @@ void gotoResetThenIdle(void) {
 void coreReadPcsrInit(void) {
   startRec();
 
-  if(zynqUltrascale) {
-    for(int i = 0; i < numCores; i++) {
+  fastBitsToRead = 0;
+
+  for(int i = 0; i < numCores; i++) {
+    if(cores[i].type == CORTEX_A9) {
+      coreReadRegFast(cores[i], A9_PCSR);
+      fastBitsToRead += 44;
+
+    } else if(cores[0].type == CORTEX_A53) {
       if(cores[i].enabled) {
         coreReadRegFast(cores[i], A53_PCSR_H);
         coreReadRegFast(cores[i], A53_PCSR_L);
+
+        fastBitsToRead += 88;
       }
     }
+  }
+
+  if(cores[stopCore].type == CORTEX_A53) {
     coreReadRegFast(cores[stopCore], A53_PRSR);
-  } else {
-    for(int i = 0; i < numCores; i++) {
-      coreReadRegFast(cores[i], A9_PCSR);
-    }
+    fastBitsToRead += 44;
   }
 
   storeRec();
 }
 
 bool coreReadPcsrFast(uint64_t *pcs) {
-  bool halted;
+  bool halted = false;
   uint8_t *buf;
 
   executeSeq();
 
-  if(zynqUltrascale) {
-    buf = readSeq(numEnabledCores*88 + 44);
-    
-    unsigned core = 0;
+  buf = readSeq(fastBitsToRead);
 
-    for(unsigned i = 0; i < numCores; i++) {
-      if(cores[i].enabled) {
+  unsigned core = 0;
+
+  for(unsigned i = 0; i < numCores; i++) {
+    if(cores[i].enabled) {
+      if(cores[i].type == CORTEX_A9) {
+        uint8_t ack0 = extractAck(core*44 + 0, buf);
+        uint8_t ack1 = extractAck(core*44 + 3, buf);
+        uint8_t ack2 = extractAck(core*44 + 6, buf);
+        uint8_t ack3 = extractAck(core*44 + 9, buf);
+
+        if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
+          panic("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
+        }
+
+        uint32_t dbgpcsr = extractWord(core*44 + 12, buf);
+
+        if(dbgpcsr == 0xffffffff) {
+          pcs[i] = dbgpcsr;
+        } else {
+          pcs[i] = calcOffset(dbgpcsr);
+        }
+
+      } else if(cores[i].type == CORTEX_A53) {
         uint8_t ack0 = extractAck(core*88 + 0, buf);
         uint8_t ack1 = extractAck(core*88 + 3, buf);
         uint8_t ack2 = extractAck(core*88 + 6, buf);
@@ -649,49 +675,30 @@ bool coreReadPcsrFast(uint64_t *pcs) {
         } else {
           pcs[i] = calcOffset(dbgpcsr);
         }
-
-        core++;
-
-      } else {
-        pcs[i] = 0;
       }
-    }
 
-    uint8_t ack0 = extractAck(numEnabledCores*88 + 0, buf);
-    uint8_t ack1 = extractAck(numEnabledCores*88 + 3, buf);
-    uint8_t ack2 = extractAck(numEnabledCores*88 + 6, buf);
-    uint8_t ack3 = extractAck(numEnabledCores*88 + 9, buf);
+      core++;
+
+    } else {
+      pcs[i] = 0;
+    }
+  }
+
+  if(cores[stopCore].type == CORTEX_A53) {
+    uint8_t ack0 = extractAck(core*88 + 0, buf);
+    uint8_t ack1 = extractAck(core*88 + 3, buf);
+    uint8_t ack2 = extractAck(core*88 + 6, buf);
+    uint8_t ack3 = extractAck(core*88 + 9, buf);
 
     if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
       panic("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
     }
 
-    uint32_t prsr = extractWord(numEnabledCores*88 + 12, buf);
+    uint32_t prsr = extractWord(core*88 + 12, buf);
     halted = prsr & (1 << 4);
 
-  } else {
-    buf = readSeq(numCores*44);
-
-    for(unsigned i = 0; i < numCores; i++) {
-      uint8_t ack0 = extractAck(i*44 + 0, buf);
-      uint8_t ack1 = extractAck(i*44 + 3, buf);
-      uint8_t ack2 = extractAck(i*44 + 6, buf);
-      uint8_t ack3 = extractAck(i*44 + 9, buf);
-
-      if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
-        panic("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
-      }
-
-      uint32_t dbgpcsr = extractWord(i*44 + 12, buf);
-
-      if(dbgpcsr == 0xffffffff) {
-        pcs[i] = dbgpcsr;
-      } else {
-        pcs[i] = calcOffset(dbgpcsr);
-      }
-    }
-
-    if(pcs[0] == 0xffffffff) halted = true;
+  } else if(cores[stopCore].type == CORTEX_A9) {
+    if(pcs[stopCore] == 0xffffffff) halted = true;
     else halted = false;
   }
 
