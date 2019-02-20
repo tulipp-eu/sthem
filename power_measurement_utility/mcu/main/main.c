@@ -112,10 +112,6 @@ int main(void) {
   clearLed(0);
   clearLed(1);
 
-  jtagInt();
-  jtagInitCores();
-  jtagExt();
-
   printf("Ready.\n");
 
   int samples = 0;

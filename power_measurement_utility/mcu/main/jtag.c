@@ -544,9 +544,9 @@ bool jtagInitCores(void) {
         printf("Found AXI AP (%d)\n", i);
 
         apSelAxi = i;
-        if(cfg & 2) {
+        axi64 = cfg & 2;
+        if(axi64) {
           printf("64 bit AXI memory space\n");
-          axi64 = true;
         }
       }
     }

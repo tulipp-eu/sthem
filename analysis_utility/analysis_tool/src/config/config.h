@@ -44,6 +44,10 @@
   "\n" \
   "targets -set -nocase -filter {name =~\"APU*\"} -index 1\n" \
   "rst -system\n" \
+  "\n" \
+  "targets -set -nocase -filter {name =~\"RPU*\"} -index 1\n" \
+  "rst -cores\n" \
+  "\n" \
   "after 3000\n" \
   "\n" \
   "fpga -file $name.elf.bit\n" \
