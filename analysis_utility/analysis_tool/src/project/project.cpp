@@ -39,12 +39,12 @@
 struct gmonhdr {
  uint64_t lpc; /* base pc address of sample buffer */
  uint64_t hpc; /* max pc address of sampled buffer */
- int32_t ncnt; /* size of sample buffer (plus this header) */
- int32_t version; /* version number */
- int32_t profrate; /* profiling clock rate */
- int32_t core;
- int32_t loops;
- int32_t spare; /* reserved */
+ int64_t ncnt; /* size of sample buffer (plus this header) */
+ int64_t version; /* version number */
+ int64_t profrate; /* profiling clock rate */
+ int64_t core;
+ int64_t loops;
+ int64_t spare; /* reserved */
 };
 
 struct rawarc {

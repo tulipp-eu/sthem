@@ -207,10 +207,12 @@ void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
 
   loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &dummyCount);
   if(runtime > 0) {
-    printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
+    printf("%-50s %10ld %8.3f %8.3f %.2e %.2e %8.3f\n",
            (function->id + ":" + loop->id).toUtf8().constData(),
            loop->parent->getCount(), runtime, energy[sensor],
-           runtime / loop->parent->getCount(), energy[sensor] / loop->parent->getCount(), energy[sensor] / runtime);
+           loop->parent->getCount() ? runtime / loop->parent->getCount() : 0,
+           loop->parent->getCount() ? energy[sensor] / loop->parent->getCount() : 0,
+           energy[sensor] / runtime);
   }
 
   QVector<Loop*> loops;
@@ -223,7 +225,7 @@ void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
 void Analysis::dump(unsigned core, unsigned sensor) {
   Cfg *cfg = project->cfg;
 
-  printf("ID count runtime energy runtime/count energy/count energy/runtime\n");
+  printf("ID                                                      count  runtime   energy      r/c      e/c    power\n");
 
   for(auto cfgChild : cfg->children) {
     Module *module = static_cast<Module*>(cfgChild);
@@ -238,9 +240,9 @@ void Analysis::dump(unsigned core, unsigned sensor) {
 
       function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
       if(runtime > 0) { // && (count > 0)) {
-        printf("%-40s %10ld %8.3f %8.3f %8.3f %8.3f %8.3f\n",
+        printf("%-50s %10ld %8.3f %8.3f %.2e %.2e %8.3f\n",
                function->id.toUtf8().constData(), count, runtime,
-               energy[sensor], runtime / count, energy[sensor] / count, energy[sensor] / runtime);
+               energy[sensor], count ? runtime / count : 0, count ? energy[sensor] / count : 0, energy[sensor] / runtime);
 
         QVector<Loop*> loops;
         function->getAllLoops(loops, QVector<BasicBlock*>(), false);
