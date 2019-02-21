@@ -27,49 +27,36 @@
 #include "jtag.h"
 #include "fpga.h"
 
+#define MAX_CORES 8
+
 ///////////////////////////////////////////////////////////////////////////////
 
 int numDevices = 0;
 struct JtagDevice devices[MAX_JTAG_DEVICES];
 uint32_t dpIdcode = 0;
 
-static unsigned apSelAxi = 0;
-static bool axi64 = false;
+static unsigned apSelMem = 0;
+static bool mem64 = false;
 unsigned numCores;
 unsigned numEnabledCores;
 struct Core cores[MAX_CORES];
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static unsigned getIrLen(uint32_t idcode) {
+static unsigned getIrLen(uint32_t idcode, struct JtagDevice *devlist) {
 
-  if(idcode == CORTEXA9_TAP_IDCODE) {
-    return CORTEXA9_TAP_IRLEN;
+  for(int i = 0; i < MAX_JTAG_DEVICES; i++) {
+    if(idcode == devlist[i].idcode) {
+      return devlist[i].irlen;
+    }
   }
-  if(idcode == PL_TAP_IDCODE) {
-    return PL_TAP_IRLEN;
-  }
-
-  if(idcode == CORTEXA53_TAP_IDCODE) {
-    return CORTEXA53_TAP_IRLEN;
-  }
-  if(idcode == PL_US_TAP_IDCODE) {
-    return PL_US_TAP_IRLEN;
-  }
-  if(idcode == PL_ZU4_US_TAP_IDCODE) {
-    return PL_ZU4_US_TAP_IRLEN;
-  }
-
-  /* if(idcode == PS_TAP_IDCODE) { */
-  /*   return PS_TAP_IRLEN; */
-  /* } */
 
   panic("Unknown IDCODE %x\n", idcode);
 
   return 0;
 }
 
-static bool queryChain(void) {
+static bool queryChain(struct JtagDevice *devlist) {
   numDevices = getNumDevices();
 
   if((numDevices == 0) || (numDevices == MAX_JTAG_DEVICES)) {
@@ -83,7 +70,7 @@ static bool queryChain(void) {
       if(idcodes[i]) {
         struct JtagDevice dev;
         dev.idcode = idcodes[i];
-        dev.irlen = getIrLen(dev.idcode);
+        dev.irlen = getIrLen(dev.idcode, devlist);
         devices[i] = dev;
         printf("Device %d: idcode %x\n", i, (int)devices[i].idcode);
       } else {
@@ -164,14 +151,14 @@ static uint32_t apRead(unsigned apSel, uint16_t addr) {
 // ARM AXI
 
 uint32_t axiReadMem(uint64_t addr) {
-  apWrite(apSelAxi, ADIV5_AP_TAR, addr & 0xffffffff);
-  if(axi64) apWrite(apSelAxi, ADIV5_AP_TAR_HI, addr >> 32);
+  apWrite(apSelMem, ADIV5_AP_TAR, addr & 0xffffffff);
+  if(mem64) apWrite(apSelMem, ADIV5_AP_TAR_HI, addr >> 32);
   return dpRead(ADIV5_AP_DRW);
 }
 
 void axiWriteMem(uint64_t addr, uint32_t val) {
-  apWrite(apSelAxi, ADIV5_AP_TAR, addr & 0xffffffff);
-  if(axi64) apWrite(apSelAxi, ADIV5_AP_TAR_HI, addr >> 32);
+  apWrite(apSelMem, ADIV5_AP_TAR, addr & 0xffffffff);
+  if(mem64) apWrite(apSelMem, ADIV5_AP_TAR_HI, addr >> 32);
   dpWrite(ADIV5_AP_DRW, val);
 }
 
@@ -490,11 +477,11 @@ void parseDebugEntry(unsigned apSel, uint32_t compBase) {
   }
 }
 
-bool jtagInitCores(void) {
+bool jtagInitCores(struct JtagDevice *devlist) {
   gotoResetThenIdle();
 
   // query chain
-  if(!queryChain()) {
+  if(!queryChain(devlist)) {
     return false;
   }
 
@@ -555,11 +542,20 @@ bool jtagInitCores(void) {
       } else if((idr & 0x0fffff0f) == IDR_AXI_AP) {
         printf("Found AXI AP (%d)\n", i);
 
-        apSelAxi = i;
-        axi64 = cfg & 2;
-        if(axi64) {
+        apSelMem = i;
+        mem64 = cfg & 2;
+        if(mem64) {
           printf("64 bit AXI memory space\n");
         }
+
+      } else if((idr & 0x0fffff0f) == IDR_AHB_AP) {
+        printf("Found AHB AP (%d)\n", i);
+
+        apSelMem = i;
+        mem64 = false;
+
+      } else if(idr != 0) {
+        printf("Found unknown AP %x (%d)\n", (unsigned)idr, i);
       }
     }
   }

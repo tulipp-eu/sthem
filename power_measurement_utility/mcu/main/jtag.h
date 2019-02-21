@@ -25,11 +25,7 @@
 #include "lynsyn_main.h"
 #include "zynq.h"
 #include "cortex.h"
-
-struct JtagDevice {
-  uint32_t idcode;
-  uint32_t irlen;
-};
+#include "../common/usbprotocol.h"
 
 enum {
   CORTEX_A9,
@@ -65,7 +61,7 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size);
 
 void jtagInit(void);
 
-bool jtagInitCores(void); // call this at least every time a new board has been plugged in
+bool jtagInitCores(struct JtagDevice *devices); // call this at least every time a new board has been plugged in
 
 void coreReadPcsrInit(void);
 bool coreReadPcsrFast(uint64_t *pcs);

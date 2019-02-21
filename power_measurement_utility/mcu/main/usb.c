@@ -184,10 +184,10 @@ static void finalizeUpgrade(struct UpgradeFinaliseRequestPacket *finalizeRequest
   }
 }
 
-static void initJtag(void) {
+static void initJtag(struct JtagInitRequestPacket *jtagInitRequest) {
   printf("Init JTAG chain\n");
   jtagInt();
-  if(!jtagInitCores()) {
+  if(!jtagInitCores(jtagInitRequest->devices)) {
     panic("Can't init JTAG\n");
   }
 }
@@ -479,7 +479,7 @@ static int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t rema
         break;
 
       case USB_CMD_JTAG_INIT:
-        initJtag();
+        initJtag((struct JtagInitRequestPacket *)inBuffer);
         break;
 
       case USB_CMD_BREAKPOINT:

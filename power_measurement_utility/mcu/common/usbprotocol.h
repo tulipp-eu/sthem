@@ -86,13 +86,25 @@
 
 #define FLASH_BUFFER_SIZE 64
 
-///////////////////////////////////////////////////////////////////////////////
+#define MAX_JTAG_DEVICES 32
 
-#define MAX_PACKET_SIZE (sizeof(struct UpgradeStoreRequestPacket))
 #define MAX_SAMPLES 32
+#define MAX_PACKET_SIZE (sizeof(struct JtagInitRequestPacket))
+
+struct __attribute__((__packed__)) JtagDevice {
+  uint32_t idcode;
+  uint32_t irlen;
+};
+
+///////////////////////////////////////////////////////////////////////////////
 
 struct __attribute__((__packed__)) RequestPacket {
   uint8_t cmd;
+};
+
+struct __attribute__((__packed__)) JtagInitRequestPacket { // from V1.6
+  struct RequestPacket request;
+  struct JtagDevice devices[MAX_JTAG_DEVICES];
 };
 
 struct __attribute__((__packed__)) StartSamplingRequestPacket {
