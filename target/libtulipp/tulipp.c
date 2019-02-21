@@ -1,6 +1,6 @@
 #include "tulipp.h"
 
-#ifndef HIPPEROS
+#ifdef AARCH64
 
 #include <stdint.h>
 #include <stdbool.h>

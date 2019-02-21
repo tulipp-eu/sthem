@@ -1,12 +1,12 @@
 .PHONY : all
-all : libtulipp.a libhtulipp.a
+all : libtulipp.a libtulipp32.a libhtulipp.a
 
 ###############################################################################
 
 CC = aarch64-none-elf-gcc
 AR = aarch64-none-elf-ar
 
-CFLAGS = -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch64-none/include/
+CFLAGS = -DAARCH64 -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch64-none/include/
 
 libtulipp.a : interruptWrapper.o gmon.o tulipp.o
 	${AR} cr $@ $^
@@ -19,6 +19,25 @@ gmon.o : gmon.c gmon.h
 
 tulipp.o : tulipp.c tulipp.h
 	${CC} ${CFLAGS} $< -c -o $@
+
+###############################################################################
+
+CC32 = arm-none-eabi-gcc
+AR32 = arm-none-eabi-ar
+
+CFLAGS32 = -DSDDRIVE="\"0:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch32-none/include/ -mcpu=cortex-a9 -mfloat-abi=hard 
+
+libtulipp32.a : interruptWrapper32.o gmon32.o tulipp32.o
+	${AR32} cr $@ $^
+
+interruptWrapper32.o : interruptWrapper.c
+	${CC32} ${CFLAGS32} $< -c -o $@
+
+gmon32.o : gmon.c gmon.h
+	${CC32} ${CFLAGS32} $< -c -o $@
+
+tulipp32.o : tulipp.c tulipp.h
+	${CC32} ${CFLAGS32} $< -c -o $@
 
 ###############################################################################
 

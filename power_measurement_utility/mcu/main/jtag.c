@@ -411,9 +411,13 @@ void parseDebugEntry(unsigned apSel, uint32_t compBase) {
   apWrite(apSel, ADIV5_AP_TAR, addr);
   uint32_t cidr1 = dpRead(ADIV5_AP_DRW);
 
+  //printf("CIDR1: %x\n", (unsigned)cidr1);
+
   if((cidr1 & 0xf0) == 0x10) { // is a ROM
     bool done = false;
     uint32_t entryAddr = compBase;
+
+    //printf("Got ROM at %x\n", (unsigned)compBase);
 
     while(!done) {
       // read entry
@@ -449,6 +453,8 @@ void parseDebugEntry(unsigned apSel, uint32_t compBase) {
     apWrite(apSel, ADIV5_AP_TAR, addr4);
     uint32_t pidr4 = dpRead(ADIV5_AP_DRW);
                       
+    //printf("  Got Entry at %x: %x %x %x %x\n", (unsigned)compBase, (unsigned)pidr0, (unsigned)pidr1, (unsigned)pidr2, (unsigned)pidr4);
+
     /* if(((pidr0 & 0xff) == 0x15) && // found a Cortex R5 */
     /*    ((pidr1 & 0xff) == 0xbc) && */
     /*    ((pidr2 & 0x0f) == 0xb) && */
@@ -533,9 +539,15 @@ bool jtagInitCores(void) {
       uint32_t cfg = apRead(i, ADIV5_AP_CFG);
 
       if((idr & 0x0fffff0f) == IDR_APB_AP) {
-        printf("Found APB AP (%d)\n", i);
+        printf("Found APB AP (%d) base %x\n", i, (unsigned)base);
 
-        if(base & 1) { // debug entry is present
+        if(base == ~0) { // legacy format, not present
+          
+        } else if((base & 0x3) == 0) { // legacy format, present
+          apWrite(i, ADIV5_AP_CSW, 0x80000042);
+          parseDebugEntry(i, base & 0xfffff000);
+
+        } else if((base & 0x3) == 0x3) { // debug entry is present
           apWrite(i, ADIV5_AP_CSW, 0x80000042);
           parseDebugEntry(i, base & 0xfffff000);
         }

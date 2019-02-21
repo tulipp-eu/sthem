@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#ifndef HIPPEROS
+#ifdef AARCH64
 
 // PMU events that can be counted by the Cortex A53 core
 

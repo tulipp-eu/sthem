@@ -388,9 +388,13 @@ void __tulipp_exit(void) {
 #ifdef HIPPEROS
   unsigned core = ~0; // FIXME
 #else
+#ifdef AARCH64
   uint64_t mpidr;
   asm ("mrs %0, MPIDR_EL1\n":"=r"(mpidr)::);
   unsigned core = mpidr & 0xff;
+#else
+  unsigned core = ~0; // FIXME
+#endif
 #endif
 
   if(_mcleanup(core)) {
