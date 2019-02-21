@@ -71,14 +71,14 @@ extern void mcount(void);
  * Structure prepended to gmon.out profiling data file.
  */
 struct gmonhdr {
- size_t lpc; /* base pc address of sample buffer */
- size_t hpc; /* max pc address of sampled buffer */
- int ncnt; /* size of sample buffer (plus this header) */
- int version; /* version number */
- int profrate; /* profiling clock rate */
- int core;
- int loops;
- int spare; /* reserved */
+ uint64_t lpc; /* base pc address of sample buffer */
+ uint64_t hpc; /* max pc address of sampled buffer */
+ int64_t ncnt; /* size of sample buffer (plus this header) */
+ int64_t version; /* version number */
+ int64_t profrate; /* profiling clock rate */
+ int64_t core;
+ int64_t loops;
+ int64_t spare; /* reserved */
 };
 #define GMONVERSION 0x00051879
 
@@ -141,9 +141,9 @@ struct tostruct {
  * the called site and a count.
  */
 struct rawarc {
- size_t raw_frompc;
- size_t raw_selfpc;
- long raw_count;
+ uint64_t raw_frompc;
+ uint64_t raw_selfpc;
+ int64_t raw_count;
 };
 
 /*

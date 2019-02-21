@@ -767,8 +767,17 @@ void Project::getLocations(unsigned core, std::map<BasicBlock*,Location*> *locat
 }
 
 bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
-  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlDatabase db;
+  {
+    db = QSqlDatabase::addDatabase("QSQLITE", dbConnection);
+    db.setDatabaseName("profile.db3");
+    bool success = db.open();
+    Q_UNUSED(success);
+    assert(success);
+  }
   QSqlQuery query(db);
+
+  printf("Parsing gmon\n");
 
   ElfSupport elfSupport;
   elfSupport.addElf(elfFileName);
@@ -778,6 +787,10 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
     QMessageBox msgBox;
     msgBox.setText("File not found");
     msgBox.exec();
+    {
+      QSqlDatabase projectDb = QSqlDatabase::database("project");
+      projectDb.close();
+    }
     return false;
   }
 
@@ -793,6 +806,8 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
   file.read((char*)&hdr, sizeof(struct gmonhdr));
 
   unsigned core = hdr.core;
+
+  printf("Core: %x\n", core);
 
   if(core == (unsigned)~0) {
     core = QInputDialog::getInt(NULL, "Enter core", "Core that produced the data file:", 0, 0, LYNSYN_MAX_CORES-1);
@@ -887,6 +902,11 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
   }
 
   db.commit();
+
+  {
+    QSqlDatabase projectDb = QSqlDatabase::database("project");
+    projectDb.close();
+  }
 
   return true;
 }

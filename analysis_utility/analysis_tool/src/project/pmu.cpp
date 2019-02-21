@@ -339,9 +339,36 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
   }
 
   if(useBp || samplePc) {
-    struct RequestPacket req;
-    req.cmd = USB_CMD_JTAG_INIT;
-    sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
+    if(swVersion < SW_VERSION_1_6) {
+      struct RequestPacket req;
+      req.cmd = USB_CMD_JTAG_INIT;
+      sendBytes((uint8_t*)&req, sizeof(struct RequestPacket));
+    } else {
+      struct JtagInitRequestPacket req;
+      req.request.cmd = USB_CMD_JTAG_INIT;
+
+      memset(req.devices, 0, sizeof(req.devices));
+
+      req.devices[0].idcode = 0x4ba00477;
+      req.devices[0].irlen = 4;
+
+      req.devices[1].idcode = 0x1372c093;
+      req.devices[1].irlen = 6;
+
+      req.devices[2].idcode = 0x5ba00477;
+      req.devices[2].irlen = 4;
+
+      req.devices[3].idcode = 0x14710093;
+      req.devices[3].irlen = 12;
+
+      req.devices[4].idcode = 0x04721093;
+      req.devices[4].irlen = 12;
+
+      req.devices[5].idcode = 0x28e20126;
+      req.devices[5].irlen = 12;
+
+      sendBytes((uint8_t*)&req, sizeof(struct JtagInitRequestPacket));
+    }
   }
 
   if(startAtBp) {
