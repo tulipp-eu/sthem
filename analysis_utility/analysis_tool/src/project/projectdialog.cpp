@@ -24,6 +24,14 @@
 #include "analysis_tool.h"
 
 void ProjectProfPage::updateGui() {
+  // start immediately
+  if(samplePcCheckBox->checkState() != Qt::Checked) {
+    startCheckBox->setCheckState(Qt::Checked);
+    startCheckBox->setDisabled(1);
+  } else {
+    startCheckBox->setEnabled(1);
+  }
+
   // stop at combo
   if(samplePcCheckBox->checkState() != Qt::Checked) {
     stopAtCombo->setCurrentIndex(STOP_AT_TIME);
