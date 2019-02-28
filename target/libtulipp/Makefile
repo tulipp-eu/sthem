@@ -6,7 +6,7 @@ all : libtulipp.a libtulipp32.a libhtulipp.a
 CC = aarch64-none-elf-gcc
 AR = aarch64-none-elf-ar
 
-CFLAGS = -DAARCH64 -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch64-none/include/
+CFLAGS = -Wall -DAARCH64 -DSDDRIVE="\"1:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch64-none/include/
 
 libtulipp.a : interruptWrapper.o gmon.o tulipp.o
 	${AR} cr $@ $^
@@ -25,7 +25,7 @@ tulipp.o : tulipp.c tulipp.h
 CC32 = arm-none-eabi-gcc
 AR32 = arm-none-eabi-ar
 
-CFLAGS32 = -DSDDRIVE="\"0:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch32-none/include/ -mcpu=cortex-a9 -mfloat-abi=hard 
+CFLAGS32 = -Wall -DSDDRIVE="\"0:/\"" -I/opt/Xilinx/SDx/2018.2/target/aarch32-none/include/ -mcpu=cortex-a9 -mfloat-abi=hard 
 
 libtulipp32.a : interruptWrapper32.o gmon32.o tulipp32.o
 	${AR32} cr $@ $^
@@ -46,7 +46,7 @@ HIPPEROS_AR = aarch64-hipperos-ar
 
 HIPPEROS_DIR=/home/djupdal/research/tulipp/hipperos_18.10_tulipp_te0820_te0820_elf_noLogging/
 
-HIPPEROS_CFLAGS = -DSDDRIVE="\"\"" -DHIPPEROS -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/libs/hapi/include -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/kernel/include -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/libs/fatfs/include/ -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/libs/drivers/include/sdmmc/
+HIPPEROS_CFLAGS = -Wall -DSDDRIVE="\"\"" -DHIPPEROS -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/libs/hapi/include -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/kernel/include -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/libs/fatfs/include/ -isystem ${HIPPEROS_DIR}/hipperos-18.10-te0820_elf_noLogging/libs/drivers/include/sdmmc/
 
 ###############################################################################
 

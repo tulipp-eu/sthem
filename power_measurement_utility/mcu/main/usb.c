@@ -214,7 +214,7 @@ static void setBreakpoint(struct BreakpointRequestPacket *bpReq) {
 static void startSampling(struct StartSamplingRequestPacket *startSamplingReq) {
   samplePc = startSamplingReq->flags & SAMPLING_FLAG_SAMPLE_PC;
   gpioMode = startSamplingReq->flags & SAMPLING_FLAG_GPIO;
-  useStartBp = startSamplingReq->flags & SAMPLING_FLAG_BP;
+  bool useStartBp = startSamplingReq->flags & SAMPLING_FLAG_START_BP;
   useStopBp = !(startSamplingReq->flags & SAMPLING_FLAG_PERIOD);
 
   printf("Starting sample mode (%llx)\n", startSamplingReq->flags);

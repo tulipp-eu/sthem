@@ -74,6 +74,7 @@ public:
   QCheckBox *samplingModeGpioCheckBox;
   QCheckBox *runTcfCheckBox;
   QCheckBox *samplePcCheckBox;
+  QCheckBox *startCheckBox;
 
   QCheckBox *startAtBpCheckBox;
   QLineEdit *startFuncEdit;

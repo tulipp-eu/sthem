@@ -55,7 +55,6 @@ int64_t calculateTime();
 extern volatile bool sampleMode;
 extern volatile bool samplePc;
 extern volatile bool gpioMode;
-extern volatile bool useStartBp;
 extern volatile bool useStopBp;
 extern volatile int64_t sampleStop;
 extern uint8_t startCore;

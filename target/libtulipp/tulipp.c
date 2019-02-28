@@ -1,11 +1,18 @@
-#include "tulipp.h"
-
-#ifdef AARCH64
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "tulipp.h"
+
+#ifdef HIPPEROS
+
+#else
+
+#include <sds_lib.h>
+#include <ff.h>
+
+#ifdef AARCH64
 
 #include <xparameters.h>
 #include <xstatus.h>
@@ -15,12 +22,6 @@
 #include <xiicps.h>
 #include <xgpiops.h>
 #include <xil_cache.h>
-
-#include <ff.h>
-
-#include <sds_lib.h>
-
-#include "gmon.h"
 
 #include "interruptWrapper.h"
 #define MYSELF 	CPU1
@@ -401,7 +402,7 @@ void stopProfiler(char *filename) {
 
   FRESULT res = f_mount(&fatfs, SDDRIVE, 1);
   if(res != FR_OK) {
-    printf("PROFILER: Could not mount (%d)\n", res);
+    printf("PROFILER: Could not mount %s (%d)\n", SDDRIVE, res);
     return;
   }
 
@@ -470,6 +471,66 @@ void profilerOn(void) {
 void profilerOff(void) {
   XGpioPs_WritePin(&Gpio, OUTPUT_PIN, 0x0);
 }
+
+#else
+
+/* #include <xil_types.h> */
+/* #include <xscugic.h> */
+/* #include <xil_exception.h> */
+/* #include <xscutimer.h> */
+
+/* #define TIMER_FREQUENCY 333000000 */
+
+/* XScuTimer_Config *timerConfig; */
+/* static XScuTimer scuTimer; */
+/* static XScuGic interruptController; */
+
+/* static void timerInterruptHandler(void *CallBackRef) { */
+/* 	XScuTimer *timerPtr = (XScuTimer *) CallBackRef; */
+/* 	XScuTimer_ClearInterruptStatus(timerPtr); */
+/* } */
+
+bool startProfiler(uint64_t textStart, uint64_t textSize, double period, bool dualCore) {
+  /* //timer initialisation */
+  /* timerConfig = XScuTimer_LookupConfig(XPAR_XSCUTIMER_0_DEVICE_ID); */
+  /* XScuTimer_CfgInitialize(&scuTimer, timerConfig,timerConfig->BaseAddr); */
+  /* XScuTimer_SelfTest(&scuTimer); */
+  /* //load the timer */
+  /* XScuTimer_LoadTimer(&scuTimer, TIMER_FREQUENCY * period); */
+  /* XScuTimer_EnableAutoReload(&scuTimer); */
+
+  /* // setup interrupts */
+  /* XScuGic_Config *interruptConfig; //GIC config */
+  /* Xil_ExceptionInit(); */
+  /* //initialise the GIC */
+  /* interruptConfig = XScuGic_LookupConfig(XPAR_SCUGIC_SINGLE_DEVICE_ID); */
+  /* XScuGic_CfgInitialize(&interruptController, interruptConfig, */
+  /*                       interruptConfig->CpuBaseAddress); */
+  /* //connect to the hardware */
+  /* Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT, */
+  /*                              (Xil_ExceptionHandler)XScuGic_InterruptHandler, */
+  /*                              &interruptController); */
+  /* //set up the timer interrupt */
+  /* XScuGic_Connect(&interruptController, XPAR_SCUTIMER_INTR, */
+  /*                 (Xil_ExceptionHandler)timerInterruptHandler, */
+  /*                 (void *)&scuTimer); */
+  /* //enable the interrupt for the Timer at GIC */
+  /* XScuGic_Enable(&interruptController, XPAR_SCUTIMER_INTR); */
+  /* //enable interrupt on the timer */
+  /* XScuTimer_EnableInterrupt(&scuTimer); */
+  /* // Enable interrupts in the Processor. */
+  /* Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ); */
+
+  /* //start timer */
+  /* XScuTimer_Start(&scuTimer); */
+
+  return false;
+}
+
+void stopProfiler(char *filename) {
+}
+
+#endif
 
 #endif
 

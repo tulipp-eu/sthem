@@ -763,6 +763,8 @@ bool live(void) {
     struct AdcTestReplyPacket reply;
     getBytes((uint8_t*)&reply, sizeof(struct AdcTestReplyPacket));
 
+    printf("%d %f %f\n", reply.current[1], calInfo.offset[1], calInfo.gain[1]);
+
     printf("Current measured to ");
 
     for(int sensor = 0; sensor < 7; sensor++) {

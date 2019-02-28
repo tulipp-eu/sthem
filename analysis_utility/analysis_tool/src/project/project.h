@@ -74,6 +74,7 @@ public:
   bool samplingModeGpio;
   bool runTcf;
   bool samplePc;
+  bool startImmediately;
 
   QString startFunc;
 

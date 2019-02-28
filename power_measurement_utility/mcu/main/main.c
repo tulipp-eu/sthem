@@ -44,7 +44,6 @@
 volatile bool sampleMode;
 volatile bool samplePc;
 volatile bool gpioMode;
-volatile bool useStartBp;
 volatile bool useStopBp;
 volatile int64_t sampleStop;
 

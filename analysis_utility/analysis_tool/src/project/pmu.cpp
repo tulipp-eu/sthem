@@ -314,8 +314,7 @@ bool Pmu::getArray(uint8_t *bytes, int maxNum, int numBytes, unsigned *elementsR
   return true;
 }
 
-bool Pmu::collectSamples(bool useFrame, bool useStartBp,
-                         uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
+bool Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsigned stopAt, bool samplePc, bool samplingModeGpio,
                          int64_t samplePeriod, uint64_t startAddr, uint64_t stopAddr, 
                          uint64_t *samples, int64_t *minTime, int64_t *maxTime, double *minPower, double *maxPower,
                          double *runtime, double *energy) {
@@ -414,7 +413,7 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
       dbStorer->deleteLater();
       return false;
     }
-    if(!useStartBp) {
+    if(!startAtBp) {
       printf("PMU does not support measuring without breakpoints. Update firmware!\n");
       disconnect(this, SIGNAL (initTransaction()), 0, 0);
       disconnect(this, SIGNAL (commitTransaction()), 0, 0);
@@ -448,7 +447,7 @@ bool Pmu::collectSamples(bool useFrame, bool useStartBp,
       ((stopAt == STOP_AT_TIME) ? SAMPLING_FLAG_PERIOD : 0) |
       (samplePc ? SAMPLING_FLAG_SAMPLE_PC : 0) |
       (samplingModeGpio ? SAMPLING_FLAG_GPIO : 0) |
-      (useBp ? SAMPLING_FLAG_BP : 0);
+      (startAtBp ? SAMPLING_FLAG_START_BP : 0);
     sendBytes((uint8_t*)&req, sizeof(struct StartSamplingRequestPacket));
   }
 

@@ -356,6 +356,7 @@ void Project::loadProjectFile() {
   samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
   runTcf = settings.value("runTcf", true).toBool();
   samplePc = settings.value("samplePc", true).toBool();
+  startImmediately = settings.value("startImmediately", false).toBool();
 
   startFunc = settings.value("startFunc", "main").toString();
 
@@ -410,6 +411,7 @@ void Project::saveProjectFile() {
   settings.setValue("samplingModeGpio", samplingModeGpio);
   settings.setValue("runTcf", runTcf);
   settings.setValue("samplePc", samplePc);
+  settings.setValue("startImmediately", startImmediately);
 
   settings.setValue("startFunc", startFunc);
   settings.setValue("samplePeriodS", samplePeriod);
@@ -571,6 +573,7 @@ void Project::copy(Project *p) {
   samplingModeGpio = p->samplingModeGpio;
   runTcf = p->runTcf;
   samplePc = p->samplePc;
+  startImmediately = p->startImmediately;
 
   startFunc = p->startFunc;
 
@@ -903,16 +906,20 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
 
   db.commit();
 
-  {
-    QSqlDatabase projectDb = QSqlDatabase::database("project");
-    projectDb.close();
-  }
+  db.close();
 
   return true;
 }
 
 bool Project::parseProfFile(QString fileName) {
-  QSqlDatabase db = QSqlDatabase::database(dbConnection);
+  QSqlDatabase db;
+  {
+    db = QSqlDatabase::addDatabase("QSQLITE", dbConnection);
+    db.setDatabaseName("profile.db3");
+    bool success = db.open();
+    Q_UNUSED(success);
+    assert(success);
+  }
   QSqlQuery query(db);
 
   ElfSupport elfSupport;
@@ -1000,6 +1007,7 @@ bool Project::parseProfFile(QString fileName) {
 
     Location *location = getLocation(core, pc, &elfSupport, &locations);
 
+    printf("%f %f %f\n", power, offsetData[1], gainData[1]);
     power = Pmu::currentToPower(sensor, power, pmu.rl, pmu.supplyVoltage, offsetData, gainData);
 
     if(runtime) {
@@ -1082,6 +1090,8 @@ bool Project::parseProfFile(QString fileName) {
   assert(success);
 
   db.commit();
+
+  db.close();
 
   return true;
 }
@@ -1175,8 +1185,7 @@ bool Project::runProfiler() {
 
     uint64_t frameAddr = elfSupport.lookupSymbol(frameFunc);
 
-    bool ret = pmu.collectSamples(runTcf, runTcf,
-                                  frameAddr, runTcf, stopAt, samplePc, samplingModeGpio, 
+    bool ret = pmu.collectSamples(runTcf, frameAddr, !startImmediately, stopAt, samplePc, samplingModeGpio, 
                                   Pmu::secondsToCycles(samplePeriod), startAddr, stopAddr,
                                   &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
     if(!ret) {

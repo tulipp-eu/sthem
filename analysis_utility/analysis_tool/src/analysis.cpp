@@ -198,21 +198,30 @@ bool Analysis::exportMeasurements(QString fileName) {
   return profile->exportMeasurements(fileName, project->cfg);
 }
 
+double idlePower = 0;
+
 void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   double runtime;
   double runtimeFrame;
   double energy[LYNSYN_SENSORS];
   double energyFrame[LYNSYN_SENSORS];
+  double energyOffset[LYNSYN_SENSORS];
+  //double energyFrameOffset[LYNSYN_SENSORS];
   uint64_t dummyCount;
 
   loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &dummyCount);
   if(runtime > 0) {
+    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      energyOffset[i] = energy[i] - idlePower * runtime;
+      //energyFrameOffset[i] = energyFrame[i] - idlePower * runtimeFrame;
+    }
+
     printf("%-50s %10ld %8.3f %8.3f %.2e %.2e %8.3f\n",
            (function->id + ":" + loop->id).toUtf8().constData(),
-           loop->parent->getCount(), runtime, energy[sensor],
+           loop->parent->getCount(), runtime, energyOffset[sensor],
            loop->parent->getCount() ? runtime / loop->parent->getCount() : 0,
-           loop->parent->getCount() ? energy[sensor] / loop->parent->getCount() : 0,
-           energy[sensor] / runtime);
+           loop->parent->getCount() ? energyOffset[sensor] / loop->parent->getCount() : 0,
+           energyOffset[sensor] / runtime);
   }
 
   QVector<Loop*> loops;
@@ -236,13 +245,20 @@ void Analysis::dump(unsigned core, unsigned sensor) {
       double runtimeFrame;
       double energy[LYNSYN_SENSORS];
       double energyFrame[LYNSYN_SENSORS];
+      double energyOffset[LYNSYN_SENSORS];
+      //double energyFrameOffset[LYNSYN_SENSORS];
       uint64_t count;
 
       function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
       if(runtime > 0) { // && (count > 0)) {
+        for(int i = 0; i < LYNSYN_SENSORS; i++) {
+          energyOffset[i] = energy[i] - idlePower * runtime;
+          //energyFrameOffset[i] = energyFrame[i] - idlePower * runtimeFrame;
+        }
+
         printf("%-50s %10ld %8.3f %8.3f %.2e %.2e %8.3f\n",
                function->id.toUtf8().constData(), count, runtime,
-               energy[sensor], count ? runtime / count : 0, count ? energy[sensor] / count : 0, energy[sensor] / runtime);
+               energyOffset[sensor], count ? runtime / count : 0, count ? energyOffset[sensor] / count : 0, energyOffset[sensor] / runtime);
 
         QVector<Loop*> loops;
         function->getAllLoops(loops, QVector<BasicBlock*>(), false);

@@ -75,7 +75,7 @@
 #define FPGA_SPI_FAILED       2
 
 #define SAMPLING_FLAG_SAMPLE_PC 1
-#define SAMPLING_FLAG_BP        2
+#define SAMPLING_FLAG_START_BP  2
 #define SAMPLING_FLAG_GPIO      4
 #define SAMPLING_FLAG_PERIOD    8
 

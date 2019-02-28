@@ -24,17 +24,8 @@
 #include "analysis_tool.h"
 
 void ProjectProfPage::updateGui() {
-  // sample pc
-  if(runTcfCheckBox->checkState() != Qt::Checked) {
-    samplePcCheckBox->setCheckState(Qt::Unchecked);
-    samplePcCheckBox->setDisabled(1);
-  } else {
-    samplePcCheckBox->setEnabled(1);
-  }
-
   // stop at combo
-  if((samplePcCheckBox->checkState() != Qt::Checked) ||
-     (runTcfCheckBox->checkState() != Qt::Checked)) {
+  if(samplePcCheckBox->checkState() != Qt::Checked) {
     stopAtCombo->setCurrentIndex(STOP_AT_TIME);
     stopAtCombo->setDisabled(1);
   } else {
@@ -42,7 +33,7 @@ void ProjectProfPage::updateGui() {
   }
 
   // start func
-  if(runTcfCheckBox->checkState() != Qt::Checked) {
+  if(startCheckBox->checkState() == Qt::Checked) {
     startFuncEdit->setDisabled(1);
   } else {
     startFuncEdit->setEnabled(1);
@@ -275,6 +266,10 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   samplePcCheckBox->setCheckState(project->samplePc ? Qt::Checked : Qt::Unchecked);
   connect(samplePcCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
 
+  startCheckBox = new QCheckBox("Start immediately");
+  startCheckBox->setCheckState(project->startImmediately ? Qt::Checked : Qt::Unchecked);
+  connect(startCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
+
   QHBoxLayout *startLayout = new QHBoxLayout;
   QLabel *startFuncLabel = new QLabel("Start location:");
   startLayout->addWidget(startFuncLabel);
@@ -318,6 +313,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   measurementsLayout->addWidget(samplingModeGpioCheckBox);
   measurementsLayout->addWidget(runTcfCheckBox);
   measurementsLayout->addWidget(samplePcCheckBox);
+  measurementsLayout->addWidget(startCheckBox);
   measurementsLayout->addLayout(startLayout);
   measurementsLayout->addLayout(stopAtLayout);
   measurementsLayout->addLayout(stopLayout);
@@ -445,6 +441,7 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
   project->runTcf = profPage->runTcfCheckBox->checkState() == Qt::Checked;
   project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
+  project->startImmediately = profPage->startCheckBox->checkState() == Qt::Checked;
 
   project->startFunc = profPage->startFuncEdit->text();
 
