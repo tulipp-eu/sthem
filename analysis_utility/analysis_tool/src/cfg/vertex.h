@@ -364,6 +364,7 @@ public:
     for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
       energy[i] = 0;
     }
+    *count = 0;
   }
 
   virtual void getMeasurements(unsigned core, QVector<BasicBlock*> callStack, QVector<Measurement> *measurements) {}
