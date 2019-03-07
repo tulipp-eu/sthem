@@ -18,7 +18,7 @@ CFLAGS = \
 LDFLAGS = -mcpu=cortex-m3 -mthumb -Wl,-Tmain.ld --specs=nosys.specs 
 ASFLAGS =
 
-#CFLAGS += -DUSE_FPGA_JTAG_CONTROLLER
+CFLAGS += -DUSE_FPGA_JTAG_CONTROLLER
 
 .PHONY: default
 default: lynsyn_main.bin
