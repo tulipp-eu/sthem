@@ -22,13 +22,6 @@
 #ifndef ZYNQ_H
 #define ZYNQ_H
 
-#define IDR_AHB_AP           0x04770001
-#define IDR_APB_AP           0x04770002
-#define IDR_AXI_AP           0x04770004
-
-#define CORTEXA9_TAP_IDCODE 0x4ba00477
-#define CORTEXA53_TAP_IDCODE 0x5ba00477
-
 #define JTAG_CTRL_ARM_DAP 2
 #define JTAG_CTRL_PL_TAP  1
 

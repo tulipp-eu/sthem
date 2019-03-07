@@ -24,16 +24,24 @@
 
 #include "lynsyn_main.h"
 #include "zynq.h"
-#include "cortex.h"
+#include "arm.h"
 #include "../common/usbprotocol.h"
 
 enum {
+  ARMV7A,
+  ARMV8A
+};
+
+enum {
   CORTEX_A9,
-  CORTEX_A53
+  CORTEX_A53,
+  CORTEX_A57,
+  DENVER_2
 };
 
 struct Core {
   unsigned type;
+  unsigned core;
   unsigned ap;
   uint32_t baddr;
   bool enabled;

@@ -26,17 +26,8 @@
 
 #define FPGA_CONFIGURE_TIMEOUT 96000000 // in cycles
 
-#ifdef USE_FPGA_JTAG_CONTROLLER
-
 #define MAX_SEQ_SIZE 256
 #define MAX_STORED_SEQ_SIZE 65536
-
-#else
-
-#define MAX_SEQ_SIZE INT_MAX
-#define MAX_STORED_SEQ_SIZE INT_MAX
-
-#endif
 
 void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData);
 void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData);

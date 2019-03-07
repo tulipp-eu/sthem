@@ -330,13 +330,13 @@ static void readWriteDrPost(unsigned postscan) {
 }
 
 static void dpLowAccessFast(uint8_t RnW, uint16_t addr, uint32_t value, bool discard) {
-  bool APnDP = addr & ADIV5_APnDP;
+  bool apndp = addr & APNDP;
   addr &= 0xff;
 
   int readBits = 3;
   if(RnW) readBits += 32;
 
-  writeIrInt(dpIdcode, APnDP ? JTAG_IR_APACC : JTAG_IR_DPACC);
+  writeIrInt(dpIdcode, apndp ? JTAG_IR_APACC : JTAG_IR_DPACC);
 
   unsigned postscan = readWriteDrPre(dpIdcode);
 
@@ -364,23 +364,23 @@ static void dpLowAccessFast(uint8_t RnW, uint16_t addr, uint32_t value, bool dis
 }
 
 static void dpReadFast(uint16_t addr) {
-  dpLowAccessFast(ADIV5_LOW_READ, addr, 0, true);
-  dpLowAccessFast(ADIV5_LOW_READ, ADIV5_DP_RDBUFF, 0, false);
+  dpLowAccessFast(LOW_READ, addr, 0, true);
+  dpLowAccessFast(LOW_READ, DP_RDBUFF, 0, false);
 }
 
 static void dpWriteFast(uint16_t addr, uint32_t value) {
-  dpLowAccessFast(ADIV5_LOW_WRITE, addr, value, true);
+  dpLowAccessFast(LOW_WRITE, addr, value, true);
 }
 
 static void apWriteFast(unsigned apSel, uint16_t addr, uint32_t value) {
-  dpWriteFast(ADIV5_DP_SELECT, ((uint32_t)apSel << 24)|(addr & 0xF0));
+  dpWriteFast(DP_SELECT, ((uint32_t)apSel << 24)|(addr & 0xF0));
   dpWriteFast(addr, value);
 }
 
 static void coreReadRegFast(struct Core core, uint16_t reg) {
   uint32_t addr = core.baddr + 4*reg;
-  apWriteFast(core.ap, ADIV5_AP_TAR, addr);
-  dpReadFast(ADIV5_AP_DRW);
+  apWriteFast(core.ap, AP_TAR, addr);
+  dpReadFast(AP_DRW);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -437,14 +437,14 @@ uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
 
   startRec();
 
-  bool APnDP = addr & ADIV5_APnDP;
+  bool apndp = addr & APNDP;
   addr &= 0xff;
   uint8_t ack = JTAG_ACK_WAIT;
 
   uint8_t response_buf[4];
   int tries = 1024;
 
-  writeIrInt(dpIdcode, APnDP ? JTAG_IR_APACC : JTAG_IR_DPACC);
+  writeIrInt(dpIdcode, apndp ? JTAG_IR_APACC : JTAG_IR_DPACC);
 
   sendRec();
 
@@ -598,13 +598,13 @@ void coreReadPcsrInit(void) {
 
   for(int i = 0; i < numCores; i++) {
     if(cores[i].type == CORTEX_A9) {
-      coreReadRegFast(cores[i], A9_PCSR);
+      coreReadRegFast(cores[i], ARMV7A_PCSR);
       fastBitsToRead += 44;
 
     } else if(cores[0].type == CORTEX_A53) {
       if(cores[i].enabled) {
-        coreReadRegFast(cores[i], A53_PCSR_H);
-        coreReadRegFast(cores[i], A53_PCSR_L);
+        coreReadRegFast(cores[i], ARMV8A_PCSR_H);
+        coreReadRegFast(cores[i], ARMV8A_PCSR_L);
 
         fastBitsToRead += 88;
       }
@@ -612,7 +612,7 @@ void coreReadPcsrInit(void) {
   }
 
   if(cores[stopCore].type == CORTEX_A53) {
-    coreReadRegFast(cores[stopCore], A53_PRSR);
+    coreReadRegFast(cores[stopCore], ARMV8A_PRSR);
     fastBitsToRead += 44;
   }
 

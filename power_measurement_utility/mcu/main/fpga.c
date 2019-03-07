@@ -294,7 +294,9 @@ static inline unsigned readBit(void) {
 
 static inline void writeBit(bool tdi, bool tms) {
   jtagPinWrite(false, tdi, tms);
+  readBit();
   jtagPinWrite(true, tdi, tms);
+  readBit();
 #ifdef DUMP_PINS
   printf("  Actual: TMS: %d TDI: %d TDO: %d\n", tms, tdi, readBit());
 #endif
@@ -427,7 +429,7 @@ bool fpgaInit(void) {
   GPIO_PinModeSet(FPGA_PORT, FPGA_RX_BIT, gpioModeInput, 0);
   GPIO_PinModeSet(FPGA_PORT, FPGA_CLK_BIT, gpioModePushPull, 0);
   GPIO_PinModeSet(FPGA_PORT, FPGA_CS_BIT, gpioModePushPull, 1);
-
+p
   USART_Reset(FPGA_USART);
 
   // enable clock
