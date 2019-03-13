@@ -88,14 +88,14 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
 
   double runtimeTop;
   double runtimeTopFrame;
-  double energyTop[Pmu::MAX_SENSORS];
-  double energyTopFrame[Pmu::MAX_SENSORS];
+  double energyTop[Pmu::sensors];
+  double energyTopFrame[Pmu::sensors];
   uint64_t countTop;
 
   double runtime;
   double runtimeFrame;
-  double power[Pmu::MAX_SENSORS], energy[Pmu::MAX_SENSORS];
-  double powerFrame[Pmu::MAX_SENSORS], energyFrame[Pmu::MAX_SENSORS];
+  double power[Pmu::sensors], energy[Pmu::sensors];
+  double powerFrame[Pmu::sensors], energyFrame[Pmu::sensors];
   uint64_t count;
 
   visualTop->getProfData(Config::core, visualTop->callStack, &runtimeTop, energyTop, &runtimeTopFrame, energyTopFrame, &countTop);
@@ -126,7 +126,7 @@ void Vertex::appendItems(QGraphicsItem *parent, Vertex *visualTop, QVector<Basic
     runtimeTopFrame = runtimeFrame;
     //printf("Runtime frame inconsistency: %f %f\n", runtimeTopFrame, runtimeFrame);
   }
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::sensors; i++) {
     if(energyTop[i] < energy[i]) {
       energyTop[i] = energy[i];
       //printf("Energy inconsistency: %f %f\n", energyTop[i], energy[i]);

@@ -38,7 +38,7 @@ class Profile {
 private:
   int64_t cycles;
   double runtime;
-  double energy[Pmu::MAX_SENSORS];
+  double energy[Pmu::sensors];
 
   void addMeasurement(Measurement measurement);
   int getId(unsigned core, BasicBlock *bb);
@@ -46,7 +46,7 @@ private:
 public:
   QString dbConnection;
 
-  std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[Pmu::MAX_CORES];
+  std::map<BasicBlock*, std::vector<Measurement>*> measurementsPerBb[Pmu::maxCores];
   QVector<Measurement> measurements;
 
   Profile();
@@ -104,10 +104,10 @@ public:
 	friend std::ostream& operator<<(std::ostream &os, const Profile &p) {
     // only streams out the necessary parts for DSE
 		os << p.getRuntime() << '\n';
-    for(unsigned i = 0; i < (Pmu::MAX_SENSORS-1); i++) {
+    for(unsigned i = 0; i < (Pmu::sensors-1); i++) {
       os << p.getEnergy(i) << '\n';
     }
-    os << p.getEnergy(Pmu::MAX_SENSORS-1);
+    os << p.getEnergy(Pmu::sensors-1);
 		return os;
 	}
 
@@ -116,7 +116,7 @@ public:
 		is >> runtime;
     p.setRuntime(runtime);
 
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       double energy;
       is >> energy;
       p.setEnergy(i, energy);

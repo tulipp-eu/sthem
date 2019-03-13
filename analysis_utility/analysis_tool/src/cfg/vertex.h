@@ -361,7 +361,7 @@ public:
   virtual void getProfData(unsigned core, QVector<BasicBlock*> callStack,
                            double *runtime, double *energy, double *runtimeFrame, double *energyFrame, uint64_t *count) {
     *runtime = 0;
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energy[i] = 0;
     }
     *count = 0;

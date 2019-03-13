@@ -27,7 +27,7 @@ Cfg::Cfg() : Container("", "", NULL, 0) {
 
   profile = NULL;
 
-  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::maxCores; i++) {
     unknownProfLine[i] = NULL;
   }
 }
@@ -35,7 +35,7 @@ Cfg::Cfg() : Container("", "", NULL, 0) {
 Cfg::~Cfg() {}
 
 void Cfg::clearCachedProfilingData() {
-  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::maxCores; i++) {
     unknownProfLine[i] = NULL;
   }
 

@@ -64,15 +64,17 @@ public slots:
   void setDefault(bool checked);
   void setDefaultUs(bool checked);
   void setDefaultHipperosUs(bool checked);
+  void setDefaultLinux(bool checked);
   void updateGui();
 
 public:
-  QPlainTextEdit *tcfUploadScriptEdit;
-  QLineEdit *rlEdit[LYNSYN_SENSORS];
-  QLineEdit *supplyVoltageEdit[LYNSYN_SENSORS];
+  QPlainTextEdit *uploadScriptEdit;
+  QCheckBox *runScriptCheckBox;
+  QLineEdit *interpreterEdit;
+  QLineEdit *rlEdit[Pmu::sensors];
+  QLineEdit *supplyVoltageEdit[Pmu::sensors];
 
   QCheckBox *samplingModeGpioCheckBox;
-  QCheckBox *runTcfCheckBox;
   QCheckBox *samplePcCheckBox;
   QCheckBox *startCheckBox;
 

@@ -35,11 +35,11 @@ class ProfLine {
 public:
   Vertex *vertex;
   double runtime;
-  double power[Pmu::MAX_SENSORS];
-  double energy[Pmu::MAX_SENSORS];
+  double power[Pmu::sensors];
+  double energy[Pmu::sensors];
   double runtimeFrame;
-  double powerFrame[Pmu::MAX_SENSORS];
-  double energyFrame[Pmu::MAX_SENSORS];
+  double powerFrame[Pmu::sensors];
+  double energyFrame[Pmu::sensors];
   QVector<Measurement> measurements;
 
   ProfLine() {}
@@ -50,7 +50,7 @@ public:
     this->vertex = vertex;
     this->runtime = runtime;
     this->runtimeFrame = runtimeFrame;
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       this->power[i] = power[i];
       this->energy[i]= energy[i];
       this->powerFrame[i] = powerFrame[i];

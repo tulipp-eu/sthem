@@ -26,5 +26,5 @@
 
 #include <QDataStream>
 
-unsigned Measurement::counter[Pmu::MAX_CORES] = {0};
+unsigned Measurement::counter[Pmu::maxCores] = {0};
 

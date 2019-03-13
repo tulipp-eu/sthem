@@ -354,7 +354,8 @@ void Project::loadProjectFile() {
   pmu.rl[6] = settings.value("rl6", 10).toDouble();
 
   samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
-  runTcf = settings.value("runTcf", true).toBool();
+  runScript = settings.value("runScript", true).toBool();
+  scriptInterpreter = settings.value("scriptInterpreter", "xsct").toString();
   samplePc = settings.value("samplePc", true).toBool();
   startImmediately = settings.value("startImmediately", false).toBool();
 
@@ -378,13 +379,13 @@ void Project::loadProjectFile() {
     cppOptLevel = settings.value("cppOptLevel", 0).toInt();
     cppOptions = settings.value("cppOptions", "").toString();
     linkerOptions = settings.value("linkerOptions", "").toString();
-    tcfUploadScript = settings.value("tcfUploadScript", "").toString();
+    uploadScript = settings.value("uploadScript", "").toString();
 
   } else {
     if(ultrascale) {
-      tcfUploadScript = settings.value("tcfUploadScript", DEFAULT_TCF_UPLOAD_SCRIPT_US).toString();
+      uploadScript = settings.value("uploadScript", DEFAULT_TCF_UPLOAD_SCRIPT_US).toString();
     } else {
-      tcfUploadScript = settings.value("tcfUploadScript", DEFAULT_TCF_UPLOAD_SCRIPT).toString();
+      uploadScript = settings.value("uploadScript", DEFAULT_TCF_UPLOAD_SCRIPT).toString();
     }
   }
 
@@ -404,12 +405,13 @@ void Project::saveProjectFile() {
     settings.setValue("rl" + QString::number(i), pmu.rl[i]);
   }
   settings.setValue("ultrascale", ultrascale);
-  settings.setValue("tcfUploadScript", tcfUploadScript);
+  settings.setValue("uploadScript", uploadScript);
 
   settings.setValue("customElfFile", customElfFile);
 
   settings.setValue("samplingModeGpio", samplingModeGpio);
-  settings.setValue("runTcf", runTcf);
+  settings.setValue("runScript", runScript);
+  settings.setValue("scriptInterpreter", scriptInterpreter);
   settings.setValue("samplePc", samplePc);
   settings.setValue("startImmediately", startImmediately);
 
@@ -564,14 +566,15 @@ void Project::copy(Project *p) {
 
   systemXmls = p->systemXmls;
   cfgOptLevel = p->cfgOptLevel;
-  tcfUploadScript = p->tcfUploadScript;
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
+  uploadScript = p->uploadScript;
+  for(unsigned i = 0; i < Pmu::sensors; i++) {
     pmu.rl[i] = p->pmu.rl[i];
     pmu.supplyVoltage[i] = p->pmu.supplyVoltage[i];
   }
 
   samplingModeGpio = p->samplingModeGpio;
-  runTcf = p->runTcf;
+  runScript = p->runScript;
+  scriptInterpreter = p->scriptInterpreter;
   samplePc = p->samplePc;
   startImmediately = p->startImmediately;
 
@@ -813,7 +816,7 @@ bool Project::parseGProfFile(QString gprofFileName, QString elfFileName) {
   printf("Core: %x\n", core);
 
   if(core == (unsigned)~0) {
-    core = QInputDialog::getInt(NULL, "Enter core", "Core that produced the data file:", 0, 0, LYNSYN_MAX_CORES-1);
+    core = QInputDialog::getInt(NULL, "Enter core", "Core that produced the data file:", 0, 0, Pmu::maxCores-1);
   }
 
   getLocations(core, &locations);
@@ -942,8 +945,8 @@ bool Project::parseProfFile(QString fileName) {
 
   unsigned core = 0;
   unsigned sensor = 0;
-  double offsetData[LYNSYN_SENSORS];
-  double gainData[LYNSYN_SENSORS];
+  double offsetData[Pmu::sensors];
+  double gainData[Pmu::sensors];
   double period = 0;
   double unknownPower = 0;
   double unknownRuntime = 0;
@@ -951,7 +954,7 @@ bool Project::parseProfFile(QString fileName) {
 
   file.read((char*)&core, sizeof(uint8_t));
   file.read((char*)&sensor, sizeof(uint8_t));
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::sensors; i++) {
     file.read((char*)&offsetData[i], sizeof(double));
     file.read((char*)&gainData[i], sizeof(double));
   }
@@ -965,7 +968,7 @@ bool Project::parseProfFile(QString fileName) {
   db.transaction();
 
   if((unknownPower != 0) || (unknownRuntime != 0)) {
-    double energy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
+    double energy[Pmu::sensors] = {0, 0, 0, 0, 0, 0, 0};
     if(unknownRuntime) {
       energy[sensor] = unknownPower * unknownRuntime;
     }
@@ -994,7 +997,7 @@ bool Project::parseProfFile(QString fileName) {
   }
 
   double totalRuntime = 0;
-  double totalEnergy[LYNSYN_SENSORS] = {0, 0, 0, 0, 0, 0, 0};
+  double totalEnergy[Pmu::sensors] = {0, 0, 0, 0, 0, 0, 0};
 
   for(uint32_t i = 0; i < count; i++) {
     uint64_t pc;
@@ -1096,6 +1099,30 @@ bool Project::parseProfFile(QString fileName) {
   return true;
 }
 
+bool Project::runUploadScript() {
+  // upload binaries
+  QFile file("temp-pmu-prof.script");
+  bool success = file.open(QIODevice::WriteOnly);
+  Q_UNUSED(success);
+  assert(success);
+
+  QString script = uploadScript;
+
+  if(instrument) {
+    script.replace("%name%", name + "_instrumented");
+  } else {
+    script.replace("%name%", name);
+  }
+      
+  file.write(script.toUtf8());
+
+  file.close();
+
+  QString commandLine = scriptInterpreter + " temp-pmu-prof.script";
+
+  return system(commandLine.toUtf8().constData()) == 0;
+}
+
 bool Project::runProfiler() {
   QSqlDatabase db;
   {
@@ -1118,32 +1145,13 @@ bool Project::runProfiler() {
     return false;
   }
 
-  if(!runTcf) {
+  if(!runScript) {
     emit advance(0, "Skipping upload");
 
   } else {
     emit advance(0, "Uploading binary");
 
-    // upload binaries
-    QFile tclFile("temp-pmu-prof.tcl");
-    bool success = tclFile.open(QIODevice::WriteOnly);
-    Q_UNUSED(success);
-    assert(success);
-
-    QString tcl;
-
-    if(instrument) {
-      tcl = QString() + "set name " + name + "_instrumented\n" + tcfUploadScript;
-    } else {
-      tcl = QString() + "set name " + name + "\n" + tcfUploadScript;
-    }
-      
-    tclFile.write(tcl.toUtf8());
-
-    tclFile.close();
-
-    int ret = system("xsct temp-pmu-prof.tcl");
-    if(ret) {
+    if(!runUploadScript()) {
       emit finished(1, "Can't upload binaries");
       pmu.release();
       return false;
@@ -1153,10 +1161,10 @@ bool Project::runProfiler() {
   uint64_t samples = 0;
   int64_t minTime = 0;
   int64_t maxTime = 0;
-  double minPower[LYNSYN_SENSORS] = {0};
-  double maxPower[LYNSYN_SENSORS] = {0};
+  double minPower[Pmu::sensors] = {0};
+  double maxPower[Pmu::sensors] = {0};
   double runtime = 0;
-  double energy[LYNSYN_SENSORS] = {0};
+  double energy[Pmu::sensors] = {0};
 
   // collect samples
   {
@@ -1165,7 +1173,7 @@ bool Project::runProfiler() {
     uint64_t startAddr = 0;
     uint64_t stopAddr = 0;
 
-    if(runTcf) {
+    if(runScript) {
       startAddr = elfSupport.lookupSymbol(startFunc);
       if(!startAddr) {
         emit finished(1, "Start location not found");
@@ -1185,7 +1193,7 @@ bool Project::runProfiler() {
 
     uint64_t frameAddr = elfSupport.lookupSymbol(frameFunc);
 
-    bool ret = pmu.collectSamples(runTcf, frameAddr, !startImmediately, stopAt, samplePc, samplingModeGpio, 
+    bool ret = pmu.collectSamples(runScript, frameAddr, !startImmediately, stopAt, samplePc, samplingModeGpio, 
                                   Pmu::secondsToCycles(samplePeriod), startAddr, stopAddr,
                                   &samples, &minTime, &maxTime, minPower, maxPower, &runtime, energy);
     if(!ret) {
@@ -1229,15 +1237,15 @@ bool Project::runProfiler() {
 
   if(frameCount) frameRuntimeAvg /= frameCount;
   
-  double frameEnergyMin[LYNSYN_SENSORS] = {0};
-  double frameEnergyMax[LYNSYN_SENSORS] = {0};
-  double frameEnergyAvg[LYNSYN_SENSORS] = {0};
-  double currentFrameEnergy[LYNSYN_SENSORS] = {0};
+  double frameEnergyMin[Pmu::sensors] = {0};
+  double frameEnergyMax[Pmu::sensors] = {0};
+  double frameEnergyAvg[Pmu::sensors] = {0};
+  double currentFrameEnergy[Pmu::sensors] = {0};
 
   {
     emit advance(2, "Processing samples");
 
-    std::map<BasicBlock*,Location*> locations[LYNSYN_MAX_CORES];
+    std::map<BasicBlock*,Location*> locations[Pmu::maxCores];
 
     QSqlQuery query(db);
     query.setForwardOnly(true);
@@ -1274,7 +1282,7 @@ bool Project::runProfiler() {
 
           if(currentFrame == 1) {
             // first frame
-            for(int i = 0; i < LYNSYN_SENSORS; i++) {
+            for(unsigned i = 0; i < Pmu::sensors; i++) {
               frameEnergyMin[i] = 0;
               frameEnergyMax[i] = 0;
               frameEnergyAvg[i] = 0;
@@ -1284,8 +1292,8 @@ bool Project::runProfiler() {
           } else {
             // next frame
             frameCount++;
-            for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
-            for(int i = 0; i < LYNSYN_SENSORS; i++) {
+            for(unsigned core = 0; core < Pmu::maxCores; core++) for(auto location : locations[core]) location.second->addToAvg(frames.size()-1);
+            for(unsigned i = 0; i < Pmu::sensors; i++) {
               if(currentFrameEnergy[i] > frameEnergyMax[i]) frameEnergyMax[i] = currentFrameEnergy[i];
               if((frameEnergyMin[i] == 0) || (currentFrameEnergy[i] < frameEnergyMin[i])) frameEnergyMin[i] = currentFrameEnergy[i];
               frameEnergyAvg[i] += currentFrameEnergy[i];
@@ -1293,14 +1301,14 @@ bool Project::runProfiler() {
             }
           }
 
-          for(int core = 0; core < LYNSYN_MAX_CORES; core++) for(auto location : locations[core]) location.second->clearFrameData();
+          for(unsigned core = 0; core < Pmu::maxCores; core++) for(auto location : locations[core]) location.second->clearFrameData();
         }
       }
 
-      QString bbText[LYNSYN_MAX_CORES];
-      QString modText[LYNSYN_MAX_CORES];
+      QString bbText[Pmu::maxCores];
+      QString modText[Pmu::maxCores];
 
-      uint64_t pc[LYNSYN_MAX_CORES];
+      uint64_t pc[Pmu::maxCores];
       pc[0] = query.value("pc1").toULongLong();
       pc[1] = query.value("pc2").toULongLong();
       pc[2] = query.value("pc3").toULongLong();
@@ -1308,7 +1316,7 @@ bool Project::runProfiler() {
 
       int64_t timeSinceLast = query.value("timeSinceLast").toLongLong();
 
-      double power[LYNSYN_SENSORS];
+      double power[Pmu::sensors];
       power[0] = query.value("power1").toDouble();
       power[1] = query.value("power2").toDouble();
       power[2] = query.value("power3").toDouble();
@@ -1317,16 +1325,16 @@ bool Project::runProfiler() {
       power[5] = query.value("power6").toDouble();
       power[6] = query.value("power7").toDouble();
 
-      for(int i = 0; i < LYNSYN_SENSORS; i++) currentFrameEnergy[i] += power[i] * Pmu::cyclesToSeconds(timeSinceLast);
+      for(unsigned i = 0; i < Pmu::sensors; i++) currentFrameEnergy[i] += power[i] * Pmu::cyclesToSeconds(timeSinceLast);
 
-      for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
+      for(unsigned core = 0; core < Pmu::maxCores; core++) {
         Location *location = getLocation(core, pc[core], &elfSupport, &locations[core]);
 
         bbText[core] = location->bbId;
         modText[core] = location->moduleId;
 
         location->updateRuntime(Pmu::cyclesToSeconds(timeSinceLast));
-        for(int sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
+        for(unsigned sensor = 0; sensor < Pmu::sensors; sensor++) {
           location->updateEnergy(sensor, power[sensor] * Pmu::cyclesToSeconds(timeSinceLast));
         }
       }
@@ -1349,7 +1357,7 @@ bool Project::runProfiler() {
     }
 
     if(frameCount > 1) {
-      for(int i = 0; i < LYNSYN_SENSORS; i++) {
+      for(unsigned i = 0; i < Pmu::sensors; i++) {
         frameEnergyAvg[i] /= frameCount;
       }
     }
@@ -1360,7 +1368,7 @@ bool Project::runProfiler() {
 
     db.transaction();
 
-    for(unsigned c = 0; c < LYNSYN_MAX_CORES; c++) {
+    for(unsigned c = 0; c < Pmu::maxCores; c++) {
       for(auto location : locations[c]) {
         QSqlQuery query(db);
 
@@ -1505,20 +1513,7 @@ bool Project::runApp() {
 
   emit advance(0, "Uploading binary");
 
-  // upload binaries
-  QFile tclFile("temp-pmu-prof.tcl");
-  bool success = tclFile.open(QIODevice::WriteOnly);
-  Q_UNUSED(success);
-  assert(success);
-
-  QString tcl = QString() + "set name " + name + "\n" + tcfUploadScript + "con\n";
-      
-  tclFile.write(tcl.toUtf8());
-
-  tclFile.close();
-
-  int ret = system("xsct temp-pmu-prof.tcl");
-  if(ret) {
+  if(!runUploadScript()) {
     emit finished(1, "Can't upload binaries");
     return false;
   }

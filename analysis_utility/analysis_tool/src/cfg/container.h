@@ -55,11 +55,11 @@ class Container : public Vertex {
 protected:
   bool expanded; // this container is expanded and displays its children
 
-  ProfLine *cachedProfLine[Pmu::MAX_CORES];
+  ProfLine *cachedProfLine[Pmu::maxCores];
   double cachedRuntime;
   double cachedRuntimeFrame;
-  double cachedEnergy[Pmu::MAX_SENSORS];
-  double cachedEnergyFrame[Pmu::MAX_SENSORS];
+  double cachedEnergy[Pmu::sensors];
+  double cachedEnergyFrame[Pmu::sensors];
   uint64_t cachedCount;
 
 public:
@@ -72,12 +72,12 @@ public:
   Container(QString id, QString name, Container *parent, unsigned treeviewRow, QString sourceFilename = "", unsigned sourceLineNumber = 1, unsigned sourceColumn = 1) : Vertex(id, name, parent, sourceFilename, sourceLineNumber, sourceColumn) {
     expanded = false;
     this->treeviewRow = treeviewRow;
-    for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
+    for(unsigned i = 0; i < Pmu::maxCores; i++) {
       cachedProfLine[i] = NULL;
     }
     cachedRuntime = INT_MAX;
     cachedRuntimeFrame = INT_MAX;
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       cachedEnergy[i] = INT_MAX;
       cachedEnergyFrame[i] = INT_MAX;
     }
@@ -217,11 +217,11 @@ public:
     for(auto child : children) {
       child->clearCachedProfilingData();
     }
-    for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
+    for(unsigned i = 0; i < Pmu::maxCores; i++) {
       cachedProfLine[i] = NULL;
     }
     cachedRuntime = INT_MAX;
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       cachedEnergy[i] = INT_MAX;
     }
   }

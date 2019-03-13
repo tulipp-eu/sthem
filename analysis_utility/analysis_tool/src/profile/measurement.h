@@ -40,7 +40,7 @@ public:
   unsigned core;
   BasicBlock *bb;
 
-  static unsigned counter[Pmu::MAX_CORES];
+  static unsigned counter[Pmu::maxCores];
 
   Measurement() {}
 

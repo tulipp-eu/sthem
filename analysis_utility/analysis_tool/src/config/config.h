@@ -34,10 +34,10 @@
   "targets -set -nocase -filter {name =~\"ARM*#0\"} -index 0\n"                                                     \
   "rst -system\n"                                                   \
   "after 3000\n"                                                    \
-  "while {[catch {fpga -file $name.elf.bit}] eq 1} {rst -system}\n" \
+  "while {[catch {fpga -file %name%.elf.bit}] eq 1} {rst -system}\n" \
   "ps7_init\n"                                                      \
   "ps7_post_config\n"                                               \
-  "dow $name.elf\n"
+  "dow %name%.elf\n"
 
 #define DEFAULT_TCF_UPLOAD_SCRIPT_US \
   "connect\n" \
@@ -50,7 +50,7 @@
   "\n" \
   "after 3000\n" \
   "\n" \
-  "fpga -file $name.elf.bit\n" \
+  "fpga -file %name%.elf.bit\n" \
   "configparams force-mem-access 1\n" \
   "\n" \
   "targets -set -nocase -filter {name =~\"APU*\"} -index 1\n" \
@@ -64,7 +64,7 @@
   "\n" \
   "targets -set -nocase -filter {name =~ \"*A53*0\"}\n" \
   "rst -processor\n" \
-  "dow $name.elf\n" \
+  "dow %name%.elf\n" \
   "configparams force-mem-access 0\n" \
   "after 1000\n"
 
@@ -97,6 +97,9 @@
   "targets -set -nocase -filter {name =~ \"*A53*3\"}\n" \
   "con\n" \
   "after 10\n"
+
+#define DEFAULT_UPLOAD_SCRIPT_LINUX \
+  "echo \"hei %name%\"\n"
 
 class Config {
 

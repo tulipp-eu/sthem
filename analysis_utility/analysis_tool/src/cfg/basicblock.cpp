@@ -133,8 +133,8 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
               if(!callStack.contains(this)) {
                 double runtimeChild;
                 double runtimeChildFrame;
-                double energyChild[Pmu::MAX_SENSORS];
-                double energyChildFrame[Pmu::MAX_SENSORS];
+                double energyChild[Pmu::sensors];
+                double energyChildFrame[Pmu::sensors];
                 uint64_t countChild;
                 callStack.push_back(this);
                 func->getProfData(core, callStack, &runtimeChild, energyChild, &runtimeChildFrame, energyChildFrame, &countChild);
@@ -142,7 +142,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
                 if((func->callers == 1) && (func->caller.contains(this))) {
                   cachedRuntime += runtimeChild;
                   cachedRuntimeFrame += runtimeChildFrame;
-                  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+                  for(unsigned i = 0; i < Pmu::sensors; i++) {
                     cachedEnergy[i] += energyChild[i];
                     cachedEnergyFrame[i] += energyChildFrame[i];
                   }
@@ -151,7 +151,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
 
                   cachedRuntime += runtimeChild * ratio;
                   cachedRuntimeFrame += runtimeChildFrame * ratio;
-                  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+                  for(unsigned i = 0; i < Pmu::sensors; i++) {
                     cachedEnergy[i] += energyChild[i] * ratio;
                     cachedEnergyFrame[i] += energyChildFrame[i] * ratio;
                   }
@@ -164,7 +164,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
     } else {
       cachedRuntime = 0;
       cachedRuntimeFrame = 0;
-      for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+      for(unsigned i = 0; i < Pmu::sensors; i++) {
         cachedEnergy[i] = 0;
         cachedEnergyFrame[i] = 0;
       }
@@ -174,7 +174,7 @@ void BasicBlock::getProfData(unsigned core, QVector<BasicBlock*> callStack,
 
   *runtime = cachedRuntime;
   *runtimeFrame = cachedRuntimeFrame;
-  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::sensors; i++) {
     energy[i] = cachedEnergy[i];
     energyFrame[i] = cachedEnergyFrame[i];
   }

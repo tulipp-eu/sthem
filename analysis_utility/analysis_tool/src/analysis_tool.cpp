@@ -42,8 +42,8 @@ bool getProfData(Analysis &analysis,
   }
 
   double runtimeFrame;
-  double energyAll[LYNSYN_SENSORS];
-  double energyFrame[LYNSYN_SENSORS];
+  double energyAll[Pmu::sensors];
+  double energyFrame[Pmu::sensors];
 
   func->getProfData(core, QVector<BasicBlock*>(), runtime, energyAll, &runtimeFrame, energyFrame, count);
   *energy = energyAll[sensor];

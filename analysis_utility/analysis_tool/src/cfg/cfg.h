@@ -34,7 +34,7 @@ class Profile;
 class Cfg : public Container {
 
 private:
-  ProfLine *unknownProfLine[Pmu::MAX_CORES];
+  ProfLine *unknownProfLine[Pmu::maxCores];
   Profile *profile;
 
 public:

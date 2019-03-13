@@ -232,7 +232,7 @@ bool Pmu::init() {
 
       printf("Lynsyn Hardware %x Firmware %x\n", hwVersion, swVersion);
 
-      for(unsigned i = 0; i < MAX_SENSORS; i++) {
+      for(unsigned i = 0; i < sensors; i++) {
         if((initReplyV1_0->calibration[i] < 0.8) || (initReplyV1_0->calibration[i] > 1.2)) {
           printf("Suspect calibration values\n");
           return false;
@@ -245,7 +245,7 @@ bool Pmu::init() {
 
       struct CalInfoPacket calInfo;
       getBytes((uint8_t*)&calInfo, sizeof(struct CalInfoPacket));
-      for(unsigned i = 0; i < MAX_SENSORS; i++) {
+      for(unsigned i = 0; i < sensors; i++) {
         if((calInfo.gain[i] < 0.8) || (calInfo.gain[i] > 1.2)) {
           printf("Suspect calibration values\n");
           return true; //only for test
@@ -456,7 +456,7 @@ bool Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsi
   *samples = 0;
   *minTime = 0;
   *maxTime = 0;
-  for(int i = 0; i < LYNSYN_SENSORS; i++) {
+  for(unsigned i = 0; i < sensors; i++) {
     minPower[i] = INT_MAX;
     maxPower[i] = 0;
     energy[i] = 0;
@@ -522,9 +522,9 @@ bool Pmu::collectSamples(bool useFrame, uint64_t frameAddr, bool startAtBp, unsi
 
         lastTime = sample->time;
 
-        double power[LYNSYN_SENSORS];
+        double power[sensors];
 
-        for(int i = 0; i < LYNSYN_SENSORS; i++) {
+        for(unsigned i = 0; i < sensors; i++) {
           power[i] = currentToPower(i, sample->current[i]);
           if(power[i] < minPower[i]) minPower[i] = power[i];
           if(power[i] > maxPower[i]) maxPower[i] = power[i];

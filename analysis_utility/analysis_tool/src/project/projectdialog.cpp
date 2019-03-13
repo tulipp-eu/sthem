@@ -152,18 +152,27 @@ ProjectBuildPage::ProjectBuildPage(Project *project, QWidget *parent) : QWidget(
 }
 
 void ProjectProfPage::setDefault(bool checked) {
-  tcfUploadScriptEdit->clear();
-  tcfUploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT);
+  uploadScriptEdit->clear();
+  uploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT);
+  interpreterEdit->setText("xsct");
 }
 
 void ProjectProfPage::setDefaultUs(bool checked) {
-  tcfUploadScriptEdit->clear();
-  tcfUploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT_US);
+  uploadScriptEdit->clear();
+  uploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT_US);
+  interpreterEdit->setText("xsct");
 }
 
 void ProjectProfPage::setDefaultHipperosUs(bool checked) {
-  tcfUploadScriptEdit->clear();
-  tcfUploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT_HIPPEROS_US);
+  uploadScriptEdit->clear();
+  uploadScriptEdit->insertPlainText(DEFAULT_TCF_UPLOAD_SCRIPT_HIPPEROS_US);
+  interpreterEdit->setText("xsct");
+}
+
+void ProjectProfPage::setDefaultLinux(bool checked) {
+  uploadScriptEdit->clear();
+  uploadScriptEdit->insertPlainText(DEFAULT_UPLOAD_SCRIPT_LINUX);
+  interpreterEdit->setText("bash");
 }
 
 ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(parent) {
@@ -174,19 +183,34 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
 
   //----------------------------------------------------------------------------
 
-  QGroupBox *tcfGroup = new QGroupBox("Xilinx debugger settings");
+  QGroupBox *uploadGroup = new QGroupBox("Upload settings");
 
-  QLabel *tcfUploadScriptLabel = new QLabel("TCF upload script:");
-  tcfUploadScriptEdit = new QPlainTextEdit;
-  tcfUploadScriptEdit->setFixedHeight((m.lineSpacing()+2) * 10);
-  tcfUploadScriptEdit->setFixedWidth(m.maxWidth() * 20);
-  tcfUploadScriptEdit->insertPlainText(project->tcfUploadScript);
-  QVBoxLayout *tcfUploadScriptLayout = new QVBoxLayout;
-  tcfUploadScriptLayout->addWidget(tcfUploadScriptLabel);
-  tcfUploadScriptLayout->addWidget(tcfUploadScriptEdit);
+  QLabel *uploadScriptLabel = new QLabel("Upload script:");
+  uploadScriptEdit = new QPlainTextEdit;
+  uploadScriptEdit->setFixedHeight((m.lineSpacing()+2) * 10);
+  uploadScriptEdit->setFixedWidth(m.maxWidth() * 20);
+  uploadScriptEdit->insertPlainText(project->uploadScript);
+  QVBoxLayout *uploadScriptLayout = new QVBoxLayout;
+  uploadScriptLayout->addWidget(uploadScriptLabel);
+  uploadScriptLayout->addWidget(uploadScriptEdit);
 
-  QVBoxLayout *tcfLayout = new QVBoxLayout;
-  tcfLayout->addLayout(tcfUploadScriptLayout);
+  QVBoxLayout *uploadLayout = new QVBoxLayout;
+  uploadLayout->addLayout(uploadScriptLayout);
+
+  QHBoxLayout *interpreterLayout = new QHBoxLayout;
+  QLabel *interpreterLabel = new QLabel("Script interpreter:");
+  interpreterLayout->addWidget(interpreterLabel);
+  interpreterEdit = new QLineEdit(project->scriptInterpreter);
+  interpreterLayout->addWidget(interpreterEdit);
+  interpreterLayout->addStretch(1);
+
+  uploadLayout->addLayout(interpreterLayout);
+
+  runScriptCheckBox = new QCheckBox("Upload binary and reset");
+  runScriptCheckBox->setCheckState(project->runScript ? Qt::Checked : Qt::Unchecked);
+  connect(runScriptCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
+
+  uploadLayout->addWidget(runScriptCheckBox);
 
   if(!project->isSdSocProject()) {
     QPushButton *defaultButton = new QPushButton("Default (Zynq)");
@@ -198,20 +222,24 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
     QPushButton *defaultHipperosUsButton = new QPushButton("Default HIPPEROS (Zynq Ultrascale+)");
     connect(defaultHipperosUsButton, SIGNAL(clicked(bool)), this, SLOT(setDefaultHipperosUs(bool)));
 
-    QHBoxLayout *buttonLayout = new QHBoxLayout;
-    buttonLayout->addWidget(defaultButton);
-    buttonLayout->addWidget(defaultUsButton);
-    buttonLayout->addStretch(1);
-    tcfLayout->addLayout(buttonLayout);
+    QPushButton *defaultLinuxButton = new QPushButton("Default Linux");
+    connect(defaultLinuxButton, SIGNAL(clicked(bool)), this, SLOT(setDefaultLinux(bool)));
 
-    QHBoxLayout *buttonLayoutHipperos = new QHBoxLayout;
-    buttonLayoutHipperos->addWidget(defaultHipperosUsButton);
-    buttonLayoutHipperos->addStretch(1);
-    tcfLayout->addLayout(buttonLayoutHipperos);
+    QHBoxLayout *buttonLayout1 = new QHBoxLayout;
+    buttonLayout1->addWidget(defaultButton);
+    buttonLayout1->addWidget(defaultUsButton);
+    buttonLayout1->addStretch(1);
+    uploadLayout->addLayout(buttonLayout1);
+
+    QHBoxLayout *buttonLayout2 = new QHBoxLayout;
+    buttonLayout2->addWidget(defaultHipperosUsButton);
+    buttonLayout2->addWidget(defaultLinuxButton);
+    buttonLayout2->addStretch(1);
+    uploadLayout->addLayout(buttonLayout2);
   }
 
-  tcfLayout->addStretch(1);
-  tcfGroup->setLayout(tcfLayout);
+  uploadLayout->addStretch(1);
+  uploadGroup->setLayout(uploadLayout);
 
   //---------------------------------------------------------------------------
 
@@ -266,10 +294,6 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   samplingModeGpioCheckBox = new QCheckBox("GPIO controlled sampling");
   samplingModeGpioCheckBox->setCheckState(project->samplingModeGpio ? Qt::Checked : Qt::Unchecked);
 
-  runTcfCheckBox = new QCheckBox("Upload binary and reset");
-  runTcfCheckBox->setCheckState(project->runTcf ? Qt::Checked : Qt::Unchecked);
-  connect(runTcfCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
-
   samplePcCheckBox = new QCheckBox("Sample PC");
   samplePcCheckBox->setCheckState(project->samplePc ? Qt::Checked : Qt::Unchecked);
   connect(samplePcCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
@@ -319,7 +343,6 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   QVBoxLayout *measurementsLayout = new QVBoxLayout;
   measurementsLayout->addLayout(customElfLayout);
   measurementsLayout->addWidget(samplingModeGpioCheckBox);
-  measurementsLayout->addWidget(runTcfCheckBox);
   measurementsLayout->addWidget(samplePcCheckBox);
   measurementsLayout->addWidget(startCheckBox);
   measurementsLayout->addLayout(startLayout);
@@ -333,7 +356,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   //---------------------------------------------------------------------------
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addWidget(tcfGroup);
+  mainLayout->addWidget(uploadGroup);
   mainLayout->addWidget(lynsynGroup);
   mainLayout->addWidget(targetGroup);
   mainLayout->addWidget(measurementsGroup);
@@ -444,10 +467,12 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
     project->pmu.rl[i] = profPage->rlEdit[i]->text().toDouble();
   }
 
-  project->tcfUploadScript = profPage->tcfUploadScriptEdit->toPlainText();
+  project->uploadScript = profPage->uploadScriptEdit->toPlainText();
+
+  project->scriptInterpreter = profPage->interpreterEdit->text();
 
   project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
-  project->runTcf = profPage->runTcfCheckBox->checkState() == Qt::Checked;
+  project->runScript = profPage->runScriptCheckBox->checkState() == Qt::Checked;
   project->samplePc = profPage->samplePcCheckBox->checkState() == Qt::Checked;
   project->startImmediately = profPage->startCheckBox->checkState() == Qt::Checked;
 

@@ -36,7 +36,7 @@ private:
     runtime = 0;
     runtimeFrame = 0;
     runtimeFrameAvg = 0;
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energy[i] = 0;
       energyFrame[i] = 0;
       energyFrameAvg[i] = 0;
@@ -57,13 +57,13 @@ public:
   std::map<int,int> callers;
 
   double runtime;
-  double energy[LYNSYN_SENSORS];
+  double energy[Pmu::sensors];
 
   double runtimeFrame;
-  double energyFrame[LYNSYN_SENSORS];
+  double energyFrame[Pmu::sensors];
 
   double runtimeFrameAvg;
-  double energyFrameAvg[LYNSYN_SENSORS];
+  double energyFrameAvg[Pmu::sensors];
 
   uint64_t loopCount;
 
@@ -101,14 +101,14 @@ public:
 
   void clearFrameData() {
     runtimeFrame = 0;
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energyFrame[i] = 0;
     }
   }
 
   void addToAvg(unsigned totalFrames) {
     runtimeFrameAvg += runtimeFrame / totalFrames;
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energyFrameAvg[i] += energyFrame[i] / totalFrames;
     }
   }

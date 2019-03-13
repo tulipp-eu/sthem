@@ -56,6 +56,7 @@ protected:
   void copy(Project *p);
   Location *getLocation(unsigned core, uint64_t pc, ElfSupport *elfSupport, std::map<BasicBlock*,Location*> *locations);
   void getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations);
+  bool runUploadScript();
 
 public:
   Profile *profile;
@@ -68,11 +69,12 @@ public:
   // user specified settings
   QStringList systemXmls;
   int cfgOptLevel;
-  QString tcfUploadScript;
+  QString uploadScript;
   Pmu pmu;
 
   bool samplingModeGpio;
-  bool runTcf;
+  bool runScript;
+  QString scriptInterpreter;
   bool samplePc;
   bool startImmediately;
 

@@ -80,7 +80,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   connect(windowBox, SIGNAL(activated(int)), this, SLOT(changeWindow(int)));
 
   sensorBox = new QComboBox();
-  for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+  for(unsigned i = 0; i < Pmu::sensors; i++) {
     sensorBox->addItem(QString("Sensor ") + QString::number(i+1));
   }
   connect(sensorBox, SIGNAL(activated(int)), this, SLOT(changeSensor(int)));
@@ -271,7 +271,7 @@ MainWindow::MainWindow(Analysis *analysis) {
     msgBox.exec();
   }
 
-  for(unsigned i = 0; i < Pmu::MAX_CORES; i++) {
+  for(unsigned i = 0; i < Pmu::maxCores; i++) {
     coreBox->addItem(QString("Core ") + QString::number(i));
   }
 
@@ -1026,7 +1026,7 @@ void MainWindow::showProfileSummary() {
     messageTextStream << "<tr>";
     messageTextStream << "<td>Total runtime:</td><td>" << analysis->profile->getRuntime() << "s</td>";
     messageTextStream << "</tr>";
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       messageTextStream << "<tr>";
       messageTextStream << "<td>Total energy " << QString::number(i+1) << ":</td><td>" << analysis->profile->getEnergy(i) << "J</td>";
       messageTextStream << "</tr>";
@@ -1087,7 +1087,7 @@ void MainWindow::showFrameSummary() {
     messageTextStream << "<td><b>Max energy</b></td>";
     messageTextStream << "</tr>";
 
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       double min = analysis->profile->getFrameEnergyMin(i);
       double avg = analysis->profile->getFrameEnergyAvg(i);
       double max = analysis->profile->getFrameEnergyMax(i);

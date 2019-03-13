@@ -203,15 +203,15 @@ double idlePower = 0;
 void dumpLoop(unsigned core, unsigned sensor, Function *function, Loop *loop) {
   double runtime;
   double runtimeFrame;
-  double energy[LYNSYN_SENSORS];
-  double energyFrame[LYNSYN_SENSORS];
-  double energyOffset[LYNSYN_SENSORS];
-  //double energyFrameOffset[LYNSYN_SENSORS];
+  double energy[Pmu::sensors];
+  double energyFrame[Pmu::sensors];
+  double energyOffset[Pmu::sensors];
+  //double energyFrameOffset[Pmu::sensors];
   uint64_t dummyCount;
 
   loop->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &dummyCount);
   if(runtime > 0) {
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energyOffset[i] = energy[i] - idlePower * runtime;
       //energyFrameOffset[i] = energyFrame[i] - idlePower * runtimeFrame;
     }
@@ -243,15 +243,15 @@ void Analysis::dump(unsigned core, unsigned sensor) {
 
       double runtime;
       double runtimeFrame;
-      double energy[LYNSYN_SENSORS];
-      double energyFrame[LYNSYN_SENSORS];
-      double energyOffset[LYNSYN_SENSORS];
-      //double energyFrameOffset[LYNSYN_SENSORS];
+      double energy[Pmu::sensors];
+      double energyFrame[Pmu::sensors];
+      double energyOffset[Pmu::sensors];
+      //double energyFrameOffset[Pmu::sensors];
       uint64_t count;
 
       function->getProfData(core, QVector<BasicBlock*>(), &runtime, energy, &runtimeFrame, energyFrame, &count);
       if(runtime > 0) { // && (count > 0)) {
-        for(int i = 0; i < LYNSYN_SENSORS; i++) {
+        for(unsigned i = 0; i < Pmu::sensors; i++) {
           energyOffset[i] = energy[i] - idlePower * runtime;
           //energyFrameOffset[i] = energyFrame[i] - idlePower * runtimeFrame;
         }

@@ -120,7 +120,7 @@ void Profile::update() {
   } else {
     cycles = 0;
     runtime = 0;
-    for(unsigned i = 0; i < Pmu::MAX_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energy[i] = 0;
     }
   }
@@ -159,7 +159,7 @@ void Profile::clean() {
 }
 
 void Profile::setMeasurements(QVector<Measurement> *measurements) {
-  for(unsigned core = 0; core < Pmu::MAX_CORES; core++) {
+  for(unsigned core = 0; core < Pmu::maxCores; core++) {
     measurementsPerBb[core].clear();
   }
   this->measurements.clear();
@@ -249,7 +249,7 @@ void Profile::getProfData(unsigned core, BasicBlock *bb,
   } else {
     *runtime = 0;
     *runtimeFrame = 0;
-    for(int i = 0; i < LYNSYN_SENSORS; i++) {
+    for(unsigned i = 0; i < Pmu::sensors; i++) {
       energy[i] = 0;
       energyFrame[i] = 0;
     }
@@ -356,7 +356,7 @@ void Profile::addExternalFunctions(Cfg *cfg) {
 }
 
 void Profile::clear() {
-  for(unsigned core = 0; core < Pmu::MAX_CORES; core++) {
+  for(unsigned core = 0; core < Pmu::maxCores; core++) {
     for(auto const &it : measurementsPerBb[core]) {
       delete it.second;
     }
@@ -503,13 +503,13 @@ bool Profile::exportMeasurements(QString fileName, Cfg *cfg) {
     double time = Pmu::cyclesToSeconds(query.value("time").toLongLong() - minTime);
     measurement += QString::number(time);
 
-    for(int sensor = 0; sensor < LYNSYN_SENSORS; sensor++) {
+    for(unsigned sensor = 0; sensor < Pmu::sensors; sensor++) {
       double power = query.value("power" + QString::number(sensor+1)).toDouble();
       measurement += ";" + QString::number(power);
     }
 
 
-    for(int core = 0; core < LYNSYN_MAX_CORES; core++) {
+    for(unsigned core = 0; core < Pmu::maxCores; core++) {
       QString moduleId = query.value("module" + QString::number(core+1)).toString();
       measurement += ";" + moduleId;
 

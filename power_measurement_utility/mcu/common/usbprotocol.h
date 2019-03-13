@@ -89,6 +89,8 @@
 #define MAX_JTAG_DEVICES 32
 
 #define MAX_SAMPLES 32
+#define MAX_CORES 4
+#define SENSORS 7
 #define MAX_PACKET_SIZE (sizeof(struct JtagInitRequestPacket))
 
 struct __attribute__((__packed__)) JtagDevice {
@@ -159,7 +161,7 @@ struct __attribute__((__packed__)) UpgradeFinaliseRequestPacket {
 struct __attribute__((__packed__)) InitReplyPacketV1_0 {
   uint8_t hwVersion;
   uint8_t swVersion;
-  double calibration[7];
+  double calibration[SENSORS];
   uint32_t adcCal;
 };
 
@@ -171,8 +173,8 @@ struct __attribute__((__packed__)) InitReplyPacket { // from V1.4
 };
 
 struct __attribute__((__packed__)) CalInfoPacket {
-  double offset[7];
-  double gain[7];
+  double offset[SENSORS];
+  double gain[SENSORS];
 };
 
 struct __attribute__((__packed__)) TestReplyPacket {
@@ -184,19 +186,19 @@ struct __attribute__((__packed__)) UsbTestReplyPacket {
 };
 
 struct __attribute__((__packed__)) AdcTestReplyPacket {
-  int16_t current[7];
+  int16_t current[SENSORS];
 };
 
 struct __attribute__((__packed__)) SampleReplyPacketV1_0 {
   int64_t time;
-  uint64_t pc[4];
-  int16_t current[7];
+  uint64_t pc[MAX_CORES];
+  int16_t current[SENSORS];
 };
 
 struct __attribute__((__packed__)) SampleReplyPacket { // from V1.3
   int64_t time;
-  uint64_t pc[4];
-  int16_t current[7];
+  uint64_t pc[MAX_CORES];
+  int16_t current[SENSORS];
   uint16_t flags;
 };
 
