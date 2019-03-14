@@ -291,6 +291,12 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   customElfLayout->addWidget(customElfLabel);
   customElfLayout->addWidget(customElfEdit);
 
+  QHBoxLayout *kallsymsLayout = new QHBoxLayout;
+  QLabel *kallsymsLabel = new QLabel("kallsyms file:");
+  kallsymsEdit = new QLineEdit(project->kallsymsFile);
+  kallsymsLayout->addWidget(kallsymsLabel);
+  kallsymsLayout->addWidget(kallsymsEdit);
+
   samplingModeGpioCheckBox = new QCheckBox("GPIO controlled sampling");
   samplingModeGpioCheckBox->setCheckState(project->samplingModeGpio ? Qt::Checked : Qt::Unchecked);
 
@@ -342,6 +348,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
 
   QVBoxLayout *measurementsLayout = new QVBoxLayout;
   measurementsLayout->addLayout(customElfLayout);
+  measurementsLayout->addLayout(kallsymsLayout);
   measurementsLayout->addWidget(samplingModeGpioCheckBox);
   measurementsLayout->addWidget(samplePcCheckBox);
   measurementsLayout->addWidget(startCheckBox);
@@ -485,6 +492,7 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->frameFunc = profPage->frameFuncEdit->text();
 
   project->customElfFile = profPage->customElfEdit->text();
+  project->kallsymsFile = profPage->kallsymsEdit->text();
 
   if(!project->isSdSocProject()) {
     project->cmakeArgs = buildPage->cmakeOptions->text();

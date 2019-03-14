@@ -88,6 +88,7 @@ public:
   QLineEdit *frameFuncEdit;
 
   QLineEdit *customElfEdit;
+  QLineEdit *kallsymsEdit;
 
   ProjectProfPage(Project *project, QWidget *parent = 0);
 };

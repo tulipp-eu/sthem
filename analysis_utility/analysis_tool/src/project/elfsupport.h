@@ -56,6 +56,7 @@ private:
   std::map<uint64_t, Addr2Line> addr2lineCache;
 
   QStringList elfFiles;
+  QString symsFile;
   uint64_t prevPc;
 
   Addr2Line addr2line;
@@ -70,6 +71,9 @@ public:
     if(elfFile.trimmed() != "") {
       elfFiles.push_back(elfFile);
     }
+  }
+  void addKallsyms(QString symsFile) {
+    this->symsFile = symsFile;
   }
 
   // get debug info

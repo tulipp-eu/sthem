@@ -107,6 +107,7 @@ public:
   QString cppSysInc;
 
   QString customElfFile;
+  QString kallsymsFile;
 
   Cfg *cfg;
 

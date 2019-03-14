@@ -368,6 +368,7 @@ void Project::loadProjectFile() {
   frameFunc = settings.value("frameFunc", "tulippFrameDone").toString();
 
   customElfFile = settings.value("customElfFile", "").toString();
+  kallsymsFile = settings.value("kallsymsFile", "").toString();
   instrument = settings.value("instrument", false).toBool();
   cmakeArgs = settings.value("cmakeArgs", "..").toString();
 
@@ -408,6 +409,7 @@ void Project::saveProjectFile() {
   settings.setValue("uploadScript", uploadScript);
 
   settings.setValue("customElfFile", customElfFile);
+  settings.setValue("kallsymsFile", kallsymsFile);
 
   settings.setValue("samplingModeGpio", samplingModeGpio);
   settings.setValue("runScript", runScript);
@@ -606,6 +608,7 @@ void Project::copy(Project *p) {
   cppSysInc = p->cppSysInc;
   
   customElfFile = p->customElfFile;
+  kallsymsFile = p->kallsymsFile;
 
   cfg = NULL;
 }
@@ -674,6 +677,8 @@ Location *Project::getLocation(unsigned core, uint64_t pc, ElfSupport *elfSuppor
 
     if(elfSupport->isBb(pc)) {
       funcName = "Unknown";
+    } else if(!pc) {
+      funcName = "Invalid";
     } else {
       funcName = elfSupport->getFunction(pc);
     }
@@ -930,6 +935,7 @@ bool Project::parseProfFile(QString fileName) {
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
+  elfSupport.addKallsyms(kallsymsFile);
 
   QFile file(fileName);
   if(!file.open(QIODevice::ReadOnly)) {
@@ -1138,6 +1144,7 @@ bool Project::runProfiler() {
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
+  elfSupport.addKallsyms(kallsymsFile);
 
   bool pmuInited = pmu.init();
   if(!pmuInited) {
@@ -1309,10 +1316,10 @@ bool Project::runProfiler() {
       QString modText[Pmu::maxCores];
 
       uint64_t pc[Pmu::maxCores];
-      pc[0] = query.value("pc1").toULongLong();
-      pc[1] = query.value("pc2").toULongLong();
-      pc[2] = query.value("pc3").toULongLong();
-      pc[3] = query.value("pc4").toULongLong();
+      pc[0] = query.value("pc1").toULongLong() << 2;
+      pc[1] = query.value("pc2").toULongLong() << 2;
+      pc[2] = query.value("pc3").toULongLong() << 2;
+      pc[3] = query.value("pc4").toULongLong() << 2;
 
       int64_t timeSinceLast = query.value("timeSinceLast").toLongLong();
 

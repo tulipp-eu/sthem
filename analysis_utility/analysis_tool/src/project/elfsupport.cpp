@@ -19,6 +19,9 @@
  *
  *****************************************************************************/
 
+#include <QFile>
+#include <QDataStream>
+
 #include "elfsupport.h"
 
 static char *readLine(char *s, int size, FILE *stream) {
@@ -41,12 +44,14 @@ void ElfSupport::setPc(uint64_t pc) {
   if(prevPc != pc) {
     prevPc = pc;
 
+    // check if pc exists in cache
     auto it = addr2lineCache.find(pc);
     if(it != addr2lineCache.end()) {
       addr2line = (*it).second;
       return;
     }
 
+    // check if pc exists in elf files
     for(auto elfFile : elfFiles) {
       QString fileName = "";
       QString function = "Unknown";
@@ -89,7 +94,42 @@ void ElfSupport::setPc(uint64_t pc) {
       addr2line = Addr2Line(fileName, elfFile, function, lineNumber);
       addr2lineCache[pc] = addr2line;
 
-      if((function != "Unknown") || (lineNumber != 0)) break;
+      if((function != "Unknown") || (lineNumber != 0)) return;
+    }
+
+    // check if pc exists in kallsyms file
+    if(!symsFile.trimmed().isEmpty()) {
+      QFile file(symsFile);
+      file.open(QIODevice::ReadOnly);
+
+      QString lastSymbol;
+      quint64 lastAddress = ~0;
+
+      while(!file.atEnd()) {
+        QString line = file.readLine();
+
+        QStringList tokens = line.split(' ');
+
+        if(tokens.size() >= 3) {
+          quint64 address = tokens[0].toULongLong(nullptr, 16);
+          //char symbolType = tokens[1][0].toLatin1();
+          QString symbol = tokens[2];
+
+          if(pc < address) {
+            if(lastAddress < pc) {
+              addr2line = Addr2Line("", "kallsyms", symbol, 0);
+              addr2lineCache[pc] = addr2line;
+            }
+            file.close();
+            return;
+          }
+
+          lastSymbol = symbol;
+          lastAddress = address;
+        }
+      }
+
+      file.close();
     }
   }
 

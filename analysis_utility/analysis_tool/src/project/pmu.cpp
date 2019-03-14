@@ -101,10 +101,10 @@ void DBStorer::storeRawSample(Sample *sample) {
 
     query->bindValue(":timeSinceLast", (qint64)sample->timeSinceLast);
 
-    query->bindValue(":pc1", (quint64)sample->sample.pc[0]);
-    query->bindValue(":pc2", (quint64)sample->sample.pc[1]);
-    query->bindValue(":pc3", (quint64)sample->sample.pc[2]);
-    query->bindValue(":pc4", (quint64)sample->sample.pc[3]);
+    query->bindValue(":pc1", (qint64)(sample->sample.pc[0]>>2));
+    query->bindValue(":pc2", (qint64)(sample->sample.pc[1]>>2));
+    query->bindValue(":pc3", (qint64)(sample->sample.pc[2]>>2));
+    query->bindValue(":pc4", (qint64)(sample->sample.pc[3]>>2));
 
     query->bindValue(":power1", sample->power[0]);
     query->bindValue(":power2", sample->power[1]);
