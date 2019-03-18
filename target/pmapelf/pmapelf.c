@@ -247,7 +247,7 @@ int main(int const argc, char **argv) {
 
         if (shortOutput <= 0) {
             char tplStd[] = "pmap -d -q %d";
-            char tplFile[] = "pmap -d -q %d 2>&1 >%2";
+            char tplFile[] = "pmap -d -q %d 2>&1 >%s";
             char *tpl = tplStd;
             char *cmd;
             int alloc;
@@ -262,7 +262,7 @@ int main(int const argc, char **argv) {
                 return -1;
             }
             snprintf(cmd, alloc, tpl, targetPid, outputFilename);
-            if (system(cmd) < 0) {
+            if (system(cmd) != 0) {
                 fprintf(stderr, "ERROR: could not execute %s", cmd);
                 kill(targetPid, SIGKILL);
                 return -1;
