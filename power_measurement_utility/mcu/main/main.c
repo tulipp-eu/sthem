@@ -111,36 +111,27 @@ int main(void) {
   clearLed(0);
   clearLed(1);
 
-#if 1
+#if 0
   {
     struct JtagDevice devices[MAX_JTAG_DEVICES];
 
     memset(devices, 0, sizeof(devices));
 
-    /* devices[0].idcode = 0x4ba00477; */
-    /* devices[0].irlen = 4; */
-
-    /* devices[1].idcode = 0x1372c093; */
-    /* devices[1].irlen = 6; */
-
     devices[0].idcode = 0x5ba00477;
     devices[0].irlen = 4;
 
-    devices[1].idcode = 0x4f1f0f0f;
-    devices[1].irlen = 4;
-
-    /* devices[3].idcode = 0x14710093; */
-    /* devices[3].irlen = 12; */
-
-    /* devices[4].idcode = 0x04721093; */
-    /* devices[4].irlen = 12; */
-
-    /* devices[5].idcode = 0x28e20126; */
-    /* devices[5].irlen = 12; */
-
-
     jtagInt();
     jtagInitCores(devices);
+
+    while(1) {
+      uint64_t pc[4];
+      bool halted;
+
+      if(coreReadPcsrFast(pc, &halted)) {
+        printf("%llx %llx %llx %llx\n", pc[0], pc[1], pc[2], pc[3]);
+      }
+    }
+
     jtagExt();
   }
 #endif
@@ -162,6 +153,7 @@ int main(void) {
       samplePtr->flags = 0;
 
       bool halted = false;
+      bool sampleOk = true;
 
 #ifndef USE_SWO
       bool send = !gpioMode;
@@ -180,14 +172,14 @@ int main(void) {
 
         adcScan(samplePtr->current);
         if(samplePc) {
-          halted = coreReadPcsrFast(samplePtr->pc);
-          if(halted) {
+          sampleOk = coreReadPcsrFast(samplePtr->pc, &halted);
+          if(sampleOk && halted) {
             if(readPc(0) == frameBp) {
-              coreClearBp(startCore, FRAME_BP);
+              clearBp(FRAME_BP);
               coresResume();
               halted = false;
               samplePtr->flags = SAMPLE_REPLY_FLAG_FRAME_DONE;
-              coreSetBp(startCore, FRAME_BP, frameBp);
+              setBp(FRAME_BP, frameBp);
             }
           }
         } else {
@@ -217,7 +209,7 @@ int main(void) {
         sampleMode = false;
 
         if(useStopBp) {
-          coreClearBp(stopCore, STOP_BP);
+          clearBp(STOP_BP);
           coresResume();
         }
 
@@ -235,16 +227,18 @@ int main(void) {
 #else
       {
 #endif
-        samples++;
-        currentSample++;
+        if(sampleOk) {
+          samples++;
+          currentSample++;
 
-        if(samplePtr->flags & SAMPLE_REPLY_FLAG_FRAME_DONE) samplePtr->pc[0] = calculateTime();
+          if(samplePtr->flags & SAMPLE_REPLY_FLAG_FRAME_DONE) samplePtr->pc[0] = calculateTime();
 
-        if((currentSample >= MAX_SAMPLES) || halted) {
-          sendSamples(sampleBuf, currentSample);
-          if(sampleBuf == sampleBuf1) sampleBuf = sampleBuf2;
-          else sampleBuf = sampleBuf1;
-          currentSample = 0;
+          if((currentSample >= MAX_SAMPLES) || halted) {
+            sendSamples(sampleBuf, currentSample);
+            if(sampleBuf == sampleBuf1) sampleBuf = sampleBuf2;
+            else sampleBuf = sampleBuf1;
+            currentSample = 0;
+          }
         }
       }
 #ifndef USE_SWO

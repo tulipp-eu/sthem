@@ -1180,7 +1180,7 @@ bool Project::runProfiler() {
     uint64_t startAddr = 0;
     uint64_t stopAddr = 0;
 
-    if(runScript) {
+    if(!startImmediately) {
       startAddr = elfSupport.lookupSymbol(startFunc);
       if(!startAddr) {
         emit finished(1, "Start location not found");

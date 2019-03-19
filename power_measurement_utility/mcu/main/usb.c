@@ -36,8 +36,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-uint8_t startCore;
-uint8_t stopCore;
+uint8_t startCore = 0;
+uint8_t stopCore = 0;
 uint64_t frameBp;
 
 static uint32_t upgradeCrc;
@@ -195,18 +195,16 @@ static void initJtag(struct JtagInitRequestPacket *jtagInitRequest) {
 static void setBreakpoint(struct BreakpointRequestPacket *bpReq) {
   switch(bpReq->bpType) {
     case BP_TYPE_START:
-      printf("Set start BP %llx on core %d\n", bpReq->addr, bpReq->core);
-      coreSetBp(bpReq->core, START_BP, bpReq->addr);
+      printf("Set start BP %llx\n", bpReq->addr);
+      setBp(START_BP, bpReq->addr);
       break;
     case BP_TYPE_STOP:
-      printf("Set stop BP %llx on core %d\n", bpReq->addr, bpReq->core);
-      coreSetBp(bpReq->core, STOP_BP, bpReq->addr);
-      stopCore = bpReq->core;
+      printf("Set stop BP %llx\n", bpReq->addr);
+      setBp(STOP_BP, bpReq->addr);
       break;
     case BP_TYPE_FRAME:
       printf("Set frame BP %llx on core %d\n", bpReq->addr, bpReq->core);
       frameBp = bpReq->addr;
-      //coreSetBp(bpReq->core, FRAME_BP, bpReq->addr);
       break;
   }
 }
@@ -231,8 +229,8 @@ static void startSampling(struct StartSamplingRequestPacket *startSamplingReq) {
     // sampling starts here
     sampleMode = true;
 
-    coreClearBp(startCore, START_BP);
-    coreSetBp(startCore, FRAME_BP, frameBp);
+    clearBp(START_BP);
+    setBp(FRAME_BP, frameBp);
     coresResume();
 
   } else {

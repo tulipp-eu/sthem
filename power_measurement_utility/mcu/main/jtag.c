@@ -27,8 +27,6 @@
 #include "jtag.h"
 #include "fpga.h"
 
-#define MAX_CORES 8
-
 ///////////////////////////////////////////////////////////////////////////////
 
 int numDevices = 0;
@@ -225,7 +223,9 @@ uint64_t coreReadPcsr(struct Core *core) {
 
   } else if(core->type == ARMV8A) {
     if(core->enabled) {
-      dbgpcsr = ((uint64_t)coreReadReg(core, ARMV8A_PCSR_H) << 32) | coreReadReg(core, ARMV8A_PCSR_L);
+      uint64_t low = coreReadReg(core, ARMV8A_PCSR_L);
+      uint64_t high = coreReadReg(core, ARMV8A_PCSR_H);
+      dbgpcsr = (high << 32) | low;
     } else {
       dbgpcsr = 0xffffffff;
     }
@@ -245,6 +245,8 @@ uint64_t coreReadPcsr(struct Core *core) {
   return 0;
 }
 
+
+
 void coreSetBp(unsigned core, unsigned bpNum, uint64_t addr) {
   if(cores[core].type == ARMV7A) {
     coreWriteReg(&cores[core], ARMV7A_BVR(bpNum), addr & ~3);
@@ -263,6 +265,22 @@ void coreClearBp(unsigned core, unsigned bpNum) {
     coreWriteReg(&cores[core], ARMV7A_BCR(bpNum), 0);
   } else if(cores[core].type == ARMV8A) {
     coreWriteReg(&cores[core], ARMV8A_BCR(bpNum), 0);
+  }
+}
+
+void setBp(unsigned bpNum, uint64_t addr) {
+  for(unsigned j = 0; j < numCores; j++) {
+    if(cores[j].enabled) {
+      coreSetBp(j, bpNum, addr);
+    }
+  }
+}
+
+void clearBp(unsigned bpNum) {
+  for(unsigned j = 0; j < numCores; j++) {
+    if(cores[j].enabled) {
+      coreClearBp(j, bpNum);
+    }
   }
 }
 
@@ -291,18 +309,20 @@ void coresResume(void) {
     }
 
   } else if(cores[0].type == ARMV8A) {
-    for(int i = 0; i < numCores; i++) {
-      if(cores[i].enabled) {
-        /* ack */
-        coreWriteReg(&cores[i], ARMV8A_CTIINTACK, HALT_EVENT_BIT);
+    if(coreHalted(0)) {
+      for(int i = 0; i < numCores; i++) {
+        if(cores[i].enabled) {
+          /* ack */
+          coreWriteReg(&cores[i], ARMV8A_CTIINTACK, HALT_EVENT_BIT);
+        }
       }
+
+      /* Pulse Channel 0 */
+      coreWriteReg(&cores[0], ARMV8A_CTIAPPPULSE, CHANNEL_0);
+
+      /* Poll until restarted */
+      while(!(coreReadReg(&cores[0], ARMV8A_PRSR) & (1<<11)));
     }
-
-    /* Pulse Channel 0 */
-    coreWriteReg(&cores[0], ARMV8A_CTIAPPPULSE, CHANNEL_0);
-
-    /* Poll until restarted */
-    while(!(coreReadReg(&cores[0], ARMV8A_PRSR) & (1<<11)));
   }
 }
 
@@ -519,17 +539,17 @@ void parseDebugEntry(unsigned apSel, uint32_t compBase) {
 
       numCores++;
 
-    } else if(((pidr0 & 0xff) == 0x2) && // found a Denver 2
-             ((pidr1 & 0xff) == 0xb3) &&
-             ((pidr2 & 0x0f) == 0xe) &&
-             ((pidr4 & 0x0f) == 0x3)) {
+    /* } else if(((pidr0 & 0xff) == 0x2) && // found a Denver 2 */
+    /*          ((pidr1 & 0xff) == 0xb3) && */
+    /*          ((pidr2 & 0x0f) == 0xe) && */
+    /*          ((pidr4 & 0x0f) == 0x3)) { */
 
-      printf("      Found Denver 2\n");
+    /*   printf("      Found Denver 2\n"); */
 
-      cores[numCores] = coreInitDenver2(apSel, compBase);
-      if(cores[numCores].enabled) numEnabledCores++;
+    /*   cores[numCores] = coreInitDenver2(apSel, compBase); */
+    /*   if(cores[numCores].enabled) numEnabledCores++; */
 
-      numCores++;
+    /*   numCores++; */
     }
   }
 }

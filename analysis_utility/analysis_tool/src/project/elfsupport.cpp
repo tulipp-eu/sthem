@@ -113,7 +113,7 @@ void ElfSupport::setPc(uint64_t pc) {
         if(tokens.size() >= 3) {
           quint64 address = tokens[0].toULongLong(nullptr, 16);
           //char symbolType = tokens[1][0].toLatin1();
-          QString symbol = tokens[2];
+          QString symbol = tokens[2].trimmed();
 
           if(pc < address) {
             if(lastAddress < pc) {

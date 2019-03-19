@@ -72,11 +72,14 @@ void jtagInit(void);
 bool jtagInitCores(struct JtagDevice *devices); // call this at least every time a new board has been plugged in
 
 void coreReadPcsrInit(void);
-bool coreReadPcsrFast(uint64_t *pcs);
+bool coreReadPcsrFast(uint64_t *pcs, bool *halted);
 
 void coresResume(void);
 void coreSetBp(unsigned core, unsigned bpNum, uint64_t addr);
 void coreClearBp(unsigned core, unsigned bpNum);
+
+void setBp(unsigned bpNum, uint64_t addr);
+void clearBp(unsigned bpNum);
 
 uint8_t coreReadStatus(unsigned core);
 uint64_t readPc(unsigned core);

@@ -115,6 +115,7 @@ enum DBG_MOE_T {UNKNOWN=0, BREAKPOINT, NUM_MOE_TYPES};
 #define ARMV8A_SCR         34
 #define ARMV8A_PRSR        197
 #define ARMV8A_OSLAR       192
+#define ARMV8A_AUTHSTATUS  1006
 
 #define ARMV8A_ITR         33
 #define ARMV8A_DTRTX       35

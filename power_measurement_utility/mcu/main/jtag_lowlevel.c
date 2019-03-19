@@ -591,27 +591,47 @@ void gotoResetThenIdle(void) {
   writeSeq(6, &tdi, &tms);
 }
 
+#if 1
+
+void coreReadPcsrInit(void) {
+}
+
+bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
+  for(unsigned i = 0; (i < numCores) && (i < MAX_CORES); i++) {
+    pcs[i] = coreReadPcsr(&cores[i]);
+  }
+
+  if(cores[0].type == ARMV8A) {
+    *halted = coreHalted(stopCore);
+  } else {
+    *halted = pcs[0] == 0xffffffff;
+  }
+
+  return true;
+}
+
+#else
+
 void coreReadPcsrInit(void) {
   startRec();
 
   fastBitsToRead = 0;
 
   for(int i = 0; i < numCores; i++) {
-    if(cores[i].type == CORTEX_A9) {
+    if(cores[i].type == ARMV7A) {
       coreReadRegFast(cores[i], ARMV7A_PCSR);
       fastBitsToRead += 44;
 
-    } else if(cores[0].type == CORTEX_A53) {
+    } else if(cores[0].type == ARMV8A) {
       if(cores[i].enabled) {
         coreReadRegFast(cores[i], ARMV8A_PCSR_H);
         coreReadRegFast(cores[i], ARMV8A_PCSR_L);
-
         fastBitsToRead += 88;
       }
     }
   }
 
-  if(cores[stopCore].type == CORTEX_A53) {
+  if(cores[stopCore].type == ARMV8A) {
     coreReadRegFast(cores[stopCore], ARMV8A_PRSR);
     fastBitsToRead += 44;
   }
@@ -619,8 +639,8 @@ void coreReadPcsrInit(void) {
   storeRec();
 }
 
-bool coreReadPcsrFast(uint64_t *pcs) {
-  bool halted = false;
+bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
+  *halted = false;
   uint8_t *buf;
 
   executeSeq();
@@ -631,30 +651,32 @@ bool coreReadPcsrFast(uint64_t *pcs) {
 
   for(unsigned i = 0; i < numCores; i++) {
     if(cores[i].enabled) {
-      if(cores[i].type == CORTEX_A9) {
+      if(cores[i].type == ARMV7A) {
         uint8_t ack0 = extractAck(core*44 + 0, buf);
         uint8_t ack1 = extractAck(core*44 + 3, buf);
         uint8_t ack2 = extractAck(core*44 + 6, buf);
         uint8_t ack3 = extractAck(core*44 + 9, buf);
 
         if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
-          panic("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
+          printf("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
+          return false;
         }
 
         uint32_t dbgpcsr = extractWord(core*44 + 12, buf);
 
-        if(dbgpcsr == 0xffffffff) {
-          pcs[i] = dbgpcsr;
-        } else {
-          pcs[i] = calcOffset(dbgpcsr);
+        if(i < MAX_CORES) {
+          if(dbgpcsr == 0xffffffff) {
+            pcs[i] = dbgpcsr;
+          } else {
+            pcs[i] = calcOffset(dbgpcsr);
+          }
         }
 
-      } else if(cores[i].type == CORTEX_A53) {
+      } else if(cores[i].type == ARMV8A) {
         uint8_t ack0 = extractAck(core*88 + 0, buf);
         uint8_t ack1 = extractAck(core*88 + 3, buf);
         uint8_t ack2 = extractAck(core*88 + 6, buf);
         uint8_t ack3 = extractAck(core*88 + 9, buf);
-
         uint8_t ack4 = extractAck(core*88 + 44, buf);
         uint8_t ack5 = extractAck(core*88 + 47, buf);
         uint8_t ack6 = extractAck(core*88 + 50, buf);
@@ -662,7 +684,8 @@ bool coreReadPcsrFast(uint64_t *pcs) {
 
         if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK) ||
            (ack4 != JTAG_ACK_OK) || (ack5 != JTAG_ACK_OK) || (ack6 != JTAG_ACK_OK) || (ack7 != JTAG_ACK_OK)) {
-          panic("Invalid ACK %x %x %x %x %x %x %x %x\n", ack0, ack1, ack2, ack3, ack4, ack5, ack6, ack7);
+          printf("Invalid ACK %x %x %x %x %x %x %x %x\n", ack0, ack1, ack2, ack3, ack4, ack5, ack6, ack7);
+          return false;
         }
 
         uint32_t dbgpcsrHigh = extractWord(core*88 + 12, buf);
@@ -670,21 +693,25 @@ bool coreReadPcsrFast(uint64_t *pcs) {
 
         uint64_t dbgpcsr = ((uint64_t)dbgpcsrHigh << 32) | dbgpcsrLow;
 
-        if(dbgpcsr == 0xffffffff) {
-          pcs[i] = 0;
-        } else {
-          pcs[i] = calcOffset(dbgpcsr);
+        if(i < MAX_CORES) {
+          if(dbgpcsr == 0xffffffff) {
+            pcs[i] = 0;
+          } else {
+            pcs[i] = calcOffset(dbgpcsr);
+          }
         }
       }
 
       core++;
 
     } else {
-      pcs[i] = 0;
+      if(i < MAX_CORES) {
+        pcs[i] = 0;
+      }
     }
   }
 
-  if(cores[stopCore].type == CORTEX_A53) {
+  if(cores[stopCore].type == ARMV8A) {
     uint8_t ack0 = extractAck(core*88 + 0, buf);
     uint8_t ack1 = extractAck(core*88 + 3, buf);
     uint8_t ack2 = extractAck(core*88 + 6, buf);
@@ -695,12 +722,14 @@ bool coreReadPcsrFast(uint64_t *pcs) {
     }
 
     uint32_t prsr = extractWord(core*88 + 12, buf);
-    halted = prsr & (1 << 4);
+    *halted = prsr & (1 << 4);
 
-  } else if(cores[stopCore].type == CORTEX_A9) {
-    if(pcs[stopCore] == 0xffffffff) halted = true;
-    else halted = false;
+  } else if(cores[stopCore].type == ARMV7A) {
+    if(pcs[stopCore] == 0xffffffff) *halted = true;
+    else *halted = false;
   }
 
-  return halted;
+  return true;
 }
+
+#endif

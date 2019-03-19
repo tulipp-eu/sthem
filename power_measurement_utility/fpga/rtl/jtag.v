@@ -139,9 +139,7 @@ module jtag_controller
                                       out_seq_read[0],out_seq_read[0],out_seq_read[0],out_seq_read[0]};
                          case(out_seq_bits)
                            0: jtag_cnt <= 8'h01;
-                           1: begin
-                              jtag_cnt <= 8'h80;
-                           end
+                           1: jtag_cnt <= 8'h80;
                            2: jtag_cnt <= 8'h40;
                            3: jtag_cnt <= 8'h20;
                            4: jtag_cnt <= 8'h10;
