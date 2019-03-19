@@ -180,19 +180,19 @@ int main(int const argc, char **argv) {
                 waitTime = strtol(optarg, &endptr, 10);
                 if (endptr == optarg) {
                     help(c, optarg);
-                    return -1;
+                    return 1;
                 }
                 break;
             case 'o':
                 len = strlen(optarg);
                 if (strlen(optarg) == 0) {
                     help(c ,optarg);
-                    return -1;
+                    return 1;
                 }
                 outputFilename = (char *) malloc(len + 1);
                 if (outputFilename == NULL) {
                     fprintf(stderr, "Memory allocation of %ld bytes failed!\n", len);
-                    return -1;
+                    return 1;
                 }
                 memset(outputFilename, 0, len + 1);
                 strncpy(outputFilename, optarg, len);
@@ -220,7 +220,7 @@ int main(int const argc, char **argv) {
 
     if (argsStart == NULL) {
         help(' ', "no command specified");
-        return -1;
+        return 1;
     }
 
     pid_t targetPid;
@@ -231,7 +231,7 @@ int main(int const argc, char **argv) {
 
     if (targetPid == -1) {
         fprintf(stderr, "ERROR: could not fork!\n");
-        return -1;
+        return 1;
     }
 
     if (targetPid == 0) {
@@ -242,32 +242,7 @@ int main(int const argc, char **argv) {
         waitpid(targetPid, &status, 0);
         if (WIFEXITED(status)) {
             fprintf(stderr,"ERROR: unexpected process termination\n");
-            return -1;
-        }
-
-        if (shortOutput <= 0) {
-            char tplStd[] = "pmap -d -q %d";
-            char tplFile[] = "pmap -d -q %d 2>&1 >%s";
-            char *tpl = tplStd;
-            char *cmd;
-            int alloc;
-            if (outputFilename != NULL) {
-                tpl = tplFile;
-            }
-            alloc = snprintf(cmd, 0, tpl, targetPid, outputFilename);
-            cmd = (char *) malloc((++alloc) * sizeof(char *));
-            if (cmd == NULL) {
-                fprintf(stderr, "ERROR: could not allocate %d bytes", alloc);
-                kill(targetPid, SIGKILL);
-                return -1;
-            }
-            snprintf(cmd, alloc, tpl, targetPid, outputFilename);
-            if (system(cmd) != 0) {
-                fprintf(stderr, "ERROR: could not execute %s", cmd);
-                kill(targetPid, SIGKILL);
-                return -1;
-            }
-            free(cmd);
+            return 1;
         }
 
         if (collisionDetection > 0 || shortOutput > 0) {
@@ -275,7 +250,7 @@ int main(int const argc, char **argv) {
             if (targetMap.count == 0) {
                 fprintf(stderr, "ERROR: could not find virtual memory mapping!\n");
                 kill(targetPid, SIGKILL);
-                return -1;
+                return 1;
             }
 
             if (collisionDetection > 0) {
@@ -291,7 +266,7 @@ int main(int const argc, char **argv) {
                         freeVMMaps(targetMap);
                         free(pids);
                         kill(targetPid, SIGKILL);
-                        return -1;
+                        return 1;
                     }
                     freeVMMaps(checkMap);
                 }
@@ -306,7 +281,7 @@ int main(int const argc, char **argv) {
                     if (out == NULL) {
                         fprintf(stderr, "ERROR: Could not open %s for writing!\n", outputFilename);
                         free(outputFilename);
-                        return -1;
+                        return 1;
                     }
                 }
 
@@ -324,6 +299,31 @@ int main(int const argc, char **argv) {
         }
 
 
+        if (shortOutput <= 0) {
+            char tplStd[] = "pmap -d -q %d";
+            char tplFile[] = "pmap -d -q %d 2>&1 >%s";
+            char *tpl = tplStd;
+            char *cmd;
+            int alloc;
+            if (outputFilename != NULL) {
+                tpl = tplFile;
+            }
+            alloc = snprintf(cmd, 0, tpl, targetPid, outputFilename);
+            cmd = (char *) malloc((++alloc) * sizeof(char *));
+            if (cmd == NULL) {
+                fprintf(stderr, "ERROR: could not allocate %d bytes", alloc);
+                kill(targetPid, SIGKILL);
+                return 1;
+            }
+            snprintf(cmd, alloc, tpl, targetPid, outputFilename);
+            if (system(cmd) != 0) {
+                fprintf(stderr, "ERROR: could not execute %s", cmd);
+                kill(targetPid, SIGKILL);
+                return 1;
+            }
+            free(cmd);
+        }
+
         
         if (keyPress <= 0 && waitTime > 0) {
             usleep(waitTime * 1000);
@@ -333,7 +333,11 @@ int main(int const argc, char **argv) {
 
         ptrace(PTRACE_DETACH, targetPid, PTRACE_IGNORE_PTR, PTRACE_NO_SIGNAL);
         waitpid(targetPid, &status, 0);
-        return status;
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            return 0;
+        } else {
+            return 2;
+        }
     }
 
     if (outputFilename) {
