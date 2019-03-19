@@ -71,6 +71,9 @@ public:
   QPlainTextEdit *uploadScriptEdit;
   QCheckBox *runScriptCheckBox;
   QLineEdit *interpreterEdit;
+
+  QLineEdit *offsetEdit;
+
   QLineEdit *rlEdit[Pmu::sensors];
   QLineEdit *supplyVoltageEdit[Pmu::sensors];
 

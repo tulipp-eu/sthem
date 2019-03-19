@@ -203,8 +203,15 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   interpreterEdit = new QLineEdit(project->scriptInterpreter);
   interpreterLayout->addWidget(interpreterEdit);
   interpreterLayout->addStretch(1);
-
   uploadLayout->addLayout(interpreterLayout);
+
+  QHBoxLayout *offsetLayout = new QHBoxLayout;
+  QLabel *offsetLabel = new QLabel("Address offset file:");
+  offsetLayout->addWidget(offsetLabel);
+  offsetEdit = new QLineEdit(project->offsetFile);
+  offsetLayout->addWidget(offsetEdit);
+  offsetLayout->addStretch(1);
+  uploadLayout->addLayout(offsetLayout);
 
   runScriptCheckBox = new QCheckBox("Upload binary and reset");
   runScriptCheckBox->setCheckState(project->runScript ? Qt::Checked : Qt::Unchecked);
@@ -477,6 +484,8 @@ void ProjectDialog::closeEvent(QCloseEvent *e) {
   project->uploadScript = profPage->uploadScriptEdit->toPlainText();
 
   project->scriptInterpreter = profPage->interpreterEdit->text();
+
+  project->offsetFile = profPage->offsetEdit->text();
 
   project->samplingModeGpio = profPage->samplingModeGpioCheckBox->checkState() == Qt::Checked;
   project->runScript = profPage->runScriptCheckBox->checkState() == Qt::Checked;

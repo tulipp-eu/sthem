@@ -356,6 +356,7 @@ void Project::loadProjectFile() {
   samplingModeGpio = settings.value("samplingModeGpio", false).toBool();
   runScript = settings.value("runScript", true).toBool();
   scriptInterpreter = settings.value("scriptInterpreter", "xsct").toString();
+  offsetFile = settings.value("offsetFile", "").toString();
   samplePc = settings.value("samplePc", true).toBool();
   startImmediately = settings.value("startImmediately", false).toBool();
 
@@ -414,6 +415,7 @@ void Project::saveProjectFile() {
   settings.setValue("samplingModeGpio", samplingModeGpio);
   settings.setValue("runScript", runScript);
   settings.setValue("scriptInterpreter", scriptInterpreter);
+  settings.setValue("offsetFile", offsetFile);
   settings.setValue("samplePc", samplePc);
   settings.setValue("startImmediately", startImmediately);
 
@@ -577,6 +579,7 @@ void Project::copy(Project *p) {
   samplingModeGpio = p->samplingModeGpio;
   runScript = p->runScript;
   scriptInterpreter = p->scriptInterpreter;
+  offsetFile = p->offsetFile;
   samplePc = p->samplePc;
   startImmediately = p->startImmediately;
 
@@ -1143,6 +1146,18 @@ bool Project::runProfiler() {
   if(isSdSocProject()) elfSupport.addElf(elfFilename());
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
+  }
+  if(!offsetFile.trimmed().isEmpty()) {
+    QFile file(offsetFile);
+    if(file.open(QIODevice::ReadOnly)) {
+      if(!file.atEnd()) {
+        QStringList tokens = ((QString)file.readLine()).split(' ');
+        if(tokens.size()) {
+          elfSupport.setElfOffset(tokens[0].toULongLong(nullptr, 16));
+        }
+      }
+      file.close();
+    }
   }
   elfSupport.addKallsyms(kallsymsFile);
 

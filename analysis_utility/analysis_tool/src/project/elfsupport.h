@@ -58,6 +58,7 @@ private:
   QStringList elfFiles;
   QString symsFile;
   uint64_t prevPc;
+  uint64_t elfOffset;
 
   Addr2Line addr2line;
 
@@ -66,6 +67,7 @@ private:
 public:
   ElfSupport() {
     prevPc = -1;
+    elfOffset = 0;
   }
   void addElf(QString elfFile) {
     if(elfFile.trimmed() != "") {
@@ -74,6 +76,9 @@ public:
   }
   void addKallsyms(QString symsFile) {
     this->symsFile = symsFile;
+  }
+  void setElfOffset(uint64_t offset) {
+    elfOffset = offset;
   }
 
   // get debug info

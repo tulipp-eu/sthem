@@ -75,6 +75,7 @@ public:
   bool samplingModeGpio;
   bool runScript;
   QString scriptInterpreter;
+  QString offsetFile;
   bool samplePc;
   bool startImmediately;
 

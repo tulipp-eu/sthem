@@ -64,7 +64,7 @@ void ElfSupport::setPc(uint64_t pc) {
         std::string cmd;
 
         // create command
-        pcStream << std::hex << pc;
+        pcStream << std::hex << (pc + elfOffset);
         cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
 
         // run addr2line program
@@ -100,36 +100,37 @@ void ElfSupport::setPc(uint64_t pc) {
     // check if pc exists in kallsyms file
     if(!symsFile.trimmed().isEmpty()) {
       QFile file(symsFile);
-      file.open(QIODevice::ReadOnly);
+      if(file.open(QIODevice::ReadOnly)) {
 
-      QString lastSymbol;
-      quint64 lastAddress = ~0;
+        QString lastSymbol;
+        quint64 lastAddress = ~0;
 
-      while(!file.atEnd()) {
-        QString line = file.readLine();
+        while(!file.atEnd()) {
+          QString line = file.readLine();
 
-        QStringList tokens = line.split(' ');
+          QStringList tokens = line.split(' ');
 
-        if(tokens.size() >= 3) {
-          quint64 address = tokens[0].toULongLong(nullptr, 16);
-          //char symbolType = tokens[1][0].toLatin1();
-          QString symbol = tokens[2].trimmed();
+          if(tokens.size() >= 3) {
+            quint64 address = tokens[0].toULongLong(nullptr, 16);
+            //char symbolType = tokens[1][0].toLatin1();
+            QString symbol = tokens[2].trimmed();
 
-          if(pc < address) {
-            if(lastAddress < pc) {
-              addr2line = Addr2Line("", "kallsyms", symbol, 0);
-              addr2lineCache[pc] = addr2line;
+            if(pc < address) {
+              if(lastAddress < pc) {
+                addr2line = Addr2Line("", "kallsyms", symbol, 0);
+                addr2lineCache[pc] = addr2line;
+              }
+              file.close();
+              return;
             }
-            file.close();
-            return;
+
+            lastSymbol = symbol;
+            lastAddress = address;
           }
-
-          lastSymbol = symbol;
-          lastAddress = address;
         }
-      }
 
-      file.close();
+        file.close();
+      }
     }
   }
 
