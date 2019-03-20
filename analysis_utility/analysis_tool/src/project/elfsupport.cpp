@@ -186,7 +186,7 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
       if(readLine(buf, 1024, fp)) {
         QStringList line = QString::fromUtf8(buf).split(' ');
         if(line[2].trimmed() == symbol) {
-          return line[0].toULongLong(0, 16);
+          return line[0].toULongLong(0, 16) + elfOffset;
         }
       }
     }
