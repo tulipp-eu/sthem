@@ -64,7 +64,7 @@ void ElfSupport::setPc(uint64_t pc) {
         std::string cmd;
 
         // create command
-        pcStream << std::hex << (pc + elfOffset);
+        pcStream << std::hex << (pc - elfOffset);
         cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
 
         // run addr2line program
