@@ -226,3 +226,7 @@ double GraphScene::scalePower(double power) {
 int64_t GraphScene::posToTime(double pos) {
   return (pos / scaleFactorTime) * (maxTime-minTime) + minTime;
 }
+
+double GraphScene::posToPower(double pos) {
+  return (graph->getPoint(pos) / scaleFactorPower) * (maxPower-minPower) + minPower;
+}

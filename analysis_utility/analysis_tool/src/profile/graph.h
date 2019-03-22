@@ -78,6 +78,24 @@ public:
     points.push_back(QPoint(time, value));
   }
 
+  double getPoint(int64_t time) {
+    // binary search for point in sorted points-vector
+    int start = 0;
+    int end = points.size() - 1;
+
+    while((end-start) > 1) {
+      int middle = start + (end-start)/2;
+
+      if(points[middle].x() > time) {
+        end = middle;
+      } else {
+        start = middle;
+      }
+    }
+
+    return points[start].y();
+  }
+
   QRectF boundingRect() const {
     qreal penWidth = 1;
     return QRectF(-penWidth/2 - textWidth-GRAPH_TEXT_SPACING,
@@ -93,21 +111,72 @@ public:
 
     painter->setPen(QPen(NTNU_BLUE));
 
+    // find distance between xticks
+    double xStep = 1000;
+    while(((highTimeValue - lowTimeValue) / xStep) < 20) {
+      xStep /= 10;
+    }
+    xStep *= 10;
+
+    // find distance between yticks
+    double yStep = 256;
+    while(((highPowerValue - lowPowerValue) / yStep) < 10) {
+      yStep /= 2;
+    }
+    yStep *= 2;
+
+    // draw power axis
     painter->drawLine(0, 0, 0, -highPower);
+
+    // draw power ticks
+    double powerScale = highPower / (highPowerValue - lowPowerValue);
+
+    double low = goUp(lowPowerValue, yStep);
+    double high = goDown(highPowerValue, yStep);
+    if(low == high) {
+      low -= 1;
+      high += 1;
+    }
+
+    for(double i = low; i <= high; i += yStep) {
+      double val = (double)(i-lowPowerValue)*powerScale;
+      painter->drawLine(-10, -val, 0, -val);
+      painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), -val + textHeight/2, QString::number(i) + "W");
+    }
+
+    // draw time axis
     painter->drawLine(0, 0, highTime, 0);
 
-    painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), 0, QString::number(lowPowerValue) + "W");
-    painter->drawText((int)(-textWidth-GRAPH_TEXT_SPACING), -highPower + textHeight, QString::number(highPowerValue) + "W");
+    // draw time ticks
+    double timeScale = highTime / (highTimeValue - lowTimeValue);
+    low = goUp(lowTimeValue, xStep);
+    high = goDown(highTimeValue, xStep);
+    if(low == high) {
+      low -= 1;
+      high += 1;
+    }
 
-    painter->drawText((int)0, textHeight, QString::number(lowTimeValue) + "s");
-    painter->drawText((int)highTime - fm.width(highTimeText), textHeight, highTimeText);
+    for(double i = low; i <= high; i += xStep) {
+      double val = (double)(i-lowTimeValue)*timeScale;
+      painter->drawLine(val, 0, val, 10);
+      painter->drawText((int)val, textHeight, QString::number(i) + "s");
+    }
 
+    // draw graph
     painter->setPen(QPen(FOREGROUND_COLOR));
     QPoint prevPoint = QPoint(0,0);
     for(auto point : points) {
       painter->drawLine(QPoint(prevPoint.x(), -prevPoint.y()), QPoint(point.x(), -point.y()));
       prevPoint = point;
     }
+  }
+
+  double goUp(double x, double step) {
+    return (double)(ceil(x/step))*step;
+  }
+
+  double goDown(double x, double step) {
+    return (double)(floor(x/step))*step;
   }
 
 };

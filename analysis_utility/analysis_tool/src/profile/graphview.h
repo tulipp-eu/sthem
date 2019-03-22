@@ -37,11 +37,16 @@ class GraphView : public QGraphicsView {
 protected:
   GraphScene *scene;
   int64_t beginTime;
+  QStatusBar *statusBar;
 
   void mousePressEvent(QMouseEvent *mouseEvent) {
     if(mouseEvent->button() == Qt::LeftButton) {
       QPointF pos = mapToScene(mouseEvent->pos());
       beginTime = scene->posToTime(pos.x());
+
+      QString statusMessage = QString::asprintf("Time: %.2fs Power: %.2fW\n", Pmu::cyclesToSeconds(beginTime), scene->posToPower(pos.x()));
+      statusBar->showMessage(statusMessage);
+
     } else if(mouseEvent->button() == Qt::RightButton) {
       scene->redrawFull();
       viewport()->update();
@@ -97,8 +102,9 @@ protected:
   }
 
 public:
-  GraphView(GraphScene *scene) : QGraphicsView(scene) {
+  GraphView(GraphScene *scene, QStatusBar *statusBar) : QGraphicsView(scene) {
     this->scene = scene;
+    this->statusBar = statusBar;
     setBackgroundBrush(QBrush(BACKGROUND_COLOR, Qt::SolidPattern));
   }
 

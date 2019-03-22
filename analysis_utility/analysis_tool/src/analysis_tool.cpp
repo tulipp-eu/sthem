@@ -395,5 +395,9 @@ void addFitnessCombo(QComboBox *combo) {
 }
 
 bool isSystemFile(QString filename) {
-  return !filename.startsWith(Config::workspace);
+  if(Config::sdsocProject) {
+    return !filename.startsWith(Config::workspace);
+  } else {
+    return false;
+  }
 }

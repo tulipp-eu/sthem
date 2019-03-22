@@ -257,6 +257,8 @@ bool Sdsoc::getPlatformOptions() {
 bool Sdsoc::openProject(QString path, QString configType, bool fast) {
   close();
 
+  Config::sdsocProject = true;
+
   this->path = path;
   this->configType = configType;
 

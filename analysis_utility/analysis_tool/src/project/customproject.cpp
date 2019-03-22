@@ -36,7 +36,5 @@ bool CustomProject::openProject(QString path) {
 
   loadProjectFile();
 
-  configType = "";
-
   return true;
 }

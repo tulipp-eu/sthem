@@ -146,6 +146,7 @@ public:
   static bool regionsInTable;
   static bool loopsInTable;
   static bool basicblocksInTable;
+  static bool sdsocProject;
 };
 
 #endif

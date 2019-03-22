@@ -115,7 +115,7 @@ MainWindow::MainWindow(Analysis *analysis) {
   cfgSplitter->addWidget(cfgSplitter2);
 
   graphScene = new GraphScene(this);
-  graphView = new GraphView(graphScene);
+  graphView = new GraphView(graphScene, statusBar());
 
   tabWidget = new QTabWidget;
   tabWidget->addTab(cfgSplitter, "CFG");

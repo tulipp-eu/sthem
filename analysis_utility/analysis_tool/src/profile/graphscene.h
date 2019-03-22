@@ -120,6 +120,7 @@ public:
   void redraw();
   void redrawFull();
   int64_t posToTime(double pos);
+  double posToPower(double pos);
   void clearScene() {
     profile = NULL;
     clear();

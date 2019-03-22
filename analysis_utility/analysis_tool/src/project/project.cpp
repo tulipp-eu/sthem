@@ -557,6 +557,7 @@ void Project::loadXmlFile(const QString &fileName) {
 // object construction, destruction and management
 
 Project::Project(Profile *profile) {
+  Config::sdsocProject = false;
   cfg = NULL;
   this->profile = profile;
   close();

@@ -52,3 +52,4 @@ bool Config::functionsInTable;
 bool Config::regionsInTable;
 bool Config::loopsInTable;
 bool Config::basicblocksInTable;
+bool Config::sdsocProject;
