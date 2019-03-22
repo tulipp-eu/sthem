@@ -104,6 +104,8 @@ private:
 public:
   int64_t minTime;
   int64_t maxTime;
+  int64_t minTimeDb;
+  int64_t maxTimeDb;
   double minPower;
   double maxPower;
 
@@ -120,6 +122,7 @@ public:
   void redraw();
   void redrawFull();
   int64_t posToTime(double pos);
+  double posToSeconds(double pos);
   double posToPower(double pos);
   void clearScene() {
     profile = NULL;
