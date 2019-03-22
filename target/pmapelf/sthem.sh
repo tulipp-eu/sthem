@@ -1,26 +1,35 @@
 #!/bin/bash
 
-ELFFILE=elffile
-
-[ $# -ge 1 ] && ELFFILE=$1
+TARGET="root@jetsontx2"
+ELFFILE=%name%
+ARGUMENTS=""
 
 # Milliseconds
-DELAY=10000
+DELAY=4000
 
 SLEEP=0.1
 TIMEOUT=100
 
-TARGET="root@lultra96"
 TARGET_DIR="/tmp/sthem"
 
-ARGUMENTS=""
-
-WRAPPER="pmapelf --collision --short --output=$TARGET_DIR/vmap --time=$DELAY -- $TARGET_DIR/$ELFFILE $ARGUMENTS"
+WRAPPER_ARGS="--short --output=$TARGET_DIR/vmap --time=$DELAY"
 
 [ ! -f $ELFFILE ]  && {
     echo "'$ELFFILE' not found" >&2
     exit 1
 }
+
+readelf -h $ELFFILE | grep -q "DYN" && {
+    WRAPPER_ARGS=$WRAPPER_ARGS" --collision"
+    DYN=1
+} || {
+    echo "WARNING: static binary detected, samples may collide with other processes!"
+    DYN=0
+}
+
+
+WRAPPER="pmapelf $WRAPPER_ARGS -- $TARGET_DIR/$ELFFILE $ARGUMENTS"
+
 
 ssh $TARGET "
 mkdir -p $TARGET_DIR && \
@@ -57,5 +66,9 @@ done
 echo ready!
 disown -a -h" || exit 1
 
-scp $TARGET":"$TARGET_DIR"/vmap" ./vmap || exit 1
+[ $DYN -eq 1 ] && {
+    scp $TARGET":"$TARGET_DIR"/vmap" ./vmap || exit 1
+} || {
+    echo "0x0 - 0x0" > ./vmap
+}
 

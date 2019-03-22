@@ -242,7 +242,7 @@ int main(int const argc, char **argv) {
         waitpid(targetPid, &status, 0);
         if (WIFEXITED(status)) {
             fprintf(stderr,"ERROR: unexpected process termination\n");
-            return 1;
+            return 2;
         }
 
         if (collisionDetection > 0 || shortOutput > 0) {

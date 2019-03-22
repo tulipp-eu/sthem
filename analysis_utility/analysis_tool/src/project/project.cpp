@@ -1148,18 +1148,6 @@ bool Project::runProfiler() {
   for(auto ef : customElfFile.split(',')) {
     elfSupport.addElf(ef);
   }
-  if(!offsetFile.trimmed().isEmpty()) {
-    QFile file(offsetFile);
-    if(file.open(QIODevice::ReadOnly)) {
-      if(!file.atEnd()) {
-        QStringList tokens = ((QString)file.readLine()).split(' ');
-        if(tokens.size()) {
-          elfSupport.setElfOffset(tokens[0].toULongLong(nullptr, 16));
-        }
-      }
-      file.close();
-    }
-  }
   elfSupport.addKallsyms(kallsymsFile);
 
   bool pmuInited = pmu.init();
@@ -1181,6 +1169,19 @@ bool Project::runProfiler() {
     }
   }
 
+  if(!offsetFile.trimmed().isEmpty()) {
+    QFile file(offsetFile);
+    if(file.open(QIODevice::ReadOnly)) {
+      if(!file.atEnd()) {
+        QStringList tokens = ((QString)file.readLine()).split(' ');
+        if(tokens.size()) {
+          elfSupport.setElfOffset(tokens[0].toULongLong(nullptr, 16));
+        }
+      }
+      file.close();
+    }
+  }
+  
   uint64_t samples = 0;
   int64_t minTime = 0;
   int64_t maxTime = 0;

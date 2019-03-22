@@ -64,7 +64,7 @@ void ElfSupport::setPc(uint64_t pc) {
         std::string cmd;
 
         // create command
-        pcStream << std::hex << (pc + elfOffset);
+        pcStream << std::hex << (pc - elfOffset);
         cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
 
         // run addr2line program
@@ -186,7 +186,7 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
       if(readLine(buf, 1024, fp)) {
         QStringList line = QString::fromUtf8(buf).split(' ');
         if(line[2].trimmed() == symbol) {
-          return line[0].toULongLong(0, 16);
+          return line[0].toULongLong(0, 16) + elfOffset;
         }
       }
     }
