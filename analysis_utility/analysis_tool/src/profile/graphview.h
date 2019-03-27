@@ -44,7 +44,7 @@ protected:
       QPointF pos = mapToScene(mouseEvent->pos());
       beginTime = scene->posToTime(pos.x());
 
-      QString statusMessage = QString::asprintf("Time: %.2fs Power: %.2fW\n", Pmu::cyclesToSeconds(beginTime), scene->posToPower(pos.x()));
+      QString statusMessage = QString::asprintf("Time: %.2fs Power: %.2fW\n", scene->posToSeconds(pos.x()), scene->posToPower(pos.x()));
       statusBar->showMessage(statusMessage);
 
     } else if(mouseEvent->button() == Qt::RightButton) {

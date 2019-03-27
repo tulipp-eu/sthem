@@ -80,8 +80,8 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
       uint64_t samples = query.value(4).toDouble();
       minPower = query.value(2).toDouble() + minPowerIncrement;
       maxPower = query.value(3).toDouble() + maxPowerIncrement;
-      int64_t minTimeDb = query.value(0).toLongLong();
-      int64_t maxTimeDb = query.value(1).toLongLong();
+      minTimeDb = query.value(0).toLongLong();
+      maxTimeDb = query.value(1).toLongLong();
 
       if(samples > 1) {
         if(beginTime < 0) minTime = minTimeDb;
@@ -225,6 +225,10 @@ double GraphScene::scalePower(double power) {
 
 int64_t GraphScene::posToTime(double pos) {
   return (pos / scaleFactorTime) * (maxTime-minTime) + minTime;
+}
+
+double GraphScene::posToSeconds(double pos) {
+  return Pmu::cyclesToSeconds(posToTime(pos) - minTimeDb);
 }
 
 double GraphScene::posToPower(double pos) {
