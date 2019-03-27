@@ -26,15 +26,10 @@
 static uint8_t i2cCommand;
 static uint8_t i2cSensors;
 
-static int16_t i2cCurrentAvg[7];
 static double i2cCalData[14];
 static uint8_t *i2cSendBufPtr;
 
 static int i2cIdx;
-
-uint64_t i2cCurrentAcc[7];
-int i2cSamplesSinceLast[7];
-int16_t i2cCurrentInstant[7];
 
 void i2cInit(void) {
   DWT->CYCCNT = 0;
@@ -134,16 +129,11 @@ void I2C0_IRQHandler(void) {
     if(addr & 1) {
 
       if(i2cCommand == I2C_READ_CURRENT_AVG) {
-        for(int i = 0; i < 7; i++) {
-          i2cCurrentAvg[i] = i2cCurrentAcc[i] / i2cSamplesSinceLast[i];
-          i2cCurrentAcc[i] = 0;
-          i2cSamplesSinceLast[i] = 0;
-        }
-
-        i2cSendBufPtr = (uint8_t*)i2cCurrentAvg;
+        getCurrentAvg(continuousCurrentAvg);
+        i2cSendBufPtr = (uint8_t*)continuousCurrentAvg;
 
       } else if(i2cCommand == I2C_READ_CURRENT_INSTANT) {
-        i2cSendBufPtr = (uint8_t*)i2cCurrentInstant;
+        i2cSendBufPtr = (uint8_t*)continuousCurrentInstant;
 
       } else if(i2cCommand == I2C_GET_CAL) {
         i2cSendBufPtr = (uint8_t*)i2cCalData;

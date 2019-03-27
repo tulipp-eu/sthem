@@ -33,10 +33,6 @@
 #define I2C_READ_CURRENT_INSTANT 3
 #define I2C_GET_CAL              4
 
-extern uint64_t i2cCurrentAcc[7];
-extern int i2cSamplesSinceLast[7];
-extern int16_t i2cCurrentInstant[7];
-
 void i2cInit(void);
 
 #endif

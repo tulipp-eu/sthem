@@ -40,6 +40,8 @@ uint8_t startCore = 0;
 uint8_t stopCore = 0;
 uint64_t frameBp;
 
+static struct SampleReplyPacket sample;
+
 static uint32_t upgradeCrc;
 static uint32_t flashPackageCounter;
 
@@ -239,6 +241,31 @@ static void startSampling(struct StartSamplingRequestPacket *startSamplingReq) {
   }
 
   sampleStop = startSamplingReq->samplePeriod + calculateTime();
+}
+
+static void getSample(struct GetSampleRequestPacket *getSampleReq) {
+  samplePc = getSampleReq->flags & SAMPLING_FLAG_SAMPLE_PC;
+  bool average = getSampleReq->flags & SAMPLING_FLAG_AVERAGE;
+
+  bool halted = false;
+  bool sampleOk = true;
+
+  if(samplePc) {
+    sampleOk = coreReadPcsrFast(sample.pc, &halted);
+  }
+  if(average) {
+    getCurrentAvg(sample.current);
+  } else {
+    //memcpy(sample.current, continuousCurrentInstant, sizeof(int16_t) * SENSORS);
+    adcScan(sample.current);
+    adcScanWait();
+  }
+
+  sample.flags = 0;
+  if(halted) sample.flags |= SAMPLE_REPLY_FLAG_HALTED;
+  if(!sampleOk) sample.flags |= SAMPLE_REPLY_FLAG_INVALID;
+
+  sendBuf(&sample, sizeof(struct SampleReplyPacket));
 }
 
 static void calibrate(struct CalibrateRequestPacket *cal) {
@@ -486,6 +513,10 @@ static int UsbDataReceived(USB_Status_TypeDef status, uint32_t xf, uint32_t rema
 
       case USB_CMD_START_SAMPLING:
         startSampling((struct StartSamplingRequestPacket *)req);
+        break;
+
+      case USB_CMD_GET_SAMPLE:
+        getSample((struct GetSampleRequestPacket *)req);
         break;
 
       case USB_CMD_CAL:

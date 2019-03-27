@@ -51,6 +51,7 @@
 #define USB_CMD_CAL              'l'
 #define USB_CMD_CAL_SET          'c'
 #define USB_CMD_TEST             't'
+#define USB_CMD_GET_SAMPLE       'g'
 
 #define USB_CMD_UPGRADE_INIT     'u'
 #define USB_CMD_UPGRADE_STORE    'f'
@@ -78,8 +79,11 @@
 #define SAMPLING_FLAG_START_BP  0x02
 #define SAMPLING_FLAG_GPIO      0x04
 #define SAMPLING_FLAG_PERIOD    0x08
+#define SAMPLING_FLAG_AVERAGE   0x10
 
-#define SAMPLE_REPLY_FLAG_FRAME_DONE 1
+#define SAMPLE_REPLY_FLAG_FRAME_DONE 0x01
+#define SAMPLE_REPLY_FLAG_HALTED     0x02
+#define SAMPLE_REPLY_FLAG_INVALID    0x04
 
 #define CALREQ_FLAG_LOW  1
 #define CALREQ_FLAG_HIGH 2
@@ -112,6 +116,11 @@ struct __attribute__((__packed__)) JtagInitRequestPacket { // from V1.6
 struct __attribute__((__packed__)) StartSamplingRequestPacket {
   struct RequestPacket request;
   int64_t samplePeriod;
+  uint64_t flags;
+};
+
+struct __attribute__((__packed__)) GetSampleRequestPacket { // from V1.6
+  struct RequestPacket request;
   uint64_t flags;
 };
 

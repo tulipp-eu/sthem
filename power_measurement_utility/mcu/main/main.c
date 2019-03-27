@@ -53,11 +53,11 @@ volatile uint32_t highWord = 0;
 static struct SampleReplyPacket sampleBuf1[MAX_SAMPLES] __attribute__((__aligned__(4)));
 static struct SampleReplyPacket sampleBuf2[MAX_SAMPLES] __attribute__((__aligned__(4)));
 
-#ifndef USE_SWO
-
-static int16_t i2cCurrent[7];
-
-#endif
+static int16_t continuousCurrent[7];
+uint64_t continuousCurrentAcc[7];
+int continuousSamplesSinceLast[7];
+int16_t continuousCurrentInstant[7];
+int16_t continuousCurrentAvg[7];
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -241,19 +241,19 @@ int main(void) {
           }
         }
       }
-#ifndef USE_SWO
     } else {
-      adcScan(i2cCurrent);
+      __disable_irq();
+
+      adcScan(continuousCurrent);
       adcScanWait();
 
-      __disable_irq();
       for(int i = 0; i < 7; i++) {
-        i2cCurrentAcc[i] += i2cCurrent[i];
-        i2cSamplesSinceLast[i]++;
-        i2cCurrentInstant[i] = i2cCurrent[i];
+        continuousCurrentAcc[i] += continuousCurrent[i];
+        continuousSamplesSinceLast[i]++;
+        continuousCurrentInstant[i] = continuousCurrent[i];
       }
+
       __enable_irq();
-#endif      
     }
   } 
 }
@@ -276,3 +276,10 @@ int _write(int fd, char *str, int len) {
   return len;
 }
 
+void getCurrentAvg(int16_t *sampleBuffer) {
+  for(int i = 0; i < 7; i++) {
+    sampleBuffer[i] = continuousCurrentAcc[i] / continuousSamplesSinceLast[i];
+    continuousCurrentAcc[i] = 0;
+    continuousSamplesSinceLast[i] = 0;
+  }
+}

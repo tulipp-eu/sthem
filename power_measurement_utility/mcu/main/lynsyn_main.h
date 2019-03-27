@@ -48,6 +48,7 @@
 
 void panic(const char *fmt, ...);
 int64_t calculateTime();
+void getCurrentAvg(int16_t *sampleBuffer);
 
 ///////////////////////////////////////////////////////////////////////////////
 // global variables
@@ -60,5 +61,9 @@ extern volatile int64_t sampleStop;
 extern uint8_t startCore;
 extern uint8_t stopCore;
 extern uint64_t frameBp;
+extern uint64_t continuousCurrentAcc[7];
+extern int continuousSamplesSinceLast[7];
+extern int16_t continuousCurrentInstant[7];
+extern int16_t continuousCurrentAvg[7];
 
 #endif
