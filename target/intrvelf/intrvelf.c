@@ -14,20 +14,27 @@
 #include <getopt.h>
 
 #include "lynsyn.h"
+#include "vmmap.h"
 
 #define CLOCKS_PER_MSEC (CLOCKS_PER_SEC / 1000)
 #define CLOCKS_PER_USEC (CLOCKS_PER_SEC / 1000000)
 
-#define DEBUG 0
+#ifdef DEBUG
 #define debug_printf(fmt, ...) \
     do { if (DEBUG) fprintf(stderr, fmt, __VA_ARGS__); } while(0)
+#else
+#define debug_printf(fmt,...)
+#endif
 
 
-#define DEF_TIMER(x) unsigned long _timer_##x
-#define RESET_TIMER(x) _timer_##x = getTimeUs()
-#define GET_TIME(x)  ((unsigned long) (getTimeUs() - _timer_##x))
+#define DEF_TIMER(x) clock_t _timer_##x
+#define RESET_TIMER(x) _timer_##x = clock()
+#define GET_TIME(x)  ((uint64_t) ((clock() - _timer_##x) / CLOCKS_PER_USEC))
+#define DEF_WALL_TIMER(x) uint64_t _wall_timer_##x
+#define RESET_WALL_TIMER(x) _wall_timer_##x = getWallTimeUs()
+#define GET_WALL_TIME(x)  ((uint64_t) (getWallTimeUs() - _wall_timer_##x))
 
-unsigned long getTimeUs() {
+unsigned long getWallTimeUs() {
     static struct timespec spec;
     clock_gettime(CLOCK_REALTIME, &spec);
     return (spec.tv_sec * 1000000) + (spec.tv_nsec / 1000);
@@ -46,38 +53,13 @@ static int _ptrace_return = 0;
     } while (_ptrace_return == -1L && (errno == EBUSY || errno == EFAULT || errno == ESRCH)) 
 
 
-#define dynamicExecutableThreshold     0x0000500000000000
-#define dynamicExecutableCodeThreshold 0x0000700000000000
-
-void realPC(unsigned long long *pc, unsigned long long const offset) {
-    if ((*pc > dynamicExecutableThreshold) && (*pc < dynamicExecutableCodeThreshold)) {
-            *pc = *pc - offset;
-        }
-}
-    
-int getProcessOffset(pid_t pid, unsigned long long *offset) {
-    int ret = 0;
-    char cmd[1024];
-    if (snprintf(cmd,1024,"pmap -q -d %d | awk '$3 ~ /x/ && $5 != \"000:00000\" {print \"0x\"$1}'", pid) <= 0) {
-        return -1;
-    }
-    FILE *ps = popen(cmd, "r");
-    if (fscanf(ps,"%llx", offset) != 1) {
-        ret = -1;
-    }
-    pclose(ps);
-    if (*offset < dynamicExecutableThreshold) 
-        *offset = 0;
-    return ret;
-}
-
-unsigned int taskCount = 0;
-unsigned int allocTasks = 0;
+uint32_t taskCount = 0;
+uint32_t allocTasks = 0;
 
 struct task {
-    pid_t tid;
-    unsigned long long int pc;
-};
+    uint32_t tid;
+    uint64_t pc;
+} __attribute__((packed));
 
 struct task *tasks = NULL;
 
@@ -145,6 +127,7 @@ void help(char const opt, char const *optarg) {
     fprintf(out, "  -o, --output=<file>       write to file\n");
     fprintf(out, "  -s, --sensor=<1-7>        lynsyn sensor\n");
     fprintf(out, "  -f, --frequency=<hertz>   sampling frequency\n");
+    fprintf(out, "  -a, --aggregated>         write aggregated profile\n");
     fprintf(out, "  -d, --debug               output debug messages\n");
     fprintf(out, "  -h, --help                shows help\n");
     fprintf(out, "\n");
@@ -229,26 +212,32 @@ int stopTimer(struct timerData *timer) {
     return -1;
 }
 
+double getCurrentFromLynsyn(int const sensor) {
+    if (sensor < 0 || sensor >= LYNSYN_SENSORS)
+        return 0.0;
+    return adjustCurrent(retrieveCurrents()[sensor], sensor);
+}
+
 
 int main(int const argc, char **argv) {
-    char const *stdOutput = "profile.bin";
-    FILE *output = stdout;
+    FILE *output = NULL;
     char **argsStart = NULL;
     int sensor = -1;
-    int debugOutput = 0;
+    bool debugOutput = 0;
+    bool aggregated = 0;
     double samplingFrequency = 10000;
-    unsigned long long offset = 0;
     
     static struct option const long_options[] =  {
         {"help",         no_argument, 0, 'h'},
         {"debug",        no_argument, 0, 'd'},
-        {"sensor",        no_argument, 0, 's'},
+        {"aggregated",   no_argument, 0, 'a'},
+        {"sensor",       required_argument, 0, 's'},
         {"frequency",    required_argument, 0, 'f'},
         {"output",       required_argument, 0, 'o'},
         {0, 0, 0, 0}
     };
 
-    static char const * short_options = "hdf:o:s:";
+    static char const * short_options = "hdaf:o:s:";
 
     while (1) {
         char *endptr;
@@ -295,8 +284,11 @@ int main(int const argc, char **argv) {
                     return 1;
                 }
                 break;
+            case 'a':
+                aggregated = true;
+                break;
             case 'd':
-                debugOutput = 1;
+                debugOutput = true;
                 break;
             default:
                 abort();
@@ -314,17 +306,7 @@ int main(int const argc, char **argv) {
         help(' ', "no command specified");
         return 1;
     }
-
-    if (output == stdout) {
-        if (access(stdOutput, F_OK) == -1) {
-            output = fopen(stdOutput, "w+");
-        }
-        if (output == stdout || output == NULL) {
-            fprintf(stderr, "either %s already exists or it cannot be created\n", stdOutput);
-            return 1;
-        }
-    }
-        
+       
     if (sensor >= 0 && !initLynsyn()) {
         goto lynsynError;
     }
@@ -376,19 +358,51 @@ int main(int const argc, char **argv) {
     }
 
     if (ptrace(PTRACE_SETOPTIONS, samplingTarget, NULL, PTRACE_O_TRACECLONE) == -1) {
-        fprintf(stderr, "Could not set ptrace options!\n");
+        fprintf(stderr, "ERROR: Could not set ptrace options!\n");
         ret = 1; goto exitWithTarget;
     }
 
-    if (getProcessOffset(samplingTarget, &offset) != 0) {
-       fprintf(stderr, "ERROR: could not detect process offset\n");
+    struct VMMaps targetMap = {};
+    targetMap = getProcessVMMaps(samplingTarget, 0);
+    if (targetMap.count == 0) {
+       fprintf(stderr, "ERROR: could not detect process vmmap\n");
        ret = 1; goto exitWithTarget;
     }
 
+    double aggregatedUnknown = 0.0;
+    double **aggregateMap = NULL;
+    if (aggregated) {
+        aggregateMap = (double **) malloc(targetMap.count * sizeof(double *));
+        if (aggregateMap == NULL) {
+            fprintf(stderr, "ERROR: could not allocate memory for aggregation map\n");
+            goto exitWithTarget;
+        }
+        for (unsigned int i = 0; i < targetMap.count; i++) {
+            aggregateMap[i] = malloc(targetMap.maps[i].size * sizeof(double));
+            if (aggregateMap[i] == NULL) {
+                fprintf(stderr, "ERROR: could not allocate memory for aggregation map\n");
+                goto exitWithTarget;
+            }
+            memset(aggregateMap[i], '\0', targetMap.maps[i].size * sizeof(double));
+        }
+    }
 
+#ifdef DEBUG
+    dumpVMMaps(targetMap);
+#endif
+
+    if (output != NULL) {
+        // Leave place for Magic Number, Wall Time, Time, Samples
+        fseek(output, sizeof(unsigned int) + 3 * sizeof(uint64_t), SEEK_SET);
+        //Write VMMaps
+        fwrite((void *) &targetMap.count, sizeof(unsigned int), 1, output);
+        fwrite((void *) targetMap.maps, sizeof(struct VMMap), targetMap.count, output);
+    }
+
+    
     struct timerData timer = {};
-    unsigned long long int samples = 0;
-    unsigned long long int interrupts = 0;
+    uint64_t samples = 0;
+    uint64_t interrupts = 0;
     setTimerFrequency(&timer, samplingFrequency);
 
     _callback_data.tid = samplingTarget;
@@ -397,6 +411,8 @@ int main(int const argc, char **argv) {
 
     DEF_TIMER(total);
     RESET_TIMER(total);
+    DEF_WALL_TIMER(total);
+    RESET_WALL_TIMER(total);
     
     if (startTimer(&timer) != 0) {
         fprintf(stderr, "ERROR: could not start sampling timer\n");
@@ -481,28 +497,47 @@ int main(int const argc, char **argv) {
                 } 
                 */
                 debug_printf("[%d] not traced signal %d\n", intrTarget, signal);
-                    
                 interrupts++;
             }
             PTRACE_CONTINUE(intrTarget, signal);
         }
 
-        double energy = (sensor >= 0) ? getCurrent(sensor) : 0;
-        
-        fwrite((void *) &taskCount, sizeof(unsigned int), 1, output);
-        fwrite((void *) &energy, sizeof(double), 1, output);
+        double current = getCurrentFromLynsyn(sensor);
+
+        debug_printf("[sample] current: %f A\n", current);
              
         for (unsigned int i = 0; i < taskCount; i++) {
-            debug_printf("[%d] sample\n", tasks[i].tid);
             static struct user_regs_struct regs = {};
             do {
                 rp = ptrace(PTRACE_GETREGS, tasks[i].tid, &regs, &regs);
             } while (rp == -1L && errno == ESRCH);
-            realPC(&regs.rip, offset);
-            fwrite((void *) &regs.rip, sizeof(unsigned long long int), 1, output);
-                
+            tasks[i].pc = regs.rip;
+            debug_printf("[%d] pc: 0x%lx\n", tasks[i].tid, tasks[i].pc);
+            
+            if (output != NULL && aggregated) {
+                bool counted = false;
+                for (unsigned int j = 0; j < targetMap.count; j++) {
+                    if (targetMap.maps[j].addr > tasks[i].pc)
+                        continue;
+                    uint64_t const offset = tasks[i].pc - targetMap.maps[j].addr;
+                    if (offset < targetMap.maps[j].size) {
+                        aggregateMap[j][offset] += current;
+                        counted = true;
+                        break;
+                    }
+                }
+                if (!counted) {
+                    aggregatedUnknown += current;
+                }
+            }
         }
-        interrupts++;
+
+        if (output != NULL && !aggregated) {
+            fwrite((void *) &current, sizeof(double), 1, output);
+            fwrite((void *) &taskCount, sizeof(unsigned int), 1, output);
+            fwrite((void *) tasks, sizeof(struct task), taskCount, output);
+        }
+        
         samples++;
         
         groupStop = 0;
@@ -513,29 +548,43 @@ int main(int const argc, char **argv) {
         }
     } while(taskCount > 0);
 
-exitSampler:
+ exitSampler: ; 
+
+    uint64_t totalTime = GET_TIME(total);
+    uint64_t totalWallTime = GET_WALL_TIME(total);
     
     if (stopTimer(&timer) != 0) {
         fprintf(stderr, "Could not stop sampling timer\n");
         ret = 1; goto exit;
     }
 
+    if (output != NULL) {
+        if (aggregated) {
+            fwrite((void *) &aggregatedUnknown, sizeof(double), 1, output);
+            for (unsigned int i = 0; i < targetMap.count; i++) {
+                fwrite((void *) &targetMap.maps[i].addr, sizeof(uint64_t), 1, output);
+                fwrite((void *) aggregateMap[i], sizeof(double), targetMap.maps[i].size, output);
+            }
+        }
+        //HEADER
+        uint32_t magic = (aggregated) ? 1 : 0;
+        fseek(output, 0, SEEK_SET);
+        fwrite((void *) &magic, sizeof(uint32_t), 1, output);
+        fwrite((void *) &totalWallTime, sizeof(uint64_t), 1, output);
+        fwrite((void *) &totalTime, sizeof(uint64_t), 1, output);
+        fwrite((void *) &samples, sizeof(uint64_t), 1, output);
+    }
 
     //Write Header -> Samples, Threads, Offset, sample interval (us)
     
     if (debugOutput) {
-        unsigned long long totalTime = GET_TIME(total);
-        unsigned long long samplingInterval = (timer.time.it_interval.tv_sec * 1000000) + (timer.time.it_interval.tv_nsec / 1000);
-        printf("[SAMPLER] offset    : 0x%llx\n", offset);
-        printf("[SAMPLER] time      : %10llu us (total)\n", totalTime);
-        printf("[SAMPLER] interrupts: %10llu    (total), %10llu    (foreign) \n", interrupts, interrupts - samples );
-        if (samplingInterval >0 ) {
-            printf("[SAMPLER] samples   : %10llu    (ideal), %10llu    (actual)  \n", totalTime / samplingInterval, samples);
-        }
-        //printf("[SAMPLER] latency   : %10llu us (total), %10llu us (sample)  \n", totalLatency, totalLatency / samples);
-        if (samples > 0) {
-            printf("[SAMPLER] frequency : %10.2f Hz (ideal), %10.2f Hz (actual)\n", samplingFrequency, 1000000.0 / ((double) totalTime / samples));
-        }
+        unsigned long samplingInterval = (timer.time.it_interval.tv_sec * 1000000) + (timer.time.it_interval.tv_nsec / 1000);
+        printf("[DEBUG] time       : %10lu us (ideal), %10lu us (actual)\n", totalWallTime - totalTime, totalWallTime);
+        printf("[DEBUG] interrupts : %10lu    (total), %10lu    (foreign) \n", interrupts + samples, interrupts );
+        printf("[DEBUG] samples    : %10lu    (ideal), %10lu    (actual)  \n", (samplingInterval > 0) ? totalWallTime / samplingInterval : 0, samples);
+        printf("[DEBUG] latency    : %10lu us (total), %10lu us (sample)\n", totalTime, (samples > 0) ? totalTime / samples : 0);
+        
+        printf("[DEBUG] frequency  : %10.2f Hz (ideal), %10.2f Hz (actual)\n", samplingFrequency, (samples > 0) ? 1000000.0 / ((double) totalWallTime / samples) : 0);
     }
     ret = 0; goto exit;
 
@@ -546,7 +595,9 @@ exit:
     if (sensor >= 0) {
         releaseLynsyn();
     }
- lynsynError:
-    fclose(output);
+lynsynError:
+    if (output != NULL) {
+        fclose(output);
+    }
     return ret;
 }

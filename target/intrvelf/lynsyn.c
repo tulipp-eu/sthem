@@ -28,7 +28,9 @@
 #define LYNSYN_REF_VOLTAGE 2.5
 
 #define LYNSYN_RS 8200
-double rlDefault[7] = {0.025, 0.05, 0.05, 0.1, 0.1, 1, 10};
+#define LSYNSYN_SENSORS 7
+
+double rlDefault[LYNSYN_SENSORS] = {0.025, 0.05, 0.05, 0.1, 0.1, 1, 10};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -38,29 +40,13 @@ uint8_t inEndpoint;
 struct libusb_context *usbContext = NULL;
 libusb_device **devs = NULL;
 
-struct CalInfoPacket calInfo;
-struct GetSampleRequestPacket req;
+struct CalInfoPacket calInfo = {};
+struct GetSampleRequestPacket req = {};
+struct SampleReplyPacket reply = {};
 
 #define USE_HW_VERSION HW_VERSION_2_2
 
 ///////////////////////////////////////////////////////////////////////////////
-
-double calculateCurrent(int16_t current, double offset, double gain, double rl) {
-  double v;
-  double vs;
-  double i;
-
-  v = (((double)current-offset) * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * gain;
-
-#if USE_HW_VERSION == HW_VERSION_2_0 
-  i = (1000 * v) / (LYNSYN_RS * rl);
-#else
-  vs = v / 20;
-  i = vs / rl;
-#endif
-
-  return i;
-}
 
 void sendBytes(uint8_t *bytes, int numBytes) {
   int remaining = numBytes;
@@ -87,36 +73,30 @@ void getBytes(uint8_t *bytes, int numBytes) {
 }
 
 bool initLynsyn(void) {
-  libusb_device *lynsynBoard;
+  libusb_device *lynsynBoard = NULL;
 
-  int r = libusb_init(&usbContext);
-
-  if(r < 0) {
+  if(libusb_init(&usbContext) < 0) {
       fprintf(stderr, "[LYNSYN] init Error\n"); //there was an error
       return false;
   }
 	  
   libusb_set_debug(usbContext, 3); //set verbosity level to 3, as suggested in the documentation
 
-  bool found = false;
   int numDevices = libusb_get_device_list(usbContext, &devs);
-  while(!found) {
-    for(int i = 0; i < numDevices; i++) {
+  for(int i = 0; i < numDevices; i++) {
       struct libusb_device_descriptor desc;
       libusb_device *dev = devs[i];
       libusb_get_device_descriptor(dev, &desc);
       if(desc.idVendor == 0x10c4 && desc.idProduct == 0x8c1e) {
-        lynsynBoard = dev;
-        found = true;
-        break;
+          lynsynBoard = dev;
+          break;
       }
-    }
-    if(!found) {
-        fprintf(stderr, "[LSYNSYN] waiting for Lynsyn device\n");
-        sleep(1);
-        numDevices = libusb_get_device_list(usbContext, &devs);
-    }
   }
+  if (lynsynBoard == NULL) {
+      fprintf(stderr, "[LSYNSYN] Lynsyn device not found\n");
+      return false;
+  }
+
 
   int err = libusb_open(lynsynBoard, &lynsynHandle);
 
@@ -179,13 +159,22 @@ void releaseLynsyn(void) {
   lynsynHandle = NULL;
 }
 
-double getCurrent(unsigned int const sensor) {
-    if (lynsynHandle == NULL)
-        return 0.0;
-    
-    struct SampleReplyPacket reply;
 
-    sendBytes((uint8_t*)&req, sizeof(struct GetSampleRequestPacket));
-    getBytes((uint8_t*)&reply, sizeof(struct SampleReplyPacket));
-    return calculateCurrent(reply.current[sensor], calInfo.offset[sensor], calInfo.gain[sensor], rlDefault[sensor]);
+
+double adjustCurrent(int16_t const current, unsigned int const sensor) {
+    double v = (((double)current - calInfo.offset[sensor]) * ((double)LYNSYN_REF_VOLTAGE) / (double)LYNSYN_MAX_CURRENT_VALUE) * calInfo.gain[sensor];
+  
+#if USE_HW_VERSION == HW_VERSION_2_0 
+    return (1000 * v) / (LYNSYN_RS * rlDefault[sensor]);
+#else
+    return (v / 20) / rlDefault[sensor];
+#endif
+}
+
+int16_t* retrieveCurrents() {
+    if (lynsynHandle != NULL) {
+        sendBytes((uint8_t*)&req, sizeof(struct GetSampleRequestPacket));
+        getBytes((uint8_t*)&reply, sizeof(struct SampleReplyPacket));
+    }
+    return reply.current;
 }

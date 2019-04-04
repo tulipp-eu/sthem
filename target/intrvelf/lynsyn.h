@@ -32,6 +32,9 @@
 
 #include "../../power_measurement_utility/mcu/common/usbprotocol.h"
 
+#define LYNSYN_SENSORS 7
+
 bool initLynsyn(void);
 void releaseLynsyn(void);
-double getCurrent(unsigned int const sensor);
+double adjustCurrent(int16_t const current, unsigned int const sensors);
+int16_t* retrieveCurrents();
