@@ -2,12 +2,14 @@
 #include <string.h>
 #include <stdint.h>
 
-#define VMMAP_LABEL_LENGTH 256
+#define VMMAP_LABEL_LENGTH 255
+#define STRINGIFY_EVAL(x) #x
+#define STRINGIFY(x) STRINGIFY_EVAL(x)
 
 struct VMMap {
     uint64_t addr;
     uint64_t size;
-    char label[VMMAP_LABEL_LENGTH];
+    char label[VMMAP_LABEL_LENGTH + 1];
 };
 
 struct VMMaps {
@@ -24,7 +26,7 @@ struct VMMaps getProcessVMMaps(pid_t pid, unsigned int const limit) {
         return result;
     }
     FILE *ps = popen(cmd, "r");
-    while (fscanf(ps,"%lx %lu %s", &map.addr, &map.size, map.label) == 3) {
+    while (fscanf(ps,"%lx %lu %"STRINGIFY(VMMAP_LABEL_LENGTH)"s", &map.addr, &map.size, map.label) == 3) {
         if (result.count == 0) {
             result.maps = (struct VMMap *) malloc(allocCount * sizeof(struct VMMap));
         } else if (allocCount <= result.count) {
@@ -34,9 +36,12 @@ struct VMMaps getProcessVMMaps(pid_t pid, unsigned int const limit) {
         if (result.maps == NULL) {
             break;
         }
+        //kilobyte to byte
+        map.size *= 1024;
         memcpy((void *) &result.maps[result.count], (void *) &map, sizeof(struct VMMap));
         result.count++;
         if (limit == result.count) break;
+        memset((void *) &map, '\0', sizeof(struct VMMap));
     }
     pclose(ps);
     

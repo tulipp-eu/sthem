@@ -393,7 +393,9 @@ int main(int const argc, char **argv) {
     }
 
 #ifdef DEBUG
-    dumpVMMaps(targetMap);
+    for (unsigned int i = 0; i < targetMap.count; i ++) {
+        printf("[DEBUG] VMMap %u: 0x%014lx, 0x%014lx, %s\n", i, targetMap.maps[i].addr, targetMap.maps[i].size, targetMap.maps[i].label);
+    }
 #endif
 
     if (output != NULL) {
@@ -528,6 +530,8 @@ int main(int const argc, char **argv) {
                     if (offset < targetMap.maps[j].size) {
                         aggregateMap[j][offset].samples++;
                         aggregateMap[j][offset].current += current;
+                        debug_printf("[%d] aggregate to addr 0x%lx with offset 0x%lx\n", tasks[i].tid, targetMap.maps[j].addr, offset);
+                        debug_printf("[%d] %lu samples accumalated %f A\n", tasks[i].tid, aggregateMap[j][offset].samples, aggregateMap[j][offset].current);
                         counted = true;
                         break;
                     }
@@ -535,6 +539,8 @@ int main(int const argc, char **argv) {
                 if (!counted) {
                     aggregateUnknown.samples++;
                     aggregateUnknown.current += current;
+                    debug_printf("[%d] unknown pc 0x%lx\n", tasks[i].tid, tasks[i].pc);
+                    debug_printf("[%d] %lu unknown samples accumalated %f A\n", tasks[i].tid, aggregateUnknown.samples, aggregateUnknown.current);
                 }
             }
         }
