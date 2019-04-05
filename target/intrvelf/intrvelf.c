@@ -8,25 +8,32 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/types.h>
-#include <sys/ptrace.h>
 #include <sys/user.h>
 #include <spawn.h>
 #include <getopt.h>
 
+#include <elf.h>
+#include <sys/uio.h>
+#include <sys/ptrace.h>
+
+
 #include "lynsyn.h"
 #include "vmmap.h"
 
-#define CLOCKS_PER_MSEC (CLOCKS_PER_SEC / 1000)
-#define CLOCKS_PER_USEC (CLOCKS_PER_SEC / 1000000)
 
 #ifdef DEBUG
-#define debug_printf(fmt, ...) \
-    do { if (DEBUG) fprintf(stderr, fmt, __VA_ARGS__); } while(0)
+#define debug_printf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__);
 #else
 #define debug_printf(fmt,...)
 #endif
 
+#if !defined(__amd64__) && !defined(__aarch64__)
+#error "Architecture not supported!"
+#endif
 
+
+#define CLOCKS_PER_MSEC (CLOCKS_PER_SEC / 1000)
+#define CLOCKS_PER_USEC (CLOCKS_PER_SEC / 1000000)
 #define DEF_TIMER(x) clock_t _timer_##x
 #define RESET_TIMER(x) _timer_##x = clock()
 #define GET_TIME(x)  ((uint64_t) ((clock() - _timer_##x) / CLOCKS_PER_USEC))
@@ -406,6 +413,10 @@ int main(int const argc, char **argv) {
         fwrite((void *) targetMap.maps, sizeof(struct VMMap), targetMap.count, output);
     }
 
+    static struct user_regs_struct regs = {};
+#ifdef __aarch64__
+    static struct iovec rvec = { .iov_base = &regs, .iov_len = sizeof(regs) };
+#endif
     
     struct timerData timer = {};
     uint64_t samples = 0;
@@ -514,11 +525,18 @@ int main(int const argc, char **argv) {
         debug_printf("[sample] current: %f A\n", current);
              
         for (unsigned int i = 0; i < taskCount; i++) {
-            static struct user_regs_struct regs = {};
             do {
-                rp = ptrace(PTRACE_GETREGS, tasks[i].tid, &regs, &regs);
+#ifdef __aarch64__
+                rp = ptrace(PTRACE_GETREGSET, tasks[i].tid, NT_PRSTATUS, &rvec);
+#else   
+                rp = ptrace(PTRACE_GETREGS, tasks[i].tid, NULL, &regs);
+#endif
             } while (rp == -1L && errno == ESRCH);
+#ifdef __aarch64__
+            tasks[i].pc = regs.pc;
+#else
             tasks[i].pc = regs.rip;
+#endif
             debug_printf("[%d] pc: 0x%lx\n", tasks[i].tid, tasks[i].pc);
             
             if (output != NULL && aggregate) {
