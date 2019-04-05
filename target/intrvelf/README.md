@@ -13,18 +13,19 @@ Options:
 ```
 
 * Support for full profiles
-  * profiles contains current, tid and pc for every sample and thread
+  * profiles contain current, TID and PC for every sample and thread
   * very IO heavy depending on sampling frequency and execution time
   * could lead to very big profiles
 * Support for aggregated profiles
-  * every known pc value has an samples counter and aggregated current value
-  * unknown pc values are accumulated to a sepperate counter and current value
+  * every known pc value has an sample counter and aggregated current value
+  * unknown pc values are accumulated to a separate counter and current value
   * no IO is generated during sampling
-* all profiles contains execution time (wall), time spend in profiler (latency), number of samples and target vmmap
+* all profiles contain execution time (wall), time spend in profiler (latency), number of samples and target VMMap
 * output file is optional, if not specified no IO is generated
 * sensor is optional, if not specified PMU sampling is omitted
 * frequency is a target, actual reached frequency is displayed in debug output
 * threads are fully supported, **though fork, vfork and vclone is not supported**!
+* execl, execlp, execle, execv, execvp and execvpe are replacing the current process with new VMMaps and are therefore not supported!
 
 ## Profile Header
 
@@ -40,7 +41,7 @@ Options:
 [ 8 bytes / uint64_t ] Number of Samples
 
 [ 4 bytes / uint32_t ] Number of VMMaps
-VMMap{ 
+VMMap{
     [ 8 bytes / uint64_t ] Address
     [ 8 bytes / uint64_t ] Size
     [ 256 bytes / char * ] Label
@@ -62,13 +63,13 @@ Sample{
         [ 8 bytes / uint64_t ] PC
     } // Repeated "Number of Threads" times
 } // Repeated "Number of Samples" times
-``` 
+```
 
 ### Aggregated Profile
 
 * no IO during sampling process, profile is written afterwards
 * text section determines size
-* no informations about individual thread, only which pc caused which average current
+* no informations about individual threads, only which PC caused which average current
 
 ```
 [ 8 bytes / uint64_t ] Unknown Samples
@@ -80,6 +81,4 @@ VMMap{
         [ 8 bytes / double   ] Aggregated Current
     } // Repeated "VMMap->Size" times
 } // Repeated "Number of VMMaps" times
-``` 
-
-
+```
