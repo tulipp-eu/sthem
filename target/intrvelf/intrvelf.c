@@ -130,9 +130,9 @@ void help(char const opt, char const *optarg) {
     fprintf(out, "\n");
     fprintf(out, "Options:\n");
     fprintf(out, "  -o, --output=<file>       write to file\n");
-    fprintf(out, "  -s, --sensor=<1-7>        lynsyn sensor\n");
+    fprintf(out, "  -s, --sensor=<1-%d>        lynsyn sensor\n", LYNSYN_SENSORS);
     fprintf(out, "  -f, --frequency=<hertz>   sampling frequency\n");
-    fprintf(out, "  -a, --aggregate>          write aggregated profile\n");
+    fprintf(out, "  -a, --aggregate           write aggregated profile\n");
     fprintf(out, "  -d, --debug               output debug messages\n");
     fprintf(out, "  -h, --help                shows help\n");
     fprintf(out, "\n");

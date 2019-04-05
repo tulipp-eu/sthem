@@ -10,10 +10,10 @@ struct VMMap {
     uint64_t addr;
     uint64_t size;
     char label[VMMAP_LABEL_LENGTH + 1];
-};
+} __attribute__((packed));
 
 struct VMMaps {
-    unsigned int count;
+    uint32_t count;
     struct VMMap *maps;
 };
 
@@ -44,13 +44,13 @@ struct VMMaps getProcessVMMaps(pid_t pid, unsigned int const limit) {
         memset((void *) &map, '\0', sizeof(struct VMMap));
     }
     pclose(ps);
-    
+
     if (result.maps == NULL) {
         result.count = 0;
         return result;
     }
     result.maps = (struct VMMap *) realloc(result.maps, result.count * sizeof(struct VMMap));
-    
+
     return result;
 }
 
