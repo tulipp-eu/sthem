@@ -407,9 +407,9 @@ int main(int const argc, char **argv) {
 
     if (output != NULL) {
         // Leave place for Magic Number, Wall Time, Time, Samples
-        fseek(output, sizeof(unsigned int) + 3 * sizeof(uint64_t), SEEK_SET);
+        fseek(output, sizeof(uint32_t) + 3 * sizeof(uint64_t), SEEK_SET);
         //Write VMMaps
-        fwrite((void *) &targetMap.count, sizeof(unsigned int), 1, output);
+        fwrite((void *) &targetMap.count, sizeof(uint32_t), 1, output);
         fwrite((void *) targetMap.maps, sizeof(struct VMMap), targetMap.count, output);
     }
 
@@ -565,7 +565,7 @@ int main(int const argc, char **argv) {
 
         if (output != NULL && !aggregate) {
             fwrite((void *) &current, sizeof(double), 1, output);
-            fwrite((void *) &taskCount, sizeof(unsigned int), 1, output);
+            fwrite((void *) &taskCount, sizeof(uint32_t), 1, output);
             fwrite((void *) tasks, sizeof(struct task), taskCount, output);
         }
         
