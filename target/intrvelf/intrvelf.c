@@ -61,6 +61,11 @@ struct task {
     uint64_t pc;
 } __attribute__((packed));
 
+struct aggregatedSample {
+    uint64_t samples;
+    double current;
+} __attribute__((packed));
+
 struct task *tasks = NULL;
 
 int reallocTaskList() {
@@ -127,7 +132,7 @@ void help(char const opt, char const *optarg) {
     fprintf(out, "  -o, --output=<file>       write to file\n");
     fprintf(out, "  -s, --sensor=<1-7>        lynsyn sensor\n");
     fprintf(out, "  -f, --frequency=<hertz>   sampling frequency\n");
-    fprintf(out, "  -a, --aggregated>         write aggregated profile\n");
+    fprintf(out, "  -a, --aggregate>          write aggregated profile\n");
     fprintf(out, "  -d, --debug               output debug messages\n");
     fprintf(out, "  -h, --help                shows help\n");
     fprintf(out, "\n");
@@ -224,13 +229,13 @@ int main(int const argc, char **argv) {
     char **argsStart = NULL;
     int sensor = -1;
     bool debugOutput = 0;
-    bool aggregated = 0;
+    bool aggregate = 0;
     double samplingFrequency = 10000;
     
     static struct option const long_options[] =  {
         {"help",         no_argument, 0, 'h'},
         {"debug",        no_argument, 0, 'd'},
-        {"aggregated",   no_argument, 0, 'a'},
+        {"aggregate",    no_argument, 0, 'a'},
         {"sensor",       required_argument, 0, 's'},
         {"frequency",    required_argument, 0, 'f'},
         {"output",       required_argument, 0, 'o'},
@@ -285,7 +290,7 @@ int main(int const argc, char **argv) {
                 }
                 break;
             case 'a':
-                aggregated = true;
+                aggregate = true;
                 break;
             case 'd':
                 debugOutput = true;
@@ -363,27 +368,27 @@ int main(int const argc, char **argv) {
     }
 
     struct VMMaps targetMap = {};
-    targetMap = getProcessVMMaps(samplingTarget, 0);
+    targetMap = getProcessVMMaps(samplingTarget, 1);
     if (targetMap.count == 0) {
        fprintf(stderr, "ERROR: could not detect process vmmap\n");
        ret = 1; goto exitWithTarget;
     }
 
-    double aggregatedUnknown = 0.0;
-    double **aggregateMap = NULL;
-    if (aggregated) {
-        aggregateMap = (double **) malloc(targetMap.count * sizeof(double *));
+    struct aggregatedSample aggregateUnknown = {};
+    struct aggregatedSample **aggregateMap = NULL;
+    if (aggregate) {
+        aggregateMap = (struct aggregatedSample **) malloc(targetMap.count * sizeof(struct aggregatedSample *));
         if (aggregateMap == NULL) {
             fprintf(stderr, "ERROR: could not allocate memory for aggregation map\n");
             goto exitWithTarget;
         }
         for (unsigned int i = 0; i < targetMap.count; i++) {
-            aggregateMap[i] = malloc(targetMap.maps[i].size * sizeof(double));
+            aggregateMap[i] = (struct aggregatedSample *) malloc(targetMap.maps[i].size * sizeof(struct aggregatedSample));
             if (aggregateMap[i] == NULL) {
                 fprintf(stderr, "ERROR: could not allocate memory for aggregation map\n");
                 goto exitWithTarget;
             }
-            memset(aggregateMap[i], '\0', targetMap.maps[i].size * sizeof(double));
+            memset(aggregateMap[i], '\0', targetMap.maps[i].size * sizeof(struct aggregatedSample));
         }
     }
 
@@ -514,25 +519,27 @@ int main(int const argc, char **argv) {
             tasks[i].pc = regs.rip;
             debug_printf("[%d] pc: 0x%lx\n", tasks[i].tid, tasks[i].pc);
             
-            if (output != NULL && aggregated) {
+            if (output != NULL && aggregate) {
                 bool counted = false;
                 for (unsigned int j = 0; j < targetMap.count; j++) {
                     if (targetMap.maps[j].addr > tasks[i].pc)
                         continue;
                     uint64_t const offset = tasks[i].pc - targetMap.maps[j].addr;
                     if (offset < targetMap.maps[j].size) {
-                        aggregateMap[j][offset] += current;
+                        aggregateMap[j][offset].samples++;
+                        aggregateMap[j][offset].current += current;
                         counted = true;
                         break;
                     }
                 }
                 if (!counted) {
-                    aggregatedUnknown += current;
+                    aggregateUnknown.samples++;
+                    aggregateUnknown.current += current;
                 }
             }
         }
 
-        if (output != NULL && !aggregated) {
+        if (output != NULL && !aggregate) {
             fwrite((void *) &current, sizeof(double), 1, output);
             fwrite((void *) &taskCount, sizeof(unsigned int), 1, output);
             fwrite((void *) tasks, sizeof(struct task), taskCount, output);
@@ -559,15 +566,15 @@ int main(int const argc, char **argv) {
     }
 
     if (output != NULL) {
-        if (aggregated) {
-            fwrite((void *) &aggregatedUnknown, sizeof(double), 1, output);
+        if (aggregate) {
+            fwrite((void *) &aggregateUnknown, sizeof(struct aggregatedSample), 1, output);
             for (unsigned int i = 0; i < targetMap.count; i++) {
                 fwrite((void *) &targetMap.maps[i].addr, sizeof(uint64_t), 1, output);
-                fwrite((void *) aggregateMap[i], sizeof(double), targetMap.maps[i].size, output);
+                fwrite((void *) aggregateMap[i], sizeof(struct aggregatedSample), targetMap.maps[i].size, output);
             }
         }
         //HEADER
-        uint32_t magic = (aggregated) ? 1 : 0;
+        uint32_t magic = (aggregate) ? 1 : 0;
         fseek(output, 0, SEEK_SET);
         fwrite((void *) &magic, sizeof(uint32_t), 1, output);
         fwrite((void *) &totalWallTime, sizeof(uint64_t), 1, output);
