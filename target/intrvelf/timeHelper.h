@@ -8,7 +8,17 @@
 #define RESET_TIMER(x) _timer_##x = clock()
 #define GET_TIME(x)  ((uint64_t) ((clock() - _timer_##x) / CLOCKS_PER_USEC))
 
-void timespecDifference (struct timespec *result, struct timespec *x, struct timespec *y) {
+void timespecAdd(struct timespec *result, struct timespec *x, struct timespec *y) {
+    result->tv_sec = x->tv_sec + y->tv_sec;
+    result->tv_nsec = x->tv_nsec;
+    if (x->tv_nsec + y->tv_nsec > 1000000000) {
+        result->tv_sec++;
+        result->tv_nsec -= 1000000000;
+    }
+    result->tv_nsec += y->tv_nsec;
+}
+
+void timespecSubtract (struct timespec *result, struct timespec *x, struct timespec *y) {
   if (x->tv_nsec < y->tv_nsec) {
     int nsec = (y->tv_nsec - x->tv_nsec) / 1000000000 + 1;
     y->tv_nsec -= 1000000000 * nsec;
@@ -19,13 +29,8 @@ void timespecDifference (struct timespec *result, struct timespec *x, struct tim
     y->tv_nsec += 1000000000 * nsec;
     y->tv_sec -= nsec;
   }
-  if (x->tv_sec < y->tv_sec) {
-      result->tv_sec = 0;
-      result->tv_nsec = 0;
-  } else {
-      result->tv_sec = x->tv_sec - y->tv_sec;
-      result->tv_nsec = x->tv_nsec - y->tv_nsec;
-  }
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_nsec = x->tv_nsec - y->tv_nsec;
 }
 
 unsigned long long timespecToNanoseconds(struct timespec *t) {

@@ -149,7 +149,7 @@ struct timerData {
 struct callbackData {
     pid_t tid;
 #ifdef ADAPTIVE_FREQUENCY
-    struct timespec lastShot;
+    struct timespec lastInterrupt;
 #else
     int   block;
 #endif
@@ -172,13 +172,13 @@ void timerCallback(int sig) {
 #ifndef ADAPTIVE_FREQUENCY
     }
 #else
-    clock_gettime(CLOCK_REALTIME, &_callback_data.lastShot);
+    clock_gettime(CLOCK_REALTIME, &_callback_data.lastInterrupt);
 #endif
 }
 
 #ifdef ADAPTIVE_FREQUENCY
 int shootTimerIn(struct timerData *timer, struct timespec *time) {
-    if (time->tv_sec == 0 && time->tv_nsec == 0) {
+    if (time->tv_sec < 0 || (time->tv_nsec <= 0 && time->tv_sec == 0)) {
         // Minimal time, to ensure it fires
         timer->time.it_value.tv_sec = 0;
         timer->time.it_value.tv_nsec = 1;
@@ -450,6 +450,7 @@ int main(int const argc, char **argv) {
 
 #ifdef ADAPTIVE_FREQUENCY
     struct timespec nextInterrupt = {};
+    struct timespec nextPlannedInterrupt = {};
 #else
     setTimerFrequency(&timer, samplingFrequency);
     _callback_data.block = 0;
@@ -604,9 +605,9 @@ int main(int const argc, char **argv) {
         samples++;
         groupStop = false;
 #ifdef ADAPTIVE_FREQUENCY
+        timespecAdd(&nextPlannedInterrupt, &_callback_data.lastInterrupt, &samplingInterval);
         clock_gettime(CLOCK_REALTIME, &currentTime);
-        timespecDifference(&timeDiff, &currentTime, &_callback_data.lastShot);
-        timespecDifference(&nextInterrupt, &samplingInterval, &timeDiff);
+        timespecSubtract(&nextInterrupt, &nextPlannedInterrupt, &currentTime);
         debug_printf("[DEBUG] next timer in %llu us\n", timespecToMicroseconds(&nextInterrupt));
         shootTimerIn(&timer, &nextInterrupt);
 #else
@@ -622,7 +623,7 @@ int main(int const argc, char **argv) {
 
     uint64_t totalLatency = GET_TIME(latency);
     clock_gettime(CLOCK_REALTIME, &currentTime);
-    timespecDifference(&timeDiff, &currentTime, &totalTime);
+    timespecSubtract(&timeDiff, &currentTime, &totalTime);
     uint64_t totalWallTime = timespecToMicroseconds(&timeDiff);
     
     if (stopTimer(&timer) != 0) {
