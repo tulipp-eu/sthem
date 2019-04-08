@@ -19,7 +19,15 @@
 
 #include "lynsyn.h"
 #include "vmmap.h"
+#include "timeHelper.h"
 
+// Switch between a fixed frequency timer, which blocks and a
+// single shot timer, which is engaged after every
+// cycle taking latency into account. The first one has low overhead
+// but inconsitent actual sampling frequencies, the last one is more
+// consistent but adds overhead due to time calculations and engaging
+// the timer every sample
+#define ADAPTIVE_FREQUENCY
 
 #ifdef DEBUG
 #define debug_printf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__);
@@ -31,23 +39,6 @@
 #error "Architecture not supported!"
 #endif
 
-
-#define CLOCKS_PER_MSEC (CLOCKS_PER_SEC / 1000)
-#define CLOCKS_PER_USEC (CLOCKS_PER_SEC / 1000000)
-#define DEF_TIMER(x) clock_t _timer_##x
-#define RESET_TIMER(x) _timer_##x = clock()
-#define GET_TIME(x)  ((uint64_t) ((clock() - _timer_##x) / CLOCKS_PER_USEC))
-#define DEF_WALL_TIMER(x) uint64_t _wall_timer_##x
-#define RESET_WALL_TIMER(x) _wall_timer_##x = getWallTimeUs()
-#define GET_WALL_TIME(x)  ((uint64_t) (getWallTimeUs() - _wall_timer_##x))
-
-unsigned long getWallTimeUs() {
-    static struct timespec spec;
-    clock_gettime(CLOCK_REALTIME, &spec);
-    return (spec.tv_sec * 1000000) + (spec.tv_nsec / 1000);
-}
-
-static int _ptrace_group_stop = 0;
 static int _ptrace_return = 0;
 
 #define PTRACE_WAIT(target, status) do { \
@@ -157,35 +148,59 @@ struct timerData {
 
 struct callbackData {
     pid_t tid;
-    int   signal;
+#ifdef ADAPTIVE_FREQUENCY
+    struct timespec lastShot;
+#else
     int   block;
+#endif
 };
 
 static struct callbackData _callback_data;
 
+#define TRACEE_INTERRUPT_SIGNAL SIGUSR2
 
 void timerCallback(int sig) {
+#ifndef ADAPTIVE_FREQUENCY
     if (_callback_data.block == 0) {
         _callback_data.block = 1;
+#endif
         int r;
         do {
-            r = kill(_callback_data.tid, _callback_data.signal);
+            r = kill(_callback_data.tid, TRACEE_INTERRUPT_SIGNAL);
         } while (r == -1 && errno == EAGAIN);
-        debug_printf("[%d] send %d\n", _callback_data.tid, _callback_data.signal);
+        debug_printf("[%d] send %d\n", _callback_data.tid, TRACEE_INTERRUPT_SIGNAL);
+#ifndef ADAPTIVE_FREQUENCY
     }
+#else
+    clock_gettime(CLOCK_REALTIME, &_callback_data.lastShot);
+#endif
 }
 
-
-void setTimerFrequency(struct timerData *timer, double freq) {
+#ifdef ADAPTIVE_FREQUENCY
+int shootTimerIn(struct timerData *timer, struct timespec *time) {
+    if (time->tv_sec == 0 && time->tv_nsec == 0) {
+        // Minimal time, to ensure it fires
+        timer->time.it_value.tv_sec = 0;
+        timer->time.it_value.tv_nsec = 1;
+    } else {
+        // Set next time
+        timer->time.it_value = *time;
+    }
+    if (timer_settime(timer->timer, 0, &timer->time, NULL) != 0)
+        return 1;
+    return 0;
+}
+#else
+int setTimerFrequency(struct timerData *timer, double freq) {
     timer->time.it_value.tv_sec = 0;
-    if (freq == 0.0) { 
+    if (freq == 0.0) {
         timer->time.it_value.tv_nsec = 0;
     } else {
-      timer->time.it_value.tv_nsec = 1;
-      timer->time.it_interval.tv_sec = (time_t) (1.0 / freq);
-      timer->time.it_interval.tv_nsec = ((long) (1000000000.0 / freq)) % 1000000000L;
+        timer->time.it_value.tv_nsec = 1;
     }
+    frequencyToTimespec(&timer->time.it_interval, freq);
 }
+#endif
 
 int startTimer(struct timerData *timer) {
     //If already active, abort
@@ -202,8 +217,11 @@ int startTimer(struct timerData *timer) {
         goto start_error;
     if (timer_create(CLOCK_REALTIME, NULL, &timer->timer) != 0)
         goto start_error;
+    
+#ifndef ADAPTIVE_FREQUENCY
     if (timer_settime(timer->timer, 0, &timer->time, NULL) != 0)
         goto start_error;
+#endif
     
     timer->active = 1;
     return 0;
@@ -238,6 +256,7 @@ int main(int const argc, char **argv) {
     bool debugOutput = 0;
     bool aggregate = 0;
     double samplingFrequency = 10000;
+    struct timespec samplingInterval = {};
     
     static struct option const long_options[] =  {
         {"help",         no_argument, 0, 'h'},
@@ -322,6 +341,8 @@ int main(int const argc, char **argv) {
     if (sensor >= 0 && !initLynsyn()) {
         goto lynsynError;
     }
+
+    frequencyToTimespec(&samplingInterval, samplingFrequency);
     
     int ret = 0; // this application return code
     long rp = 0; // ptrace return code
@@ -418,25 +439,36 @@ int main(int const argc, char **argv) {
     static struct iovec rvec = { .iov_base = &regs, .iov_len = sizeof(regs) };
 #endif
     
+    _callback_data.tid = samplingTarget;
+    addTask(samplingTarget);
+
     struct timerData timer = {};
     uint64_t samples = 0;
     uint64_t interrupts = 0;
+    struct timespec timeDiff = {};
+    struct timespec currentTime = {};
+
+#ifdef ADAPTIVE_FREQUENCY
+    struct timespec nextInterrupt = {};
+#else
     setTimerFrequency(&timer, samplingFrequency);
-
-    _callback_data.tid = samplingTarget;
-    _callback_data.signal = SIGUSR1;
     _callback_data.block = 0;
+#endif
 
-    DEF_TIMER(total);
-    RESET_TIMER(total);
-    DEF_WALL_TIMER(total);
-    RESET_WALL_TIMER(total);
+    struct timespec totalTime = {};
+    clock_gettime(CLOCK_REALTIME, &totalTime);
+    DEF_TIMER(latency);
+    RESET_TIMER(latency);
     
     if (startTimer(&timer) != 0) {
         fprintf(stderr, "ERROR: could not start sampling timer\n");
         goto exitWithTarget;
     }
-    addTask(samplingTarget);
+
+#ifdef ADAPTIVE_FREQUENCY
+    // first sample as soon as possible
+    shootTimerIn(&timer, &nextInterrupt);
+#endif
 
     long r;
     do {
@@ -444,7 +476,7 @@ int main(int const argc, char **argv) {
     } while (r == -1L && (errno == EBUSY || errno == EFAULT || errno == ESRCH));
 
     do {
-        int groupStop = 0;
+        bool groupStop = false;
         int stopCount = 0;
 
         
@@ -479,9 +511,9 @@ int main(int const argc, char **argv) {
 
             signal = WSTOPSIG(status);
 
-            if (signal == SIGUSR1 && groupStop == 0) {
+            if (signal == TRACEE_INTERRUPT_SIGNAL && !groupStop) {
                 debug_printf("[%d] initiate group stop\n", intrTarget);
-                groupStop = 1;
+                groupStop = true;
                 stopCount = 0;
                 PTRACE_CONTINUE(intrTarget, SIGSTOP);
                 continue;
@@ -493,7 +525,7 @@ int main(int const argc, char **argv) {
                     addTask(intrTarget);
                     signal = 0;
                 }
-                if (groupStop == 1) {
+                if (groupStop) {
                     debug_printf("[%d] group stop\n", intrTarget);
                     if (++stopCount == taskCount) {
                         break;
@@ -570,9 +602,16 @@ int main(int const argc, char **argv) {
         }
         
         samples++;
-        
-        groupStop = 0;
+        groupStop = false;
+#ifdef ADAPTIVE_FREQUENCY
+        clock_gettime(CLOCK_REALTIME, &currentTime);
+        timespecDifference(&timeDiff, &currentTime, &_callback_data.lastShot);
+        timespecDifference(&nextInterrupt, &samplingInterval, &timeDiff);
+        debug_printf("[DEBUG] next timer in %llu us\n", timespecToMicroseconds(&nextInterrupt));
+        shootTimerIn(&timer, &nextInterrupt);
+#else
         _callback_data.block = 0;
+#endif
         
         for (unsigned int i = 0; i < taskCount; i++) {
             PTRACE_CONTINUE(tasks[i].tid, NULL);
@@ -581,8 +620,10 @@ int main(int const argc, char **argv) {
 
  exitSampler: ; 
 
-    uint64_t totalTime = GET_TIME(total);
-    uint64_t totalWallTime = GET_WALL_TIME(total);
+    uint64_t totalLatency = GET_TIME(latency);
+    clock_gettime(CLOCK_REALTIME, &currentTime);
+    timespecDifference(&timeDiff, &currentTime, &totalTime);
+    uint64_t totalWallTime = timespecToMicroseconds(&timeDiff);
     
     if (stopTimer(&timer) != 0) {
         fprintf(stderr, "Could not stop sampling timer\n");
@@ -609,11 +650,10 @@ int main(int const argc, char **argv) {
     //Write Header -> Samples, Threads, Offset, sample interval (us)
     
     if (debugOutput) {
-        unsigned long samplingInterval = (timer.time.it_interval.tv_sec * 1000000) + (timer.time.it_interval.tv_nsec / 1000);
-        printf("[DEBUG] time       : %10lu us (ideal), %10lu us (actual)\n", totalWallTime - totalTime, totalWallTime);
+        printf("[DEBUG] time       : %10lu us (ideal), %10lu us (actual)\n", totalWallTime - totalLatency, totalWallTime);
         printf("[DEBUG] interrupts : %10lu    (total), %10lu    (foreign) \n", interrupts + samples, interrupts );
-        printf("[DEBUG] samples    : %10lu    (ideal), %10lu    (actual)  \n", (samplingInterval > 0) ? totalWallTime / samplingInterval : 0, samples);
-        printf("[DEBUG] latency    : %10lu us (total), %10lu us (sample)\n", totalTime, (samples > 0) ? totalTime / samples : 0);
+        printf("[DEBUG] samples    : %10llu    (ideal), %10lu    (actual)  \n", (timespecToMicroseconds(&samplingInterval) > 0) ? totalWallTime / timespecToMicroseconds(&samplingInterval) : 0, samples);
+        printf("[DEBUG] latency    : %10lu us (total), %10lu us (sample)\n", totalLatency, (samples > 0) ? totalLatency / samples : 0);
         
         printf("[DEBUG] frequency  : %10.2f Hz (ideal), %10.2f Hz (actual)\n", samplingFrequency, (samples > 0) ? 1000000.0 / ((double) totalWallTime / samples) : 0);
     }
