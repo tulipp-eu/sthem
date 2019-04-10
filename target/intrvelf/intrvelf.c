@@ -54,9 +54,8 @@ static int _ptrace_return = 0;
         _ptrace_return = ptrace(PTRACE_CONT, target, NULL, signal); \
     } while (_ptrace_return == -1L && (errno == EBUSY || errno == EFAULT || errno == ESRCH)) 
 
-#define PTRACE_CONTINUE(target, signal) do { \
-        _ptrace_return = ptrace(PTRACE_CONT, target, NULL, signal); \
-    } while (_ptrace_return == -1L && (errno == EBUSY)) 
+#define PTRACE_CONTINUE(target, signal) \
+        _ptrace_return = ptrace(PTRACE_CONT, target, NULL, signal) 
 
 
 uint32_t taskCount = 0;
@@ -578,13 +577,12 @@ int main(int const argc, char **argv) {
                 groupStop = true;
                 stopCount = 0;
             } else if (signal == SIGSTOP) {
+                signal = 0;
                 if (!taskExists(intrTarget)) {
                     debug_printf("[%d] new child detected\n", intrTarget);
                     addTask(intrTarget);
-                    signal = 0;
                 }
                 if (groupStop) {
-                    struct task *t = getTask(intrTarget);
                     debug_printf("[%d] group stop\n", intrTarget);
                     if (++stopCount == taskCount) {
                         break;
@@ -593,8 +591,10 @@ int main(int const argc, char **argv) {
                     }
                 }
             } else {
-                /*
+                
                 if (signal == SIGTRAP && (status >> 16) == PTRACE_EVENT_CLONE) {
+                    signal = 0;
+                    /*
                     unsigned long eventMessage;
                     if (ptrace(PTRACE_GETEVENTMSG, intrTarget, NULL, &eventMessage) == -1) {
                         fprintf(stderr, "Could not retrieve ptrace event message\n");
@@ -603,15 +603,20 @@ int main(int const argc, char **argv) {
                     debug_printf("[%d] child born %lu\n", intrTarget, eventMessage);
                     addTask(eventMessage);
                     PTRACE_CONTINUE(intrTarget, NULL);
-                } 
-                */
-                debug_printf("[%d] not traced signal %d\n", intrTarget, signal);
-                interrupts++;
+                    */
+                } else {
+                    printf("[%d] not traced signal %d\n", intrTarget, signal);
+                    interrupts++;
+                }
             }
             
-            PTRACE_CONTINUE(intrTarget, signal);
-            //scheduleNextInterrupt(&timer);
-            debug_printf("[%d] continued with signal %d\n", intrTarget, signal);
+            rp = ptrace(PTRACE_CONT, intrTarget, NULL, signal);
+            if (rp == -1 && errno == ESRCH) {
+                debug_printf("[%d] death on ptrace\n", intrTarget);
+                removeTask(intrTarget);
+            } else {
+                debug_printf("[%d] continued with signal %d\n", intrTarget, signal);
+            }
             
 #ifndef ESTIMATE_LATENCY
             //Measure time from group stop start, until samples are taken
@@ -624,15 +629,19 @@ int main(int const argc, char **argv) {
 
         double current = getCurrentFromLynsyn(sensor);
         debug_printf("[sample] current: %f A\n", current);
-             
-        for (unsigned int i = 0; i < taskCount; i++) {
-            do {
+
+        unsigned int i = 0;
+        while (i < taskCount) {
 #ifdef __aarch64__
-                rp = ptrace(PTRACE_GETREGSET, tasks[i].tid, NT_PRSTATUS, &rvec);
+            rp = ptrace(PTRACE_GETREGSET, tasks[i].tid, NT_PRSTATUS, &rvec);
 #else   
-                rp = ptrace(PTRACE_GETREGS, tasks[i].tid, NULL, &regs);
+            rp = ptrace(PTRACE_GETREGS, tasks[i].tid, NULL, &regs);
 #endif
-            } while (rp == -1L && errno == ESRCH);
+            if (rp == -1 && errno == ESRCH) {
+                debug_printf("[%d] death on ptrace\n", tasks[i].tid);
+                removeTask(tasks[i].tid);
+                continue;
+            }
 #ifdef __aarch64__
             tasks[i].pc = regs.pc;
 #else
@@ -662,6 +671,8 @@ int main(int const argc, char **argv) {
                     debug_printf("[%d] %lu unknown samples accumalated %f A\n", tasks[i].tid, aggregateUnknown.samples, aggregateUnknown.current);
                 }
             }
+
+            i++;
         }
 
         if (output != NULL && !aggregate) {
@@ -684,8 +695,14 @@ int main(int const argc, char **argv) {
         timespecSub(&timeDiff, &currentTime, &groupStopStartTime);
         timespecAddStore(&totalLatencyWallTime, &timeDiff);
 #endif
-       for (unsigned int i = 0; i < taskCount; i++) {
-           PTRACE_CONTINUE(tasks[i].tid, NULL);
+        i = 0;
+        while(i < taskCount) {
+            rp = ptrace(PTRACE_CONT, tasks[i].tid, NULL, NULL);
+            if (rp == -1 && errno == ESRCH) {
+                debug_printf("[%d] death on ptrace\n", tasks[i].tid);
+                removeTask(tasks[i].tid);
+            }
+            i++;
         }
      } while(taskCount > 0);
 
