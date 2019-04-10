@@ -35,18 +35,21 @@ def getPcData(pc, target):
 
 parser = argparse.ArgumentParser(description="Parse profiles from intrvelf sampler.")
 parser.add_argument("profile", help="profile from intrvelf")
-parser.add_argument("-o", "--output", help="write postprocess profile");
-parser.add_argument("-z", "--bzip2", action="store_true", help="bz2 zip postprocessed profile");
+parser.add_argument("-e", "--elf", help="overwrite target elf");
+parser.add_argument("-o", "--output", help="write postprocessed profile");
+parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile");
 parser.add_argument("-l", "--little-endian", action="store_true", help="parse profile using little endianess");
 parser.add_argument("-b", "--big-endian", action="store_true", help="parse profile using big endianess");
 
 args = parser.parse_args();
 
 if (not args.output):
+    print("ERROR: not output file defined!")
     parser.print_help()
     sys.exit(1)
 
 if (not args.profile) or (not os.path.isfile(args.profile)) :
+    print(f"ERROR: profile '{args.profile}' not found!")
     parser.print_help()
     sys.exit(1)
 
@@ -126,8 +129,11 @@ for i in range(vmmapsCount):
 if (vmmapsCount == 0):
     print("No VMMaps found!")
     sys.exit(1)
-    
-elf = vmmaps[0][0]
+
+if (not args.elf):
+    elf = vmmaps[0][0]
+else:
+    elf = args.elf
 
 # Save first vmmap, we can only cover one within an elf file
 vmmap = vmmaps[0]    
@@ -135,12 +141,9 @@ profile['vmmap'] = vmmap;
     
 
 if not os.path.isfile(elf):
-    try:
-        whereis = subprocess.run(f"which {elf}", shell=True, stdout=subprocess.PIPE)
-        whereis.check_returncode()
-    except subprocess.CalledProcessError as e:
-        sys.exit(1)
-    elf = whereis.stdout.decode('utf-8')
+    whereis = subprocess.run(f"which {elf}", shell=True, stdout=subprocess.PIPE)
+    whereis.check_returncode()
+    elf = whereis.stdout.decode('utf-8').rstrip('\n');
         
 
 profile['elf'] = elf;
