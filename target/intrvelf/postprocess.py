@@ -49,7 +49,7 @@ if (not args.output):
     sys.exit(1)
 
 if (not args.profile) or (not os.path.isfile(args.profile)) :
-    print(f"ERROR: profile '{args.profile}' not found!")
+    print("ERROR: profile not found!")
     parser.print_help()
     sys.exit(1)
 

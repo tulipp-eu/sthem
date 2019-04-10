@@ -34,9 +34,9 @@
 //#define ESTIMATE_LATENCY
 
 #ifdef DEBUG
-#define debug_printf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__);
+#define debug_printf(...) fprintf(stderr, __VA_ARGS__);
 #else
-#define debug_printf(fmt,...)
+#define debug_printf(...)
 #endif
 
 #if !defined(__amd64__) && !defined(__aarch64__)
@@ -50,9 +50,13 @@ static int _ptrace_return = 0;
         target = waitpid(-1, &status, __WALL);   \
     } while(target == -1 && errno == EAGAIN)
 
-#define PTRACE_CONTINUE(target, signal) do { \
+#define PTRACE_OTHER_CONTINUE(target, signal) do { \
         _ptrace_return = ptrace(PTRACE_CONT, target, NULL, signal); \
     } while (_ptrace_return == -1L && (errno == EBUSY || errno == EFAULT || errno == ESRCH)) 
+
+#define PTRACE_CONTINUE(target, signal) do { \
+        _ptrace_return = ptrace(PTRACE_CONT, target, NULL, signal); \
+    } while (_ptrace_return == -1L && (errno == EBUSY)) 
 
 
 uint32_t taskCount = 0;
@@ -73,7 +77,7 @@ struct task *tasks = NULL;
 int reallocTaskList() {
     if (tasks == NULL) {
         allocTasks = 1;
-        tasks = (struct task *) malloc(sizeof(pid_t));
+        tasks = (struct task *) malloc(sizeof(struct task));
     } else {
         allocTasks *= 2;
         tasks = (struct task *) realloc(tasks, allocTasks * 2 * sizeof(struct task));
@@ -115,6 +119,14 @@ int taskExists(pid_t const task) {
             return 1;
     }
     return 0;
+}
+
+struct task *getTask(pid_t const task) {
+    for (unsigned int i = 0; i < taskCount; i++) {
+        if (tasks[i].tid == task)
+            return &tasks[i];
+    }
+    return NULL;
 }
 
 void help(char const opt, char const *optarg) {
@@ -182,18 +194,48 @@ void timerCallback(int sig) {
 }
 
 #ifdef ADAPTIVE_FREQUENCY
-int shootTimerIn(struct timerData *timer, struct timespec *time) {
+int pauseTimer(struct timerData *timer) {
+    if (timer->active == 0)
+        return 0;
+    
+    timer->time.it_value.tv_sec = 0;
+    timer->time.it_value.tv_nsec = 0;
+    
+    debug_printf("[DEBUG] timer paused\n");
+    
+    if (timer_settime(timer->timer, 0, &timer->time, NULL) != 0)
+        return 1;
+    return 0;
+}
+    
+int scheduleInterruptNow(struct timerData *timer) {
+    if (timer->active == 0)
+        return 0;
+    
+    timer->time.it_value.tv_sec = 0;
+    timer->time.it_value.tv_nsec = 1;
+
+    debug_printf("[DEBUG] next timer now\n");
+
+    if (timer_settime(timer->timer, 0, &timer->time, NULL) != 0)
+        return 1;
+    return 0;
+}
+
+int scheduleNextInterrupt(struct timerData *timer) {
+    static struct timespec nextPlannedInterrupt;
+    static struct timespec currentTime;
     if (timer->active == 0) 
         return 0;
     
-    if (time->tv_sec < 0 || (time->tv_nsec <= 0 && time->tv_sec <= 0)) {
-        // Minimal time, to ensure it fires
-        timer->time.it_value.tv_sec = 0;
-        timer->time.it_value.tv_nsec = 1;
-    } else {
-        // Set next time
-        timer->time.it_value = *time;
-    }
+    clock_gettime(CLOCK_REALTIME, &currentTime);
+    timespecAdd(&nextPlannedInterrupt, &_callback_data.lastInterrupt, &timer->samplingInterval);
+    timespecSub(&timer->time.it_value, &nextPlannedInterrupt, &currentTime);
+    debug_printf("[DEBUG] next timer in %llu us\n", timespecToMicroseconds(&timer->time.it_value));
+
+    if (timespecToNanoseconds(&timer->time.it_value) == 0)
+        return scheduleInterruptNow(timer);
+    
     if (timer_settime(timer->timer, 0, &timer->time, NULL) != 0)
         return 1;
     return 0;
@@ -400,7 +442,7 @@ int main(int const argc, char **argv) {
         ret = 2; goto exitWithTarget;
     }
 
-    if (ptrace(PTRACE_SETOPTIONS, samplingTarget, NULL, PTRACE_O_TRACECLONE) == -1) {
+    if (ptrace(PTRACE_SETOPTIONS, samplingTarget, NULL, PTRACE_O_TRACECLONE | PTRACE_O_EXITKILL) == -1) {
         fprintf(stderr, "ERROR: Could not set ptrace options!\n");
         ret = 1; goto exitWithTarget;
     }
@@ -484,7 +526,7 @@ int main(int const argc, char **argv) {
 
 #ifdef ADAPTIVE_FREQUENCY
     // first sample as soon as possible
-    shootTimerIn(&timer, &nextInterrupt);
+    scheduleInterruptNow(&timer);
 #endif
 
     long r;
@@ -504,22 +546,23 @@ int main(int const argc, char **argv) {
             do {
                 intrTarget = waitpid(-1, &status, __WALL);
             } while (intrTarget == -1 && errno == EAGAIN);
+            //pauseTimer(&timer);
             
                                               
             if (WIFEXITED(status)) {
-                removeTask(intrTarget);
-                if (taskCount == 0) {
+                if (taskCount == 1 || intrTarget == samplingTarget) {
                     debug_printf("[%d] root tracee died\n", intrTarget);
                     goto exitSampler;
                 } else {
+                    removeTask(intrTarget);
                     debug_printf("[%d] tracee died\n", intrTarget);
-                    if (groupStop == 1 && stopCount == taskCount) {
+                    if (groupStop && stopCount >= taskCount) {
                         // We waited for this thread to stop
                         // but it died, so grab that sample
                         break;
                     } 
                     continue;
-                }
+               }
             }
 
             if (!WIFSTOPPED(status)) {
@@ -541,6 +584,7 @@ int main(int const argc, char **argv) {
                     signal = 0;
                 }
                 if (groupStop) {
+                    struct task *t = getTask(intrTarget);
                     debug_printf("[%d] group stop\n", intrTarget);
                     if (++stopCount == taskCount) {
                         break;
@@ -564,8 +608,11 @@ int main(int const argc, char **argv) {
                 debug_printf("[%d] not traced signal %d\n", intrTarget, signal);
                 interrupts++;
             }
-
+            
             PTRACE_CONTINUE(intrTarget, signal);
+            //scheduleNextInterrupt(&timer);
+            debug_printf("[%d] continued with signal %d\n", intrTarget, signal);
+            
 #ifndef ESTIMATE_LATENCY
             //Measure time from group stop start, until samples are taken
             //not a perfect latency measurement, but real latency would need
@@ -627,11 +674,7 @@ int main(int const argc, char **argv) {
         groupStop = false;
         
 #ifdef ADAPTIVE_FREQUENCY
-        timespecAdd(&nextPlannedInterrupt, &_callback_data.lastInterrupt, &timer.samplingInterval);
-        clock_gettime(CLOCK_REALTIME, &currentTime);
-        timespecSub(&nextInterrupt, &nextPlannedInterrupt, &currentTime);
-        shootTimerIn(&timer, &nextInterrupt);
-        debug_printf("[DEBUG] next timer in %llu us\n", timespecToMicroseconds(&nextInterrupt));
+        scheduleNextInterrupt(&timer);
 #else
         _callback_data.block = 0;
 #endif
@@ -642,7 +685,7 @@ int main(int const argc, char **argv) {
         timespecAddStore(&totalLatencyWallTime, &timeDiff);
 #endif
        for (unsigned int i = 0; i < taskCount; i++) {
-            PTRACE_CONTINUE(tasks[i].tid, NULL);
+           PTRACE_CONTINUE(tasks[i].tid, NULL);
         }
      } while(taskCount > 0);
 

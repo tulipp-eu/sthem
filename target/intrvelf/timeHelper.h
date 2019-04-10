@@ -65,6 +65,8 @@ struct timespec tsAdd(struct timespec x, struct timespec y) {
 }
 
 unsigned long long timespecToNanoseconds(struct timespec *t) {
+    if ((t->tv_sec < 0) || ((t->tv_sec ==0) && (t->tv_nsec < 0)))
+       return 0;
     return (t->tv_sec * 1000000000) + t->tv_nsec;
 }
 
