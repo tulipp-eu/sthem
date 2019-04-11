@@ -517,6 +517,7 @@ int main(int const argc, char **argv) {
     struct timespec groupStopStartTime = {};
     struct timespec totalLatencyWallTime = {};
 #endif
+    getCurrentFromLynsyn(sensor);
     
     if (startTimer(&timer) != 0) {
         fprintf(stderr, "ERROR: could not start sampling timer\n");
@@ -595,14 +596,18 @@ int main(int const argc, char **argv) {
                 if (signal == SIGTRAP && (status >> 16) == PTRACE_EVENT_CLONE) {
                     signal = 0;
                     /*
-                    unsigned long eventMessage;
-                    if (ptrace(PTRACE_GETEVENTMSG, intrTarget, NULL, &eventMessage) == -1) {
-                        fprintf(stderr, "Could not retrieve ptrace event message\n");
-                        goto exitWithTarget;
-                    }
-                    debug_printf("[%d] child born %lu\n", intrTarget, eventMessage);
-                    addTask(eventMessage);
-                    PTRACE_CONTINUE(intrTarget, NULL);
+                      // Its nice to know this, but the way we are waiting for any child,
+                      // might first inform us about a new thread stopping before its parent
+                      // report the clone event. So detecting new threads if they are just
+                      // unknown is more reliable
+                      unsigned long eventMessage;
+                      if (ptrace(PTRACE_GETEVENTMSG, intrTarget, NULL, &eventMessage) == -1) {
+                          fprintf(stderr, "Could not retrieve ptrace event message\n");
+                          goto exitWithTarget;
+                      }
+                      debug_printf("[%d] child born %lu\n", intrTarget, eventMessage);
+                      addTask(eventMessage);
+                      PTRACE_CONTINUE(intrTarget, NULL);
                     */
                 } else {
                     debug_printf("[%d] not traced signal %d\n", intrTarget, signal);
