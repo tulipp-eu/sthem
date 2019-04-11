@@ -168,7 +168,7 @@ if (not aggregated):
             print(f"Processing... {progress}%\r", end="")
 
         try:
-            (current, threadCount, ) = struct.unpack_from(endianess + "QI", binProfile, binOffset)
+            (current, threadCount, ) = struct.unpack_from(endianess + "dI", binProfile, binOffset)
             binOffset += 8 + 4
         except:
             print("Unexpected end of file!")
@@ -203,7 +203,7 @@ if (not aggregated):
 
 else:
     try:
-        (unknownSamples, unknownCurrent, ) = struct.unpack_from(endianess + "QQ", binProfile, binOffset)
+        (unknownSamples, unknownCurrent, ) = struct.unpack_from(endianess + "Qd", binProfile, binOffset)
         binOffset += 8 + 8
     except:
         print("Unexpected end of file!")
@@ -226,7 +226,7 @@ else:
             progress = int((offset+1) * 100 / vmmap['size'])
             print(f"Processing... {progress}%\r", end="")
         try:
-            (samples, current, ) = struct.unpack_from(endianess + "QQ", binProfile, binOffset)
+            (samples, current, ) = struct.unpack_from(endianess + "Qd", binProfile, binOffset)
             binOffset += 8 + 8
         except:
             print("Unexpected end of file!")
