@@ -605,14 +605,14 @@ int main(int const argc, char **argv) {
                     PTRACE_CONTINUE(intrTarget, NULL);
                     */
                 } else {
-                    printf("[%d] not traced signal %d\n", intrTarget, signal);
+                    debug_printf("[%d] not traced signal %d\n", intrTarget, signal);
                     interrupts++;
                 }
             }
             
             rp = ptrace(PTRACE_CONT, intrTarget, NULL, signal);
             if (rp == -1 && errno == ESRCH) {
-                debug_printf("[%d] death on ptrace\n", intrTarget);
+                debug_printf("[%d] death on ptrace cont\n", intrTarget);
                 removeTask(intrTarget);
             } else {
                 debug_printf("[%d] continued with signal %d\n", intrTarget, signal);
@@ -638,7 +638,7 @@ int main(int const argc, char **argv) {
             rp = ptrace(PTRACE_GETREGS, tasks[i].tid, NULL, &regs);
 #endif
             if (rp == -1 && errno == ESRCH) {
-                debug_printf("[%d] death on ptrace\n", tasks[i].tid);
+                debug_printf("[%d] death on ptrace regs\n", tasks[i].tid);
                 removeTask(tasks[i].tid);
                 continue;
             }
@@ -699,7 +699,7 @@ int main(int const argc, char **argv) {
         while(i < taskCount) {
             rp = ptrace(PTRACE_CONT, tasks[i].tid, NULL, NULL);
             if (rp == -1 && errno == ESRCH) {
-                debug_printf("[%d] death on ptrace\n", tasks[i].tid);
+                debug_printf("[%d] death on ptrace cont after sample\n", tasks[i].tid);
                 removeTask(tasks[i].tid);
             }
             i++;
