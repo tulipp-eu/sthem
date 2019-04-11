@@ -11,27 +11,45 @@ import bz2
 
 cross_compile = "" if not 'CROSS_COMPILE' in os.environ else os.environ['CROSS_COMPILE']
 
-vmmap = []
+label_unknown = '_unknown'
 
-
-def getVmaOffset(pc):
-    if (pc >= vmmap[1]) and (pc <= vmmap[2]):
-            return vmmap[1];
-    return 0
+profile={
+    'samples' : 0,
+    'samplingTimeUs' : 0,
+    'latencyTimeUs' : 0,
+    'elf' : label_unknown ,
+    'functions' : [ label_unknown ],
+    'files' : [ label_unknown ],
+    'fullProfile' : [],
+    'aggregatedProfile' : { label_unknown : [0,0,0,0,0]}
+}
 
 _fetched_pc_data = {};
 
-def getPcData(pc, target):
+def fetchPcData(pc, target):
     if pc in _fetched_pc_data:
         return _fetched_pc_data[pc]
     addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {target} -a {pc:x}", shell=True, stdout=subprocess.PIPE)
     addr2line.check_returncode()
     result = addr2line.stdout.decode('utf-8').split("\n");
-    fileAndLine = result[2].split(':')
-    result = numpy.char.replace(numpy.array([ result[1], fileAndLine[0], fileAndLine[1].split(' ')[0].replace('?','0') ]), '??', '_unknown');
+    srcfunction = result[1].replace('??', label_unknown )
+    srcfile = result[2].split(':')[0].replace('??', label_unknown )
+    srcline = int(result[2].split(':')[1].split(' ')[0].replace('?','0'))
+
+    if not srcfunction in profile['functions']:
+        profile['functions'].append(srcfunction)
+    if not srcfile in profile['files']:
+        profile['files'].append(srcfile)
+
+    result = [ profile['functions'].index(srcfunction), profile['files'].index(srcfile), srcline ]
     _fetched_pc_data[pc] = result;
     return result;
    
+def pcVmaOffset(pc, vmmap):
+    if (pc >= vmmap['start']) and (pc <= vmmap['end']):
+            return vmmap['start'];
+    return 0
+
 
 parser = argparse.ArgumentParser(description="Parse profiles from intrvelf sampler.")
 parser.add_argument("profile", help="profile from intrvelf")
@@ -100,14 +118,9 @@ if (sampleCount == 0):
     print("No samples found in profile!")
     sys.exit(1)
 
-profile = {
-    'samples' : sampleCount,
-    'wallTime' : wallTime,
-    'latencyTime' : cpuTime,
-    'timePerSample' : wallTime/sampleCount,
-    'latencyPerSample' : cpuTime/sampleCount,
-    'samplingFrequency' : 1000000 / (wallTime / sampleCount)
-}
+profile['samples'] = sampleCount
+profile['samplingTimeUs'] = wallTime
+profile['latencyTimeUs'] = cpuTime
 
 try:
     (vmmapsCount,) = struct.unpack_from(endianess + "I", binProfile, binOffset);
@@ -124,21 +137,19 @@ for i in range(vmmapsCount):
     except:
         print("Unexpected end of file!")
         sys.exit(1)
-    vmmaps.append([ label.decode('utf-8').rstrip('\0'), addr, addr+size, size ])
+    vmmaps.append({ 'label' : label.decode('utf-8').rstrip('\0'), 'start' : addr, 'end' : addr+size, 'size' : size })
 
-if (vmmapsCount == 0):
+if (len(vmmaps) == 0):
     print("No VMMaps found!")
     sys.exit(1)
 
 if (not args.elf):
-    elf = vmmaps[0][0]
+    elf = vmmaps[0]['label']
 else:
     elf = args.elf
 
 # Save first vmmap, we can only cover one within an elf file
 vmmap = vmmaps[0]    
-profile['vmmap'] = vmmap;
-    
 
 if not os.path.isfile(elf):
     whereis = subprocess.run(f"which {elf}", shell=True, stdout=subprocess.PIPE)
@@ -147,22 +158,23 @@ if not os.path.isfile(elf):
         
 
 profile['elf'] = elf;
- 
+
 aggregatedSamples = {}
 
 if (not aggregated):
-    fullSamples = []
     for i in range(sampleCount):
         if (i % 100 == 0):
             progress = int((i+1) * 100 / sampleCount)
             print(f"Processing... {progress}%\r", end="")
+
         try:
             (current, threadCount, ) = struct.unpack_from(endianess + "QI", binProfile, binOffset)
             binOffset += 8 + 4
         except:
             print("Unexpected end of file!")
             sys.exit(1)
-        threads = []
+            
+        sample = []
         for j in range(threadCount):
             try:
                 (tid, pc, ) = struct.unpack_from(endianess + "IQ", binProfile, binOffset)
@@ -171,21 +183,22 @@ if (not aggregated):
                 print("Unexpected end of file!")
                 sys.exit(1)
 
-            pc = pc - getVmaOffset(pc)
-            pcInfo = getPcData(pc,elf)
+            pc = pc - pcVmaOffset(pc,vmmap)
             thread = [tid, pc]
+            pcInfo = fetchPcData(pc, profile['elf'])
             thread.extend(pcInfo)
-            threads.append(thread);
+            sample.append(thread);
                                    
-            if pc in aggregatedSamples:
-                aggregatedSamples[pc]['samples'] += 1;
-                aggregatedSamples[pc]['current'] += current
+            if pc in profile['aggregatedProfile']:
+                profile['aggregatedProfile'][pc][0] += 1;
+                profile['aggregatedProfile'][pc][1] += current
             else:
-                aggregatedSamples[pc] =  { 'samples' : 1, 'current' : current, 'info' : pcInfo };
+                asample = [ 1, current ]
+                asample.extend(pcInfo)
+                profile['aggregatedProfile'][pc] =  asample;
 
-        fullSamples.append([ current , threads ])
+        profile['fullProfile'].append([ current , sample ])
 
-    profile['fullProfile'] = fullSamples
     print("Processing... finished!")
 
 else:
@@ -195,7 +208,7 @@ else:
     except:
         print("Unexpected end of file!")
         sys.exit(1)
-    aggregatedSamples['_unknown'] = [unknownSamples, unknownCurrent, [ 0, '_unknown', '_unknown', 0]];
+    profile['aggregatedProfile'][label_unknown] = [unknownSamples, unknownCurrent, 0, 0, 0];
     
     try:
         (addr, ) = struct.unpack_from(endianess + "Q", binProfile, binOffset)
@@ -204,13 +217,13 @@ else:
         print("Unexpected end of file!")
         sys.exit(1)
         
-    if (not addr == vmmap[1]):
+    if (not addr == vmmap['start']):
         print("Unexpected address found!")
         sys.exit(1)
         
-    for offset in range(vmmap[3]):
+    for offset in range(vmmap['size']):
         if (offset % 100 == 0): 
-            progress = int((offset+1) * 100 / vmmap[3])
+            progress = int((offset+1) * 100 / vmmap['size'])
             print(f"Processing... {progress}%\r", end="")
         try:
             (samples, current, ) = struct.unpack_from(endianess + "QQ", binProfile, binOffset)
@@ -220,13 +233,14 @@ else:
             sys.exit(1)
             
         if (samples > 0):
-            aggregatedSamples[offset] = [samples, current, getPcData(offset, elf)];
+            sample = [samples,current]
+            sample.extend(fetchPcData(offset, profile['elf']))
+            profile['aggregatedProfile'][offset] = sample;
 
     print("Processing... finished!")
     
-profile['aggregatedProfile'] = aggregatedSamples
-
 print(f"Writing {args.output}... ", end="")
-sys.stdout.flush();
-pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL);
+sys.stdout.flush()
+pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL)
+outProfile.close()
 print("finished")
