@@ -8,8 +8,12 @@ import subprocess
 import numpy
 import pickle
 import bz2
+import re
 
 cross_compile = "" if not 'CROSS_COMPILE' in os.environ else os.environ['CROSS_COMPILE']
+
+if cross_compile != "":
+    print(f"Using cross compilation prefix '{cross_compile}'")
 
 label_unknown = '_unknown'
 
@@ -29,13 +33,12 @@ _fetched_pc_data = {};
 def fetchPcData(pc, target):
     if pc in _fetched_pc_data:
         return _fetched_pc_data[pc]
-    addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {target} -a {pc:x}", shell=True, stdout=subprocess.PIPE)
+    addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {profile['elf']} -a {pc:x}", shell=True, stdout=subprocess.PIPE)
     addr2line.check_returncode()
     result = addr2line.stdout.decode('utf-8').split("\n");
     srcfunction = result[1].replace('??', label_unknown )
     srcfile = result[2].split(':')[0].replace('??', label_unknown )
     srcline = int(result[2].split(':')[1].split(' ')[0].replace('?','0'))
-
     if not srcfunction in profile['functions']:
         profile['functions'].append(srcfunction)
     if not srcfile in profile['files']:
@@ -157,6 +160,15 @@ if not os.path.isfile(elf):
     elf = whereis.stdout.decode('utf-8').rstrip('\n');
         
 
+readelf = subprocess.run(f"readelf -h {elf}", shell=True, stdout=subprocess.PIPE)
+readelf.check_returncode()
+static = True if re.search("Type:[ ]+EXEC",readelf.stdout.decode('utf-8'), re.M) else False
+
+if static:
+    print("Static binary detected")
+else:
+    print("Dynamic binary detected")
+    
 profile['elf'] = elf;
 
 aggregatedSamples = {}
@@ -183,7 +195,8 @@ if (not aggregated):
                 print("Unexpected end of file!")
                 sys.exit(1)
 
-            pc = pc - pcVmaOffset(pc,vmmap)
+            if not static:
+                pc = pc - pcVmaOffset(pc,vmmap)
             thread = [tid, pc]
             pcInfo = fetchPcData(pc, profile['elf'])
             thread.extend(pcInfo)
@@ -234,7 +247,7 @@ else:
             
         if (samples > 0):
             sample = [samples,current]
-            sample.extend(fetchPcData(offset, profile['elf']))
+            sample.extend(fetchPcData(offset if not static else offset + addr, profile['elf']))
             profile['aggregatedProfile'][offset] = sample;
 
     print("Processing... finished!")
