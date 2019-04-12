@@ -297,7 +297,7 @@ int stopTimer(struct timerData *timer) {
 
 double getCurrentFromLynsyn(int const sensor) {
     if (sensor < 0 || sensor >= LYNSYN_SENSORS)
-        return 0.0;
+        return 1.0;
     return adjustCurrent(retrieveCurrents()[sensor], sensor);
 }
 
@@ -341,7 +341,7 @@ int main(int const argc, char **argv) {
                 return 0;
             case 's':
                 sensor = strtol(optarg, &endptr, 10);
-                if (endptr == optarg || sensor > 7 || sensor < 1) {
+                if (endptr == optarg || sensor > LYNSYN_SENSORS || sensor < 1) {
                     help(c, optarg);
                     return 1;
                 }
