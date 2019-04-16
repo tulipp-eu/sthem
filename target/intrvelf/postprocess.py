@@ -209,9 +209,9 @@ if (not aggregated):
                                    
             if pc in profile['aggregatedProfile']:
                 profile['aggregatedProfile'][pc][0] += 1;
-                profile['aggregatedProfile'][pc][1] += current
+                profile['aggregatedProfile'][pc][1] += (current / threadCount)
             else:
-                asample = [ 1, current ]
+                asample = [ 1, (current/threadCount) ]
                 asample.extend(pcInfo)
                 profile['aggregatedProfile'][pc] =  asample;
 

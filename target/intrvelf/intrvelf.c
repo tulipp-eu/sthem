@@ -662,7 +662,7 @@ int main(int const argc, char **argv) {
                     uint64_t const offset = tasks[i].pc - targetMap.maps[j].addr;
                     if (offset < targetMap.maps[j].size) {
                         aggregateMap[j][offset].samples++;
-                        aggregateMap[j][offset].current += current;
+                        aggregateMap[j][offset].current += current / taskCount;
                         debug_printf("[%d] aggregate to addr 0x%lx with offset 0x%lx\n", tasks[i].tid, targetMap.maps[j].addr, offset);
                         debug_printf("[%d] %lu samples accumalated %f A\n", tasks[i].tid, aggregateMap[j][offset].samples, aggregateMap[j][offset].current);
                         counted = true;

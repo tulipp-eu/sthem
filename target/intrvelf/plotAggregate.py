@@ -38,34 +38,30 @@ volts = 1 if (profile['volts'] == 0) else profile['volts']
 
 #profile['aggregatedProfile'][addr] = [samples, current, function, file, line]
 
-functions = [] 
-currents = [] 
-samples = []
-
+aggmap = {}
+gtime = 0
 for sample in profile['aggregatedProfile']:
     sample = profile['aggregatedProfile'][sample];
     if (sample[0] > 0):
-        function = profile['functions'][sample[2]]
-        if function in functions:
-            currents[functions.index(function)] += sample[1]
-            samples[functions.index(function)] += sample[0]
+        gtime += sample[0] * sampleTime
+        if sample[2] in aggmap:
+            aggmap[sample[2]][0] += sample[1] * sampleTime
+            aggmap[sample[2]][1] += sample[0] * sampleTime
         else:
-            functions.append(profile['functions'][sample[2]])
-            currents.append(sample[1])
-            samples.append(sample[0])
+            aggmap[sample[2]] = [ sample[1] * sampleTime, sample[0] * sampleTime, sample[2] ]
 
-currents = [ ((x/y) * volts * (y * sampleTime)) for x,y in zip(currents,samples) ]
-sortedZipped = numpy.array(sorted(zip(currents, functions, samples)))
-currents = numpy.array(sortedZipped[:,0:1], dtype=float).flatten()
-functions = sortedZipped[:,1:2].flatten()
+values = numpy.array(sorted(aggmap.values()), dtype=object)
+metrics = numpy.array(values[:,0:1], dtype=float).flatten() * volts
+times = numpy.array(values[:,1:2], dtype=float).flatten()
+functions = [ profile['functions'][x] for x in numpy.array(values[:,2:3].flatten(), dtype=int)]
 labelUnit = "C" if profile['volts'] == 0 else "J"
-labels = [ f"{x:.2f} us, {y:.2f} {labelUnit}" for x,y in zip((numpy.array(sortedZipped[:,2:3], dtype=int) * sampleTime).flatten(), currents) ]
+labels = [ f"{x:.4f} s, {y:.2f} {labelUnit}" for x,y in zip(times, metrics) ]
 
 functionLength = numpy.max([ len(x) for x in functions ])
 
 fig = {
     "data" : [go.Bar(
-        x=currents,
+        x=metrics,
         y=functions,
         text=labels,
         textposition = 'auto',
