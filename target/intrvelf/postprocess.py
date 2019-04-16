@@ -21,6 +21,7 @@ profile={
     'samples' : 0,
     'samplingTimeUs' : 0,
     'latencyTimeUs' : 0,
+    'volts' : 0,
     'elf' : label_unknown ,
     'functions' : [ label_unknown ],
     'files' : [ label_unknown ],
@@ -56,6 +57,7 @@ def pcVmaOffset(pc, vmmap):
 
 parser = argparse.ArgumentParser(description="Parse profiles from intrvelf sampler.")
 parser.add_argument("profile", help="profile from intrvelf")
+parser.add_argument("-v", "--volts", help="set pmu voltage")
 parser.add_argument("-e", "--elf", help="overwrite target elf");
 parser.add_argument("-o", "--output", help="write postprocessed profile");
 parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile");
@@ -74,6 +76,9 @@ if (not args.profile) or (not os.path.isfile(args.profile)) :
     parser.print_help()
     sys.exit(1)
 
+if (args.volts):
+    profile['volts'] = float(args.volts)
+    
 
 binProfile = open(args.profile, mode='rb').read()
 
@@ -197,7 +202,7 @@ if (not aggregated):
 
             if not static:
                 pc = pc - pcVmaOffset(pc,vmmap)
-            thread = [tid, pc]
+            thread = [tid]
             pcInfo = fetchPcData(pc, profile['elf'])
             thread.extend(pcInfo)
             sample.append(thread);
