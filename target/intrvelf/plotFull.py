@@ -65,7 +65,6 @@ if (args.interpolate):
     title += f", {args.interpolate} samples interpolated"
     if (len(samples) % args.interpolate != 0):
         samples=numpy.delete(samples, numpy.s_[-(len(samples) % args.interpolate):], axis=0)
-    print(samples.shape)
     samples = samples.reshape(-1, args.interpolate, 2)
     samples = numpy.array([ [x[:,:1].mean(), x[0][1]] for x in samples ], dtype=object)
     samples = samples.reshape(-1, 2)
