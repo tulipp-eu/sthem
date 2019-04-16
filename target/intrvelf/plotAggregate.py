@@ -8,10 +8,12 @@ import bz2
 import pickle
 import plotly
 import plotly.graph_objs as go
+import numpy
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="postprocessed profile from intrvelf")
-parser.add_argument("-v", "--volts", help="set pmu voltage")
+parser.add_argument("-o", "--output", help="html output file")
+parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open output file")
 
 
 args = parser.parse_args()
@@ -21,7 +23,6 @@ if (not args.profile) or (not os.path.isfile(args.profile)):
     parser.print_help()
     sys.exit(1)
 
-volts = 1 if not args.volts else float(args.volts)
 
 
 if args.profile.endswith(".bz2"):
@@ -29,63 +30,76 @@ if args.profile.endswith(".bz2"):
 else:
     profile = pickle.load(open(args.profile, mode="rb"))
 
-freq = (1000000 * profile['samples']) / profile['samplingTimeUs']
-latency = int(profile['latencyTimeUs'] / profile['samples'])
-sampleTime = (profile['samplingTimeUs'] / profile['samples'])
+latencyUs = int(profile['latencyTimeUs'] / profile['samples'])
+sampleTime = profile['samplingTimeUs'] / (profile['samples'] * 1000000)
+freq = 1/sampleTime
+
+volts = 1 if (profile['volts'] == 0) else profile['volts']
 
 #profile['aggregatedProfile'][addr] = [samples, current, function, file, line]
 
-title = f"{profile['elf']}, {freq:.2f} Hz, {profile['samples']} samples, {latency} us latency"
-
-title_xaxis = "Charge in C" if not args.volts else "Energy in J"
-
-functions = [] #[ 'total' ]
-currents = [] #[ 0.0 ]
+functions = [] 
+currents = [] 
+samples = []
 
 for sample in profile['aggregatedProfile']:
     sample = profile['aggregatedProfile'][sample];
     if (sample[0] > 0):
         avgVal = (sample[1] / sample[0]) * volts
         function = profile['functions'][sample[2]]
-        #currents[0] += avgVal
         if function in functions:
             currents[functions.index(function)] += avgVal
+            samples[functions.index(function)] += sample[0]
         else:
             functions.append(profile['functions'][sample[2]])
             currents.append(avgVal)
+            samples.append(sample[0])
 
-sorty = [x for _,x in sorted(zip(currents,functions))]
-sortx = sorted(currents)
+sortedZipped = numpy.array(sorted(zip(currents, functions, samples)))
+currents = numpy.array(sortedZipped[:,0:1], dtype=float).flatten()
+functions = sortedZipped[:,1:2].flatten()
+times = [ f"{x:.2f} us" for x in (numpy.array(sortedZipped[:,2:3], dtype=int) * sampleTime).flatten().tolist() ]
 
-aggregated = go.Bar(
-    y=sorty,
-    x=sortx,
-    orientation='h'
-)
+functionLength = numpy.max([ len(x) for x in functions ])
 
-layout = go.Layout(
-    title=go.layout.Title(
-        text=title,
-        xref='paper',
-        x=0
-    ),
-    xaxis=go.layout.XAxis(
-        title=go.layout.xaxis.Title(
-            text=title_xaxis,
-            font=dict(
-                family='Courier New, monospace',
-                size=18,
-                color='#7f7f7f'
+fig = {
+    "data" : [go.Bar(
+        x=currents,
+        y=functions,
+        text=times,
+        textposition = 'auto',
+        orientation='h'
+    )],
+    "layout" : go.Layout(
+        title=go.layout.Title(
+            text = f"{profile['elf']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency",
+            xref='paper',
+            x=0
+        ),
+        xaxis=go.layout.XAxis(
+            title=go.layout.xaxis.Title(
+                text = "Average Current in A" if profile['volts'] == 0 else "Average Power in W",
+                font=dict(
+                    family='Courier New, monospace',
+                    size=18,
+                    color='#7f7f7f'
+                )
             )
+        ),
+        yaxis=go.layout.YAxis(
+           tickfont=dict(
+               family='monospace',
+               size=12,
+               color='black'
+           ) 
+        ),
+        margin=go.layout.Margin(
+            l = 7.5 * numpy.max([ len(x) for x in functions ])
         )
-    ),
-    margin=dict(
-        l=200
     )
-)
+}
 
-plotly.offline.plot({
-    "data": [aggregated],
-    "layout" : layout
-    #"layout": go.Layout(barmode='basic-bar', title=title)
-}, auto_open=True)
+file = "temp-plot.html" if not args.output else args.output
+
+plotly.offline.plot(fig, filename=file, auto_open=not args.quiet)
+print(f"Plot saved to {file}")
