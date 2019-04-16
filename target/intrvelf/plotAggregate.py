@@ -45,20 +45,21 @@ samples = []
 for sample in profile['aggregatedProfile']:
     sample = profile['aggregatedProfile'][sample];
     if (sample[0] > 0):
-        avgVal = (sample[1] / sample[0]) * volts
         function = profile['functions'][sample[2]]
         if function in functions:
-            currents[functions.index(function)] += avgVal
+            currents[functions.index(function)] += sample[1]
             samples[functions.index(function)] += sample[0]
         else:
             functions.append(profile['functions'][sample[2]])
-            currents.append(avgVal)
+            currents.append(sample[1])
             samples.append(sample[0])
 
+currents = [ ((x/y) * volts * (y * sampleTime)) for x,y in zip(currents,samples) ]
 sortedZipped = numpy.array(sorted(zip(currents, functions, samples)))
 currents = numpy.array(sortedZipped[:,0:1], dtype=float).flatten()
 functions = sortedZipped[:,1:2].flatten()
-times = [ f"{x:.2f} us" for x in (numpy.array(sortedZipped[:,2:3], dtype=int) * sampleTime).flatten().tolist() ]
+labelUnit = "C" if profile['volts'] == 0 else "J"
+labels = [ f"{x:.2f} us, {y:.2f} {labelUnit}" for x,y in zip((numpy.array(sortedZipped[:,2:3], dtype=int) * sampleTime).flatten(), currents) ]
 
 functionLength = numpy.max([ len(x) for x in functions ])
 
@@ -66,9 +67,10 @@ fig = {
     "data" : [go.Bar(
         x=currents,
         y=functions,
-        text=times,
+        text=labels,
         textposition = 'auto',
-        orientation='h'
+        orientation='h',
+        hoverinfo="x"
     )],
     "layout" : go.Layout(
         title=go.layout.Title(
@@ -78,7 +80,7 @@ fig = {
         ),
         xaxis=go.layout.XAxis(
             title=go.layout.xaxis.Title(
-                text = "Average Current in A" if profile['volts'] == 0 else "Average Power in W",
+                text = "Charge in C" if profile['volts'] == 0 else "Energy in J",
                 font=dict(
                     family='Courier New, monospace',
                     size=18,
