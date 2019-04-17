@@ -67,7 +67,7 @@ struct task {
 } __attribute__((packed));
 
 struct aggregatedSample {
-    uint64_t samples;
+    double samples;
     double current;
 } __attribute__((packed));
 
@@ -661,19 +661,19 @@ int main(int const argc, char **argv) {
                         continue;
                     uint64_t const offset = tasks[i].pc - targetMap.maps[j].addr;
                     if (offset < targetMap.maps[j].size) {
-                        aggregateMap[j][offset].samples++;
+                        aggregateMap[j][offset].samples += 1 / taskCount;
                         aggregateMap[j][offset].current += current / taskCount;
                         debug_printf("[%d] aggregate to addr 0x%lx with offset 0x%lx\n", tasks[i].tid, targetMap.maps[j].addr, offset);
-                        debug_printf("[%d] %lu samples accumalated %f A\n", tasks[i].tid, aggregateMap[j][offset].samples, aggregateMap[j][offset].current);
+                        debug_printf("[%d] %f samples accumalated %f A\n", tasks[i].tid, aggregateMap[j][offset].samples, aggregateMap[j][offset].current);
                         counted = true;
                         break;
                     }
                 }
                 if (!counted) {
-                    aggregateUnknown.samples++;
+                    aggregateUnknown.samples += 1 / taskCount;
                     aggregateUnknown.current += current;
                     debug_printf("[%d] unknown pc 0x%lx\n", tasks[i].tid, tasks[i].pc);
-                    debug_printf("[%d] %lu unknown samples accumalated %f A\n", tasks[i].tid, aggregateUnknown.samples, aggregateUnknown.current);
+                    debug_printf("[%d] %f unknown samples accumalated %f A\n", tasks[i].tid, aggregateUnknown.samples, aggregateUnknown.current);
                 }
             }
 

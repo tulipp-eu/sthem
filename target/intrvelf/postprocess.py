@@ -31,7 +31,12 @@ profile={
 
 _fetched_pc_data = {};
 
-def fetchPcData(pc, target):
+_unknown_pcs = [];
+
+_guess_offset_threshold = 0x5000000000
+_guess_page_size = 0x1000
+
+def fetchPcData(pc, targets):
     if pc in _fetched_pc_data:
         return _fetched_pc_data[pc]
     addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {profile['elf']} -a {pc:x}", shell=True, stdout=subprocess.PIPE)
@@ -46,6 +51,9 @@ def fetchPcData(pc, target):
         profile['files'].append(srcfile)
 
     result = [ profile['functions'].index(srcfunction), profile['files'].index(srcfile), srcline ]
+    if (result[0] == 0):
+        _unknown_pcs.append(pc)
+
     _fetched_pc_data[pc] = result;
     return result;
    
@@ -63,6 +71,7 @@ parser.add_argument("-o", "--output", help="write postprocessed profile");
 parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile");
 parser.add_argument("-l", "--little-endian", action="store_true", help="parse profile using little endianess");
 parser.add_argument("-b", "--big-endian", action="store_true", help="parse profile using big endianess");
+parser.add_argument("-u", "--unknown", action="store_true", help="dump unknown addresses after postprocessing");
 
 args = parser.parse_args();
 
@@ -208,10 +217,10 @@ if (not aggregated):
             sample.append(thread);
                                    
             if pc in profile['aggregatedProfile']:
-                profile['aggregatedProfile'][pc][0] += 1;
+                profile['aggregatedProfile'][pc][0] += (1 / threadCount);
                 profile['aggregatedProfile'][pc][1] += (current / threadCount)
             else:
-                asample = [ 1, (current/threadCount) ]
+                asample = [ (1/threadCount), (current/threadCount) ]
                 asample.extend(pcInfo)
                 profile['aggregatedProfile'][pc] =  asample;
 
@@ -244,7 +253,7 @@ else:
             progress = int((offset+1) * 100 / vmmap['size'])
             print(f"Processing... {progress}%\r", end="")
         try:
-            (samples, current, ) = struct.unpack_from(endianess + "Qd", binProfile, binOffset)
+            (samples, current, ) = struct.unpack_from(endianess + "dd", binProfile, binOffset)
             binOffset += 8 + 8
         except:
             print("Unexpected end of file!")
@@ -262,3 +271,8 @@ sys.stdout.flush()
 pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL)
 outProfile.close()
 print("finished")
+
+if len(_unknown_pcs)>0 and args.unknown:
+    print (f'{len(_unknown_pcs)} ({(len(_unknown_pcs) * 100 / len(_fetched_pc_data)):.2f} %) unknown adresses found:')
+    for pc in _unknown_pcs:
+        print(f"0x{pc:x}")

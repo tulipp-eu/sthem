@@ -55,7 +55,7 @@ metrics = numpy.array(values[:,0:1], dtype=float).flatten() * volts
 times = numpy.array(values[:,1:2], dtype=float).flatten()
 functions = [ profile['functions'][x] for x in numpy.array(values[:,2:3].flatten(), dtype=int)]
 labelUnit = "C" if profile['volts'] == 0 else "J"
-labels = [ f"{x:.4f} s, {y:.2f} {labelUnit}" for x,y in zip(times, metrics) ]
+labels = [ f"{x:.4f} s, {y/x:.2f} W, {y:.2f} {labelUnit}" for x,y in zip(times, metrics) ]
 
 functionLength = numpy.max([ len(x) for x in functions ])
 
