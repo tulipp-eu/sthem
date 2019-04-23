@@ -274,8 +274,9 @@ int main(int const argc, char **argv) {
         }
 
         if (!deattach) {
+            int signal = 0;
             do {
-                rptrace = ptrace(PTRACE_CONT, targetPid, NULL, NULL);
+                rptrace = ptrace(PTRACE_CONT, targetPid, NULL, signal);
                 if (rptrace == -1 && errno == ESRCH) {
                     fprintf(stderr, "ERROR: death under ptrace!\n");
                     ret = 1; goto exit;
@@ -286,6 +287,7 @@ int main(int const argc, char **argv) {
                 } while (intrTarget == -1 && errno == EAGAIN);
                 
                 interrupts++;
+                signal = WSTOPSIG(signal);
                 //fprintf(stderr, "DEBUG: interrupt signal %d\n", WSTOPSIG(status));
                 
             } while (status>>8 != (SIGTRAP | (PTRACE_EVENT_EXIT<<8)));
@@ -333,7 +335,7 @@ int main(int const argc, char **argv) {
     }
 
     if (interrupts > 1) {
-        fprintf(stderr, "WARNING: %ld unexpected appplication interrupts occured, non-intrusive execution was not assured!\n", interrupts);
+        fprintf(stderr, "WARNING: %ld unexpected appplication interrupts occured, non-intrusive execution was not preserved!\n", interrupts);
     }
 
     goto exit;
