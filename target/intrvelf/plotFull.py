@@ -49,7 +49,7 @@ freq = 1/sampleTime
 samples = numpy.array(profile['fullProfile'], dtype=object)
 #samples = numpy.array([[x[0], numpy.array(x[1][0])] for x in profile['fullProfile']], dtype=object)
 
-title = f"{profile['elf']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency"
+title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency"
 
 if (args.start):
     samples = samples[int(args.start / sampleTime)-1:]
@@ -91,7 +91,7 @@ if not args.no_threads:
                 threadFunctions.append(list.copy(threadNone))
 
             threads[threadIndex][i] = threadIndex+1
-            threadFunctions[threadIndex][i] = profile['functions'][threadSample[1]]
+            threadFunctions[threadIndex][i] = profile['functions'][threadSample[2]]
 
 fig = plotly.tools.make_subplots(
     rows=1 if args.no_threads else 2,

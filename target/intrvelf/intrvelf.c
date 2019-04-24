@@ -66,10 +66,12 @@ struct task {
     uint64_t pc;
 } __attribute__((packed));
 
+/* No support for aggregated profiles with full vmmap
 struct aggregatedSample {
     double samples;
     double current;
 } __attribute__((packed));
+*/
 
 struct task *tasks = NULL;
 
@@ -145,7 +147,7 @@ void help(char const opt, char const *optarg) {
     fprintf(out, "  -o, --output=<file>       write to file\n");
     fprintf(out, "  -s, --sensor=<1-%d>        lynsyn sensor\n", LYNSYN_SENSORS);
     fprintf(out, "  -f, --frequency=<hertz>   sampling frequency\n");
-    fprintf(out, "  -a, --aggregate           write aggregated profile\n");
+    //    fprintf(out, "  -a, --aggregate           write aggregated profile\n");
     fprintf(out, "  -d, --debug               output debug messages\n");
     fprintf(out, "  -h, --help                shows help\n");
     fprintf(out, "\n");
@@ -307,20 +309,20 @@ int main(int const argc, char **argv) {
     char **argsStart = NULL;
     int sensor = -1;
     bool debugOutput = 0;
-    bool aggregate = 0;
+    // bool aggregate = 0;
     double samplingFrequency = 10000;
     
     static struct option const long_options[] =  {
         {"help",         no_argument, 0, 'h'},
         {"debug",        no_argument, 0, 'd'},
-        {"aggregate",    no_argument, 0, 'a'},
+        //        {"aggregate",    no_argument, 0, 'a'},
         {"sensor",       required_argument, 0, 's'},
         {"frequency",    required_argument, 0, 'f'},
         {"output",       required_argument, 0, 'o'},
         {0, 0, 0, 0}
     };
 
-    static char const * short_options = "hdaf:o:s:";
+    static char const * short_options = "hdf:o:s:";
 
     while (1) {
         char *endptr;
@@ -367,9 +369,11 @@ int main(int const argc, char **argv) {
                     return 1;
                 }
                 break;
+            /* No support for aggregated profiles with full vmmap
             case 'a':
                 aggregate = true;
                 break;
+            */
             case 'd':
                 debugOutput = true;
                 break;
@@ -402,6 +406,7 @@ int main(int const argc, char **argv) {
     pid_t intrTarget = 0;
     int intrStatus = 0;
     int intrSignal = 0;
+    struct VMMaps processMap = {};
         
     do {
         samplingTarget = fork();
@@ -441,7 +446,7 @@ int main(int const argc, char **argv) {
         ret = 2; goto exitWithTarget;
     }
 
-    if (ptrace(PTRACE_SETOPTIONS, samplingTarget, NULL, PTRACE_O_TRACECLONE | PTRACE_O_EXITKILL) == -1) {
+    if (ptrace(PTRACE_SETOPTIONS, samplingTarget, NULL, PTRACE_O_TRACECLONE | PTRACE_O_TRACEEXIT | PTRACE_O_EXITKILL) == -1) {
         fprintf(stderr, "ERROR: Could not set ptrace options!\n");
         ret = 1; goto exitWithTarget;
     }
@@ -452,7 +457,7 @@ int main(int const argc, char **argv) {
        fprintf(stderr, "ERROR: could not detect process vmmap\n");
        ret = 1; goto exitWithTarget;
     }
-
+    /* No support for aggregated profiles with full vmmap
     struct aggregatedSample aggregateUnknown = {};
     struct aggregatedSample **aggregateMap = NULL;
     if (aggregate) {
@@ -470,6 +475,7 @@ int main(int const argc, char **argv) {
             memset(aggregateMap[i], '\0', targetMap.maps[i].size * sizeof(struct aggregatedSample));
         }
     }
+    */
 
 #ifdef DEBUG
     for (unsigned int i = 0; i < targetMap.count; i ++) {
@@ -478,11 +484,8 @@ int main(int const argc, char **argv) {
 #endif
 
     if (output != NULL) {
-        // Leave place for Magic Number, Wall Time, Time, Samples
-        fseek(output, sizeof(uint32_t) + 3 * sizeof(uint64_t), SEEK_SET);
-        //Write VMMaps
-        fwrite((void *) &targetMap.count, sizeof(uint32_t), 1, output);
-        fwrite((void *) targetMap.maps, sizeof(struct VMMap), targetMap.count, output);
+        // Leave place for Magic Number, Wall Time, Time, Samples, VMMap Count
+        fseek(output, 2 * sizeof(uint32_t) + 3 * sizeof(uint64_t), SEEK_SET);
     }
 
     static struct user_regs_struct regs = {};
@@ -592,8 +595,11 @@ int main(int const argc, char **argv) {
                     }
                 }
             } else {
-                
-                if (signal == SIGTRAP && (status >> 16) == PTRACE_EVENT_CLONE) {
+                if (intrTarget == samplingTarget && signal == SIGTRAP && (status >> 16) == PTRACE_EVENT_EXIT) {
+                    signal = 0;
+                    processMap = getProcessVMMaps(intrTarget, 0);
+                    debug_printf("[%d] exit traced of root target\n", intrTarget)
+                } else if (signal == SIGTRAP && (status >> 16) == PTRACE_EVENT_CLONE) {
                     signal = 0;
                     /*
                       // Its nice to know this, but the way we are waiting for any child,
@@ -653,7 +659,7 @@ int main(int const argc, char **argv) {
             tasks[i].pc = regs.rip;
 #endif
             debug_printf("[%d] pc: 0x%lx\n", tasks[i].tid, tasks[i].pc);
-            
+            /* No support for aggregated profiles with full vmmap
             if (output != NULL && aggregate) {
                 bool counted = false;
                 for (unsigned int j = 0; j < targetMap.count; j++) {
@@ -676,11 +682,12 @@ int main(int const argc, char **argv) {
                     debug_printf("[%d] %f unknown samples accumalated %f A\n", tasks[i].tid, aggregateUnknown.samples, aggregateUnknown.current);
                 }
             }
+            */
 
             i++;
         }
 
-        if (output != NULL && !aggregate) {
+        if (output != NULL ) { //&& !aggregate) {
             fwrite((void *) &current, sizeof(double), 1, output);
             fwrite((void *) &taskCount, sizeof(uint32_t), 1, output);
             fwrite((void *) tasks, sizeof(struct task), taskCount, output);
@@ -728,7 +735,13 @@ int main(int const argc, char **argv) {
         ret = 1; goto exit;
     }
 
+    if (processMap.count == 0) {
+        fprintf(stderr, "No process map was read, process exit was not reported!\n");
+        ret = 1; goto exit;
+    }
+
     if (output != NULL) {
+        /* No support for aggregated profiles with full vmmap
         if (aggregate) {
             fwrite((void *) &aggregateUnknown, sizeof(struct aggregatedSample), 1, output);
             for (unsigned int i = 0; i < targetMap.count; i++) {
@@ -736,13 +749,17 @@ int main(int const argc, char **argv) {
                 fwrite((void *) aggregateMap[i], sizeof(struct aggregatedSample), targetMap.maps[i].size, output);
             }
         }
+        */
+        //Write VMMap
+        fwrite((void *) processMap.maps, sizeof(struct VMMap), processMap.count, output);
         //HEADER
-        uint32_t magic = (aggregate) ? 1 : 0;
+        uint32_t magic = 0x1; // (aggregate) ? 0x2 : 0x1;
         fseek(output, 0, SEEK_SET);
         fwrite((void *) &magic, sizeof(uint32_t), 1, output);
         fwrite((void *) &totalWallTimeUs, sizeof(uint64_t), 1, output);
         fwrite((void *) &totalWallLatencyUs, sizeof(uint64_t), 1, output);
         fwrite((void *) &samples, sizeof(uint64_t), 1, output);
+        fwrite((void *) &processMap.count, sizeof(uint32_t), 1, output);
     }
 
     //Write Header -> Samples, Threads, Offset, sample interval (us)

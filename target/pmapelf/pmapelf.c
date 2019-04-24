@@ -335,7 +335,7 @@ int main(int const argc, char **argv) {
     }
 
     if (interrupts > 1) {
-        fprintf(stderr, "WARNING: %ld unexpected appplication interrupts occured, non-intrusive execution was not preserved!\n", interrupts);
+        fprintf(stderr, "WARNING: %ld unexpected appplication interrupts occured, non-intrusive execution was not preserved!\n", interrupts - 1);
     }
 
     goto exit;

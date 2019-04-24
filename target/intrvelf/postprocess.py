@@ -22,51 +22,63 @@ profile={
     'samplingTimeUs' : 0,
     'latencyTimeUs' : 0,
     'volts' : 0,
-    'elf' : label_unknown ,
+    'target' : label_unknown,
+    'binaries' : [ label_unknown ],
     'functions' : [ label_unknown ],
     'files' : [ label_unknown ],
     'fullProfile' : [],
-    'aggregatedProfile' : { label_unknown : [0,0,0,0,0]}
+    'aggregatedProfile' : { label_unknown : [0,0,0,0,0] }
 }
 
 _fetched_pc_data = {};
 
 _unknown_pcs = [];
 
-_guess_offset_threshold = 0x5000000000
-_guess_page_size = 0x1000
+binaryMap = []
 
-def fetchPcData(pc, targets):
+def fetchPCInfo(pc):
     if pc in _fetched_pc_data:
         return _fetched_pc_data[pc]
-    addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {profile['elf']} -a {pc:x}", shell=True, stdout=subprocess.PIPE)
-    addr2line.check_returncode()
-    result = addr2line.stdout.decode('utf-8').split("\n");
-    srcfunction = result[1].replace('??', label_unknown )
-    srcfile = result[2].split(':')[0].replace('??', label_unknown )
-    srcline = int(result[2].split(':')[1].split(' ')[0].replace('?','0'))
-    if not srcfunction in profile['functions']:
-        profile['functions'].append(srcfunction)
-    if not srcfile in profile['files']:
-        profile['files'].append(srcfile)
+    found = False
+    lookupPc = pc
+    elf = ""
+    result = [ 0, 0, 0, 0 ]
+    for binary in binaryMap:
+        if (pc >= binary['start'] and pc <= binary['end']):
+            found=True
+            elf = binary['binary']
+            if not binary['static']:
+                lookupPc -= binary['start']
+            break
 
-    result = [ profile['functions'].index(srcfunction), profile['files'].index(srcfile), srcline ]
-    if (result[0] == 0):
+    if found:
+        addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
+        addr2line.check_returncode()
+        result = addr2line.stdout.decode('utf-8').split("\n");
+        srcfunction = result[1].replace('??', label_unknown )
+        srcfile = result[2].split(':')[0].replace('??', label_unknown )
+        srcline = int(result[2].split(':')[1].split(' ')[0].replace('?','0'))
+
+        if not elf in profile['binaries']:
+            profile['binaries'].append(elf)
+        if not srcfunction in profile['functions']:
+            profile['functions'].append(srcfunction)
+        if not srcfile in profile['files']:
+            profile['files'].append(srcfile)
+                
+        result = [ profile['binaries'].index(elf), profile['functions'].index(srcfunction), profile['files'].index(srcfile), srcline ]
+
+    if (result[1] == 0):
         _unknown_pcs.append(pc)
 
-    _fetched_pc_data[pc] = result;
-    return result;
-   
-def pcVmaOffset(pc, vmmap):
-    if (pc >= vmmap['start']) and (pc <= vmmap['end']):
-            return vmmap['start'];
-    return 0
-
-
+    _fetched_pc_data[pc] = result
+    return result
+    
+    
 parser = argparse.ArgumentParser(description="Parse profiles from intrvelf sampler.")
 parser.add_argument("profile", help="profile from intrvelf")
 parser.add_argument("-v", "--volts", help="set pmu voltage")
-parser.add_argument("-e", "--elf", help="overwrite target elf");
+parser.add_argument("-s", "--search-path", help="add search path", action="append");
 parser.add_argument("-o", "--output", help="write postprocessed profile");
 parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile");
 parser.add_argument("-l", "--little-endian", action="store_true", help="parse profile using little endianess");
@@ -88,6 +100,10 @@ if (not args.profile) or (not os.path.isfile(args.profile)) :
 if (args.volts):
     profile['volts'] = float(args.volts)
     
+if (not args.search_path):
+    args.search_path = []
+
+args.search_path.append(os.getcwd())
 
 binProfile = open(args.profile, mode='rb').read()
 
@@ -117,15 +133,14 @@ except:
     print("Unexpected end of file!")
     sys.exit(1)
     
-if (magic != 0) and (magic != 1):
+if (magic != 1):
     print("Invalid profile")
     sys.exit(1);
 
-aggregated=(magic == 1)
 
 try:
-    (wallTime, cpuTime, sampleCount) = struct.unpack_from(endianess + 'QQQ', binProfile, binOffset);
-    binOffset += 24
+    (wallTime, cpuTime, sampleCount, vmmapCount) = struct.unpack_from(endianess + 'QQQI', binProfile, binOffset);
+    binOffset += 28
 except:
     print("Unexpected end of file!")
     sys.exit(1)
@@ -139,133 +154,109 @@ profile['samples'] = sampleCount
 profile['samplingTimeUs'] = wallTime
 profile['latencyTimeUs'] = cpuTime
 
-try:
-    (vmmapsCount,) = struct.unpack_from(endianess + "I", binProfile, binOffset);
-    binOffset += 4
-except:
-    print("Unexpected end of file!")
-    sys.exit(1)
+aggregatedSamples = {}
+
+rawSamples = []
+
+for i in range(sampleCount):
+    if (i % 100 == 0):
+        progress = int((i+1) * 100 / sampleCount)
+        print(f"Reading raw samples... {progress}%\r", end="")
+        
+    try:
+        (current, threadCount, ) = struct.unpack_from(endianess + "dI", binProfile, binOffset)
+        binOffset += 8 + 4
+    except:
+        print("Unexpected end of file!")
+        sys.exit(1)
+            
+    sample = []
+    for j in range(threadCount):
+        try:
+            (tid, pc, ) = struct.unpack_from(endianess + "IQ", binProfile, binOffset)
+            binOffset += 4 + 8
+        except:
+            print("Unexpected end of file!")
+            sys.exit(1)
+        sample.append([tid, pc])
+        
+           
+    rawSamples.append([ current, sample ])
+
+
+
+print("Reading raw samples... finished!")
+
 
 vmmaps = []
-for i in range(vmmapsCount):
+for i in range(vmmapCount):
     try:
         (addr, size, label,) = struct.unpack_from(endianess + "QQ256s", binProfile, binOffset)
         binOffset += 256 + 16
     except:
         print("Unexpected end of file!")
         sys.exit(1)
-    vmmaps.append({ 'label' : label.decode('utf-8').rstrip('\0'), 'start' : addr, 'end' : addr+size, 'size' : size })
+    vmmaps.append([addr, size, label.decode('utf-8').rstrip('\0')])
 
-if (len(vmmaps) == 0):
-    print("No VMMaps found!")
-    sys.exit(1)
+print("Reading vm maps... finished!")
 
-if (not args.elf):
-    elf = vmmaps[0]['label']
-else:
-    elf = args.elf
 
-# Save first vmmap, we can only cover one within an elf file
-vmmap = vmmaps[0]    
+profile['target'] = vmmaps[0][2]
 
-if not os.path.isfile(elf):
-    whereis = subprocess.run(f"which {elf}", shell=True, stdout=subprocess.PIPE)
-    whereis.check_returncode()
-    elf = whereis.stdout.decode('utf-8').rstrip('\n');
-        
+binaryMap = []
 
-readelf = subprocess.run(f"readelf -h {elf}", shell=True, stdout=subprocess.PIPE)
-readelf.check_returncode()
-static = True if re.search("Type:[ ]+EXEC",readelf.stdout.decode('utf-8'), re.M) else False
-
-if static:
-    print("Static binary detected")
-else:
-    print("Dynamic binary detected")
-    
-profile['elf'] = elf;
-
-aggregatedSamples = {}
-
-if (not aggregated):
-    for i in range(sampleCount):
-        if (i % 100 == 0):
-            progress = int((i+1) * 100 / sampleCount)
-            print(f"Processing... {progress}%\r", end="")
-
-        try:
-            (current, threadCount, ) = struct.unpack_from(endianess + "dI", binProfile, binOffset)
-            binOffset += 8 + 4
-        except:
-            print("Unexpected end of file!")
-            sys.exit(1)
-            
-        sample = []
-        for j in range(threadCount):
+for map in vmmaps:
+    found = False
+    path = ""
+    static = False
+    for searchPath in args.search_path:
+        path = f"{searchPath}/{map[2]}"
+        if (os.path.isfile(path)):
+            readelf = subprocess.run(f"readelf -h {path}", shell=True, stdout=subprocess.PIPE)
             try:
-                (tid, pc, ) = struct.unpack_from(endianess + "IQ", binProfile, binOffset)
-                binOffset += 4 + 8
+                readelf.check_returncode()
+                static = True if re.search("Type:[ ]+EXEC",readelf.stdout.decode('utf-8'), re.M) else False
+                found = True
+                break
             except:
-                print("Unexpected end of file!")
-                sys.exit(1)
-
-            if not static:
-                pc = pc - pcVmaOffset(pc,vmmap)
-            thread = [tid]
-            pcInfo = fetchPcData(pc, profile['elf'])
-            thread.extend(pcInfo)
-            sample.append(thread);
-                                   
-            if pc in profile['aggregatedProfile']:
-                profile['aggregatedProfile'][pc][0] += (1 / threadCount);
-                profile['aggregatedProfile'][pc][1] += (current / threadCount)
-            else:
-                asample = [ (1/threadCount), (current/threadCount) ]
-                asample.extend(pcInfo)
-                profile['aggregatedProfile'][pc] =  asample;
-
-        profile['fullProfile'].append([ current , sample ])
-
-    print("Processing... finished!")
-
-else:
-    try:
-        (unknownSamples, unknownCurrent, ) = struct.unpack_from(endianess + "Qd", binProfile, binOffset)
-        binOffset += 8 + 8
-    except:
-        print("Unexpected end of file!")
+                found = False
+    if found:
+        binaryMap.append({ 'binary' : path, 'static' : static,  'start' : map[0], 'size' : map[1], 'end' : map[0] + map[1]})
+    else:
+        print(f"Could not find {map[2]}!")
         sys.exit(1)
-    profile['aggregatedProfile'][label_unknown] = [unknownSamples, unknownCurrent, 0, 0, 0];
-    
-    try:
-        (addr, ) = struct.unpack_from(endianess + "Q", binProfile, binOffset)
-        binOffset += 8
-    except:
-        print("Unexpected end of file!")
-        sys.exit(1)
+
+i = 0
+for sample in rawSamples:
+    if (i % 100 == 0):
+        progress = int((i+1) * 100 / sampleCount)
+        print(f"Post processing... {progress}%\r", end="")
+    i += 1
         
-    if (not addr == vmmap['start']):
-        print("Unexpected address found!")
-        sys.exit(1)
+    processedSample = []
+    sampleThreadCount = len(sample[1])
+    for thread in sample[1]:
+        threadSample = [ thread[0] ]
+        pcInfo = fetchPCInfo( thread[1] )
+        threadSample.extend(pcInfo)
+        processedSample.append(threadSample);
+
         
-    for offset in range(vmmap['size']):
-        if (offset % 100 == 0): 
-            progress = int((offset+1) * 100 / vmmap['size'])
-            print(f"Processing... {progress}%\r", end="")
-        try:
-            (samples, current, ) = struct.unpack_from(endianess + "dd", binProfile, binOffset)
-            binOffset += 8 + 8
-        except:
-            print("Unexpected end of file!")
-            sys.exit(1)
+        if thread[1] in profile['aggregatedProfile']:
+            profile['aggregatedProfile'][thread[1]][0] += (1 / sampleThreadCount);
+            profile['aggregatedProfile'][thread[1]][1] += (current / sampleThreadCount)
+        else:
+            asample = [ (1 / sampleThreadCount), (current/ sampleThreadCount) ]
+            asample.extend(pcInfo)
+            profile['aggregatedProfile'][thread[1]] =  asample;
+
+    profile['fullProfile'].append([ current , processedSample ])
             
-        if (samples > 0):
-            sample = [samples,current]
-            sample.extend(fetchPcData(offset if not static else offset + addr, profile['elf']))
-            profile['aggregatedProfile'][offset] = sample;
+print("Post processing... finished!")
+         
 
-    print("Processing... finished!")
-    
+
+
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()
 pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL)

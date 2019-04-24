@@ -38,18 +38,19 @@ volts = 1 if (profile['volts'] == 0) else profile['volts']
 
 #profile['aggregatedProfile'][addr] = [samples, current, function, file, line]
 
+#aggmap[function] = [ current, time, function ]
+
 aggmap = {}
-gtime = 0
 for sample in profile['aggregatedProfile']:
     sample = profile['aggregatedProfile'][sample];
     if (sample[0] > 0):
-        gtime += sample[0] * sampleTime
-        if sample[2] in aggmap:
-            aggmap[sample[2]][0] += sample[1] * sampleTime
-            aggmap[sample[2]][1] += sample[0] * sampleTime
+        if sample[3] in aggmap:
+            aggmap[sample[3]][0] += sample[1] * sampleTime
+            aggmap[sample[3]][1] += sample[0] * sampleTime
         else:
-            aggmap[sample[2]] = [ sample[1] * sampleTime, sample[0] * sampleTime, sample[2] ]
+            aggmap[sample[3]] = [ sample[1] * sampleTime, sample[0] * sampleTime, sample[3] ]
 
+            
 values = numpy.array(sorted(aggmap.values()), dtype=object)
 metrics = numpy.array(values[:,0:1], dtype=float).flatten() * volts
 times = numpy.array(values[:,1:2], dtype=float).flatten()
@@ -70,7 +71,7 @@ fig = {
     )],
     "layout" : go.Layout(
         title=go.layout.Title(
-            text = f"{profile['elf']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency",
+            text = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency",
             xref='paper',
             x=0
         ),
