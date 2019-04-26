@@ -58,12 +58,10 @@ static int _ptrace_return = 0;
         _ptrace_return = ptrace(PTRACE_CONT, target, NULL, signal) 
 
 
-uint32_t taskCount = 0;
-uint32_t allocTasks = 0;
-
 struct task {
     uint32_t tid;
     uint64_t pc;
+    uint64_t cputime;
 } __attribute__((packed));
 
 /* No support for aggregated profiles with full vmmap
@@ -73,40 +71,75 @@ struct aggregatedSample {
 } __attribute__((packed));
 */
 
-struct task *tasks = NULL;
 
-int reallocTaskList() {
-    if (tasks == NULL) {
-        allocTasks = 1;
-        tasks = (struct task *) malloc(sizeof(struct task));
-    } else {
-        allocTasks *= 2;
-        tasks = (struct task *) realloc(tasks, allocTasks * 2 * sizeof(struct task));
+
+int getCPUTimeFromSchedstat(FILE *schedstat, uint64_t *cputime) {
+    if (freopen(NULL, "r", schedstat) == NULL)
+        return 1;
+    if (fscanf(schedstat, "%lu", cputime) == 1)
+        return 0;
+    return 1;
+}
+
+struct taskList {
+    pid_t root;
+    uint32_t count;
+    uint32_t allocCount;
+    struct task *list;
+    FILE **schedstats;
+};
+
+struct taskList tasks = {};
+
+int addTask(pid_t const task) {
+    static char schedfile[1024] = {};
+    if (tasks.allocCount == 0) {
+        tasks.count = 0;
+        tasks.allocCount = 1;
+        tasks.list = (struct task *) malloc(sizeof(struct task));
+        tasks.schedstats = (FILE **) malloc(sizeof(FILE *));
+        if (tasks.list == NULL || tasks.schedstats == NULL)
+            return 1;
+    } else if (tasks.count == tasks.allocCount) {
+        tasks.allocCount *= 2;
+        tasks.list = (struct task *) realloc(tasks.list, tasks.allocCount * sizeof(struct task));
+        tasks.schedstats = (FILE **) realloc(tasks.schedstats, tasks.allocCount * sizeof(FILE *));
+        if (tasks.list == NULL || tasks.schedstats == NULL)
+            return 1;
     }
-
-    if (tasks == NULL) {
-        allocTasks = 0;
+    snprintf(schedfile, 1024, "/proc/%d/task/%d/schedstat", tasks.root, task);
+    tasks.list[tasks.count].tid = task;
+    tasks.list[tasks.count].pc = 0;
+    tasks.schedstats[tasks.count] = fopen(schedfile, "r");
+    if (tasks.schedstats[tasks.count] == NULL) {
+        debug_printf("[DEBUG] Could not open %s\n", schedfile);
         return 1;
     }
+    tasks.count++;
     return 0;
 }
 
-int addTask(pid_t const task) {
-    if (taskCount == allocTasks && reallocTaskList() != 0) {
-        return 1;
+int removeTaskIndex(uint32_t const i) {
+    if (i < tasks.count) {
+        tasks.count--;
+        fclose(tasks.schedstats[i]);
+        for (unsigned int j = i; j < tasks.count; j++) {
+            tasks.list[j].tid = tasks.list[j+1].tid;
+            tasks.schedstats[j] = tasks.schedstats[j+1];
+        }
+        return 0;
     }
-    tasks[taskCount].tid = task;
-    tasks[taskCount].pc = 0;
-    taskCount++;
-    return 0;
+    return 1;
 }
 
 int removeTask(pid_t const task) {
-    for (unsigned int i = 0; i < taskCount; i++) {
-        if (tasks[i].tid == task) {
-            taskCount--;
-            for (unsigned int j = i; j < taskCount; j++) {
-                tasks[j].tid = tasks[j+1].tid;
+    for (unsigned int i = 0; i < tasks.count; i++) {
+        if (tasks.list[i].tid == task) {
+            tasks.count--;
+            fclose(tasks.schedstats[i]);
+            for (unsigned int j = i; j < tasks.count; j++) {
+                tasks.list[j].tid = tasks.list[j+1].tid;
+                tasks.schedstats[j] = tasks.schedstats[j+1];
             }
             return 0;
         }
@@ -115,17 +148,17 @@ int removeTask(pid_t const task) {
 }
 
 int taskExists(pid_t const task) {
-    for (unsigned int i = 0; i < taskCount; i++) {
-        if (tasks[i].tid == task)
+    for (unsigned int i = 0; i < tasks.count; i++) {
+        if (tasks.list[i].tid == task)
             return 1;
     }
     return 0;
 }
 
 struct task *getTask(pid_t const task) {
-    for (unsigned int i = 0; i < taskCount; i++) {
-        if (tasks[i].tid == task)
-            return &tasks[i];
+    for (unsigned int i = 0; i < tasks.count; i++) {
+        if (tasks.list[i].tid == task)
+            return &tasks.list[i];
     }
     return NULL;
 }
@@ -432,6 +465,8 @@ int main(int const argc, char **argv) {
         }
     }
 
+    tasks.root = samplingTarget;
+
     do {
         intrTarget = waitpid(samplingTarget, &intrStatus, __WALL);
     } while (intrTarget == -1 && errno == EINTR);
@@ -494,7 +529,10 @@ int main(int const argc, char **argv) {
 #endif
     
     _callback_data.tid = samplingTarget;
-    addTask(samplingTarget);
+    if (addTask(samplingTarget)) {
+        fprintf(stderr, "ERROR: could not add %d internal task structure\n", samplingTarget);
+        goto exitWithTarget;
+    }
 
     struct timerData timer = {};
     uint64_t samples = 0;
@@ -542,7 +580,7 @@ int main(int const argc, char **argv) {
         int stopCount = 0;
 
         
-        while(taskCount > 0) {
+        while(tasks.count > 0) {
             int status;
             int signal;
             pid_t intrTarget;
@@ -553,13 +591,16 @@ int main(int const argc, char **argv) {
             
                                               
             if (WIFEXITED(status)) {
-                if (taskCount == 1 || intrTarget == samplingTarget) {
+                if (tasks.count == 1 || intrTarget == samplingTarget) {
                     debug_printf("[%d] root tracee died\n", intrTarget);
                     goto exitSampler;
                 } else {
-                    removeTask(intrTarget);
+                    if (removeTask(intrTarget)) {
+                        fprintf(stderr, "ERROR: could not remove task %d from internal structure\n", intrTarget);
+                        goto exitWithTarget;
+                    }
                     debug_printf("[%d] tracee died\n", intrTarget);
-                    if (groupStop && stopCount >= taskCount) {
+                    if (groupStop && stopCount >= tasks.count) {
                         // We waited for this thread to stop
                         // but it died, so grab that sample
                         break;
@@ -584,11 +625,14 @@ int main(int const argc, char **argv) {
                 signal = 0;
                 if (!taskExists(intrTarget)) {
                     debug_printf("[%d] new child detected\n", intrTarget);
-                    addTask(intrTarget);
+                    if (addTask(intrTarget)) {
+                        fprintf(stderr, "ERROR: could not add task %d to internal structure\n", intrTarget);
+                        goto exitWithTarget;
+                    }
                 }
                 if (groupStop) {
                     debug_printf("[%d] group stop\n", intrTarget);
-                    if (++stopCount == taskCount) {
+                    if (++stopCount == tasks.count) {
                         break;
                     } else {
                         continue;
@@ -624,7 +668,10 @@ int main(int const argc, char **argv) {
             rp = ptrace(PTRACE_CONT, intrTarget, NULL, signal);
             if (rp == -1 && errno == ESRCH) {
                 debug_printf("[%d] death on ptrace cont\n", intrTarget);
-                removeTask(intrTarget);
+                if (removeTask(intrTarget)) {
+                    fprintf(stderr, "ERROR: could not remove task %d from internal structure\n", intrTarget);
+                    goto exitWithTarget;
+                }
             } else {
                 debug_printf("[%d] continued with signal %d\n", intrTarget, signal);
             }
@@ -642,23 +689,30 @@ int main(int const argc, char **argv) {
         debug_printf("[sample] current: %f A\n", current);
 
         unsigned int i = 0;
-        while (i < taskCount) {
+        while (i < tasks.count) {
 #ifdef __aarch64__
-            rp = ptrace(PTRACE_GETREGSET, tasks[i].tid, NT_PRSTATUS, &rvec);
+            rp = ptrace(PTRACE_GETREGSET, tasks.list[i].tid, NT_PRSTATUS, &rvec);
 #else   
-            rp = ptrace(PTRACE_GETREGS, tasks[i].tid, NULL, &regs);
+            rp = ptrace(PTRACE_GETREGS, tasks.list[i].tid, NULL, &regs);
 #endif
             if (rp == -1 && errno == ESRCH) {
-                debug_printf("[%d] death on ptrace regs\n", tasks[i].tid);
-                removeTask(tasks[i].tid);
+                debug_printf("[%d] death on ptrace regs\n", tasks.list[i].tid);
+                if (removeTaskIndex(i)) {
+                    fprintf(stderr, "ERROR: could not remove task %d from internal structure\n", tasks.list[i].tid);
+                    goto exitWithTarget;
+                }
                 continue;
             }
 #ifdef __aarch64__
-            tasks[i].pc = regs.pc;
+            tasks.list[i].pc = regs.pc;
 #else
-            tasks[i].pc = regs.rip;
+            tasks.list[i].pc = regs.rip;
 #endif
-            debug_printf("[%d] pc: 0x%lx\n", tasks[i].tid, tasks[i].pc);
+            if (getCPUTimeFromSchedstat(tasks.schedstats[i], &tasks.list[i].cputime)) {
+                fprintf(stderr, "ERROR: could not read cputime of tid %d\n", tasks.list[i].tid);
+                goto exitWithTarget;
+            }
+            debug_printf("[%d] pc: 0x%lx, cputime: %lu\n", tasks.list[i].tid, tasks.list[i].pc, tasks.list[i].cputime);
             /* No support for aggregated profiles with full vmmap
             if (output != NULL && aggregate) {
                 bool counted = false;
@@ -689,8 +743,8 @@ int main(int const argc, char **argv) {
 
         if (output != NULL ) { //&& !aggregate) {
             fwrite((void *) &current, sizeof(double), 1, output);
-            fwrite((void *) &taskCount, sizeof(uint32_t), 1, output);
-            fwrite((void *) tasks, sizeof(struct task), taskCount, output);
+            fwrite((void *) &tasks.count, sizeof(uint32_t), 1, output);
+            fwrite((void *) tasks.list, sizeof(struct task), tasks.count, output);
         }
         
         samples++;
@@ -708,15 +762,18 @@ int main(int const argc, char **argv) {
         timespecAddStore(&totalLatencyWallTime, &timeDiff);
 #endif
         i = 0;
-        while(i < taskCount) {
-            rp = ptrace(PTRACE_CONT, tasks[i].tid, NULL, NULL);
+        while(i < tasks.count) {
+            rp = ptrace(PTRACE_CONT, tasks.list[i].tid, NULL, NULL);
             if (rp == -1 && errno == ESRCH) {
-                debug_printf("[%d] death on ptrace cont after sample\n", tasks[i].tid);
-                removeTask(tasks[i].tid);
+                debug_printf("[%d] death on ptrace cont after sample\n", tasks.list[i].tid);
+                if (removeTaskIndex(i)) {
+                    fprintf(stderr, "ERROR: could not remove task %d from internal structure\n", tasks.list[i].tid);
+                    goto exitWithTarget;
+                }
             }
             i++;
         }
-     } while(taskCount > 0);
+     } while(tasks.count > 0);
 
  exitSampler: ; 
 

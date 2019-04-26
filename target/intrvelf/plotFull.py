@@ -91,7 +91,7 @@ if not args.no_threads:
                 threadFunctions.append(list.copy(threadNone))
 
             threads[threadIndex][i] = threadIndex+1
-            threadFunctions[threadIndex][i] = profile['functions'][threadSample[2]]
+            threadFunctions[threadIndex][i] = profile['functions'][threadSample[3]] + f", {threadSample[1]:.2f}"
 
 fig = plotly.tools.make_subplots(
     rows=1 if args.no_threads else 2,

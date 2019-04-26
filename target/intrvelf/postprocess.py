@@ -38,6 +38,8 @@ binaryMap = []
 
 def fetchPCInfo(pc):
     if pc in _fetched_pc_data:
+        if _fetched_pc_data[pc][1] == 0:
+            _unknown_pcs.append(pc)
         return _fetched_pc_data[pc]
     found = False
     lookupPc = pc
@@ -173,12 +175,12 @@ for i in range(sampleCount):
     sample = []
     for j in range(threadCount):
         try:
-            (tid, pc, ) = struct.unpack_from(endianess + "IQ", binProfile, binOffset)
-            binOffset += 4 + 8
+            (tid, pc, cputime, ) = struct.unpack_from(endianess + "IQQ", binProfile, binOffset)
+            binOffset += 4 + 8 + 8
         except:
             print("Unexpected end of file!")
             sys.exit(1)
-        sample.append([tid, pc])
+        sample.append([tid, pc, cputime])
         
            
     rawSamples.append([ current, sample ])
@@ -227,6 +229,7 @@ for map in vmmaps:
         sys.exit(1)
 
 i = 0
+prevCpuTimes = {}
 for sample in rawSamples:
     if (i % 100 == 0):
         progress = int((i+1) * 100 / sampleCount)
@@ -234,29 +237,42 @@ for sample in rawSamples:
     i += 1
         
     processedSample = []
-    sampleThreadCount = len(sample[1])
+    sampleCpuTime = 0
+    threadCpuTimes = {}
+
     for thread in sample[1]:
-        threadSample = [ thread[0] ]
+        if not thread[0] in prevCpuTimes:
+            prevCpuTimes[thread[0]] = thread[2]
+        threadCpuTimes[thread[0]] = thread[2] - prevCpuTimes[thread[0]]
+        prevCpuTimes[thread[0]] = thread[2]
+        sampleCpuTime += threadCpuTimes[thread[0]]
+
+    
+    for thread in sample[1]:
+        if (sampleCpuTime == 0):
+            cpuShare = (1/len(sample[1]))
+        else:
+            cpuShare = threadCpuTimes[thread[0]] / sampleCpuTime
+
+
+        threadSample = [ thread[0], cpuShare ]
         pcInfo = fetchPCInfo( thread[1] )
         threadSample.extend(pcInfo)
         processedSample.append(threadSample);
-
-        
+            
         if thread[1] in profile['aggregatedProfile']:
-            profile['aggregatedProfile'][thread[1]][0] += (1 / sampleThreadCount);
-            profile['aggregatedProfile'][thread[1]][1] += (current / sampleThreadCount)
+            profile['aggregatedProfile'][thread[1]][0] += (1 / len(sample[1]));
+            profile['aggregatedProfile'][thread[1]][1] += (sample[0] * cpuShare)
         else:
-            asample = [ (1 / sampleThreadCount), (current/ sampleThreadCount) ]
+            asample = [ (1 / len(sample[1])), (sample[0] * cpuShare) ]
             asample.extend(pcInfo)
             profile['aggregatedProfile'][thread[1]] =  asample;
 
-    profile['fullProfile'].append([ current , processedSample ])
+    
+    profile['fullProfile'].append([ sample[0] , processedSample ])
             
 print("Post processing... finished!")
          
-
-
-
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()
 pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL)
@@ -264,6 +280,7 @@ outProfile.close()
 print("finished")
 
 if len(_unknown_pcs)>0 and args.unknown:
-    print (f'{len(_unknown_pcs)} ({(len(_unknown_pcs) * 100 / len(_fetched_pc_data)):.2f} %) unknown adresses found:')
-    for pc in _unknown_pcs:
-        print(f"0x{pc:x}")
+    _unknown_unique_pcs = list(set(_unknown_pcs))
+    print (f'{len(_unknown_unique_pcs)} ({(len(_unknown_unique_pcs) * 100 / len(_fetched_pc_data)):.2f} %) unknown adresses found:')
+    for pc in _unknown_unique_pcs:
+        print(f"0x{pc:x} in file {profile['binaries'][_fetched_pc_data[pc][0]]}, {_unknown_pcs.count(pc)} ({_unknown_pcs.count(pc) * 100 / len(_unknown_pcs):.2f}%)")
