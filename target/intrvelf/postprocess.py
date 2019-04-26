@@ -261,10 +261,10 @@ for sample in rawSamples:
         processedSample.append(threadSample);
             
         if thread[1] in profile['aggregatedProfile']:
-            profile['aggregatedProfile'][thread[1]][0] += (1 / len(sample[1]));
+            profile['aggregatedProfile'][thread[1]][0] += 1 #/len(sample[1]);
             profile['aggregatedProfile'][thread[1]][1] += (sample[0] * cpuShare)
         else:
-            asample = [ (1 / len(sample[1])), (sample[0] * cpuShare) ]
+            asample = [ 1 , (sample[0] * cpuShare) ] # /len(sample[1])
             asample.extend(pcInfo)
             profile['aggregatedProfile'][thread[1]] =  asample;
 

@@ -66,9 +66,9 @@ print(f"Calculating mean of {len(profiles)} profiles...")
 
 i=0
 for profile in profiles:
-    if (i % 100 == 0):
-        progress = int((i+1) * 100 / len(profiles))
-        print(f"Processing profiles... {progress}%\r", end="")
+    progress = int((i+1) * 100 / len(profiles))
+    print(f"Processing profiles... {progress}%\r", end="")
+    sys.stdout.flush()
     i += 1
         
     if (profile['volts'] != meanprofile['volts']):
@@ -107,7 +107,7 @@ for profile in profiles:
             meanprofile['aggregatedProfile'][pc][0] += samples
             meanprofile['aggregatedProfile'][pc][1] += current
     
-print(f"Processing profiles... finished",)
+print(f"Processing profiles... finished")
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()
 pickle.dump(meanprofile, outProfile, pickle.HIGHEST_PROTOCOL)
