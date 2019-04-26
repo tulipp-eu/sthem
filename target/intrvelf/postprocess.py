@@ -27,7 +27,7 @@ profile={
     'functions' : [ label_unknown ],
     'files' : [ label_unknown ],
     'fullProfile' : [],
-    'aggregatedProfile' : { label_unknown : [0,0,0,0,0] }
+    'aggregatedProfile' : { label_unknown : [0,0,0,0,0,0] }
 }
 
 _fetched_pc_data = {};
