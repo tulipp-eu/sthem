@@ -23,22 +23,22 @@
 
 `timescale 1ns/1ps
 
-`define ST_SPI_CMD              0
-`define ST_SPI_STATUS           1
-`define ST_SPI_MAGIC            2
-`define ST_SPI_JTAG_SEL         3
-`define ST_SPI_WR_SIZE          4
-`define ST_SPI_WR_TDI_DATA      5
-`define ST_SPI_WR_TMS_DATA      6
-`define ST_SPI_GET_DATA         7
-`define ST_SPI_STORE_SEQ_SIZE_L 8
-`define ST_SPI_STORE_SEQ_SIZE_H 9
-`define ST_SPI_STORE_SEQ_RD    10
-`define ST_SPI_STORE_SEQ_TDI   11
-`define ST_SPI_STORE_SEQ_TMS   12
-`define ST_SPI_FLUSH           13
-`define ST_SPI_JTAG_TEST       14
-`define ST_SPI_OSC_TEST        15
+`define ST_SPI_CMD               0
+`define ST_SPI_STATUS            1
+`define ST_SPI_MAGIC             2
+`define ST_SPI_JTAG_SEL          3
+`define ST_SPI_WR_SIZE           4
+`define ST_SPI_WR_TDI_DATA       5
+`define ST_SPI_WR_TMS_DATA       6
+`define ST_SPI_GET_DATA          7
+`define ST_SPI_STORE_SEQ_SIZE_L  8
+`define ST_SPI_STORE_SEQ_SIZE_H  9
+`define ST_SPI_STORE_SEQ        10
+`define ST_SPI_STORE_PROG_SIZE  11
+`define ST_SPI_STORE_PROG       12
+`define ST_SPI_FLUSH            13
+`define ST_SPI_JTAG_TEST        14
+`define ST_SPI_OSC_TEST         15
 
 module spi_controller
   (
@@ -198,10 +198,11 @@ module spi_controller
    reg [3:0]   next_spi_state;
    
    reg [12:0]  counter = 0;
+   reg [15:0]  words;
    reg [12:0]  bytes;
    reg [2:0]   bits;
 
-   reg [7:0]   size_l;
+   reg [7:0]   size;
 
    wire [7:0]  status;
 
@@ -252,15 +253,20 @@ module spi_controller
               bytes <= next_spi_in[7:3] + 1;
             bits <= next_spi_in[2:0];
          end
+         if(spi_state == `ST_SPI_STORE_SEQ) begin
+            counter <= counter + 1;
+         end
+         if(spi_state == `ST_SPI_STORE_PROG) begin
+            counter <= counter + 1;
+         end
          if(spi_state == `ST_SPI_STORE_SEQ_SIZE_L) begin
-            size_l <= next_spi_in;
+            words[7:0] <= next_spi_in;
          end
          if(spi_state == `ST_SPI_STORE_SEQ_SIZE_H) begin
-            if(size_l[2:0] == 0)
-              bytes <= {next_spi_in,size_l[7:3]};
-            else
-              bytes <= {next_spi_in,size_l[7:3]} + 1;
-            bits <= size_l[2:0];
+            words[15:8] <= next_spi_in;
+         end
+         if(spi_state == `ST_SPI_STORE_PROG_SIZE) begin
+            words <= next_spi_in * 9;
          end
          if(((spi_state == `ST_SPI_CMD) && (next_spi_in == `SPI_CMD_GET_DATA)) || 
             (spi_state == `ST_SPI_GET_DATA)) begin
@@ -270,15 +276,6 @@ module spi_controller
             tdi = next_spi_in;
          end
          if(spi_state == `ST_SPI_WR_TMS_DATA) begin
-            counter <= counter + 1;
-         end
-         if(spi_state == `ST_SPI_STORE_SEQ_RD) begin
-            read = next_spi_in;
-         end
-         if(spi_state == `ST_SPI_STORE_SEQ_TDI) begin
-            tdi = next_spi_in;
-         end
-         if(spi_state == `ST_SPI_STORE_SEQ_TMS) begin
             counter <= counter + 1;
          end
          if(spi_state == `ST_SPI_MAGIC) begin
@@ -324,6 +321,8 @@ module spi_controller
                 end
                 `SPI_CMD_STORE_SEQ:
                   next_spi_state <= `ST_SPI_STORE_SEQ_SIZE_L;
+                `SPI_CMD_STORE_PROG:
+                  next_spi_state <= `ST_SPI_STORE_PROG_SIZE;
                 `SPI_CMD_EXECUTE_SEQ: begin
                    out_seq_we <= 1;
                    out_seq_din <= {`FIFO_CMD_EXECUTE,27'h0};
@@ -356,26 +355,25 @@ module spi_controller
              next_spi_state <= `ST_SPI_STORE_SEQ_SIZE_H;
           end
           `ST_SPI_STORE_SEQ_SIZE_H: begin
+             next_spi_state <= `ST_SPI_STORE_SEQ;
+          end
+          `ST_SPI_STORE_PROG_SIZE: begin
+             next_spi_state <= `ST_SPI_STORE_PROG;
+          end
+          `ST_SPI_STORE_SEQ: begin
              out_seq_we <= 1;
-             out_seq_din <= {`FIFO_CMD_STORE,3'h0,8'h0,spi_in,size_l};
-             next_spi_state <= `ST_SPI_STORE_SEQ_RD;
+             out_seq_din <= {`FIFO_CMD_STORE_SEQ,19'h0,spi_in};
+
+             if(counter == words) begin
+                next_spi_state <= `ST_SPI_FLUSH;
+             end
           end
-          `ST_SPI_STORE_SEQ_RD: begin
-             out_seq_din <= {`FIFO_CMD_STORE,3'h0,read,tdi,tms};
-             next_spi_state <= `ST_SPI_STORE_SEQ_TDI;
-          end
-          `ST_SPI_STORE_SEQ_TDI: begin
-             out_seq_din <= {`FIFO_CMD_STORE,3'h0,read,tdi,tms};
-             next_spi_state <= `ST_SPI_STORE_SEQ_TMS;
-          end
-          `ST_SPI_STORE_SEQ_TMS: begin
+          `ST_SPI_STORE_PROG: begin
              out_seq_we <= 1;
-             if(counter == bytes) begin
-                out_seq_din <= {`FIFO_CMD_STORE,bits,read,tdi,tms};
-                next_spi_state <= `ST_SPI_CMD;
-             end else begin
-                out_seq_din <= {`FIFO_CMD_STORE,3'h0,read,tdi,tms};
-                next_spi_state <= `ST_SPI_STORE_SEQ_RD;
+             out_seq_din <= {`FIFO_CMD_STORE_PROG,19'h0,spi_in};
+
+             if(counter == words) begin
+                next_spi_state <= `ST_SPI_FLUSH;
              end
           end
           `ST_SPI_GET_DATA: begin
@@ -389,6 +387,7 @@ module spi_controller
           default:
             next_spi_state <= `ST_SPI_CMD;
         endcase
+
       end else begin
          case(spi_state)
 

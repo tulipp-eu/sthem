@@ -31,7 +31,8 @@
 
 void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData);
 void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData);
-void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData);
+void storeSeq(uint16_t size, uint8_t *tdiData, uint8_t *tmsData);
+void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPos, uint16_t *ackPos, uint16_t *endPos);
 void executeSeq(void);
 uint8_t *readSeq(unsigned size);
 
@@ -41,5 +42,7 @@ void jtagInt(void);
 void jtagExt(void);
 int jtagTest(void);
 bool oscTest(void);
+
+extern bool outputSpiCommands;
 
 #endif
