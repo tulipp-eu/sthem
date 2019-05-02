@@ -1,0 +1,102 @@
+-- (c) Copyright 2017 Xilinx, Inc. All rights reserved.
+--
+-- This file contains confidential and proprietary information
+-- of Xilinx, Inc. and is protected under U.S. and
+-- international copyright and other intellectual property
+-- laws.
+--
+-- DISCLAIMER
+-- This disclaimer is not a license and does not grant any
+-- rights to the materials distributed herewith. Except as
+-- otherwise provided in a valid license issued to you by
+-- Xilinx, and to the maximum extent permitted by applicable
+-- law: (1) THESE MATERIALS ARE MADE AVAILABLE "AS IS" AND
+-- WITH ALL FAULTS, AND XILINX HEREBY DISCLAIMS ALL WARRANTIES
+-- AND CONDITIONS, EXPRESS, IMPLIED, OR STATUTORY, INCLUDING
+-- BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, NON-
+-- INFRINGEMENT, OR FITNESS FOR ANY PARTICULAR PURPOSE; and
+-- (2) Xilinx shall not be liable (whether in contract or tort,
+-- including negligence, or under any other theory of
+-- liability) for any loss or damage of any kind or nature
+-- releated to, arising under or in connection with these
+-- materials, including for any direct, or any indirect,
+-- special, incidental, or consequential loss or damage
+-- (including loss of data, profits, goodwill, or any type of
+-- loss or damage suffered as a result of any action brought
+-- by a third party) even if such damage or loss was
+-- reasonably foreseeable or Xilinx had been advised of the
+-- possibility of the same.
+--
+-- CRITICAL APPLICATIONS
+-- Xilinx products are not designed or intended to be fail-
+-- safe, or for use in any application requiring fail-safe
+-- performance, such as life-support or safety devices or
+-- systems, Class III medical devices, nuclear facilities,
+-- applications related to the deployment of airbags, or any
+-- other applications that could lead to death, personal
+-- injury, or severe property or environmental damage
+-- (individually and collectively, "Critical
+-- Applications"). Customer assumes the sole risk and
+-- liability of any use of Xilinx products in Critical
+-- Applications, subject only to applicable laws and
+-- regulations governing limitiations on product liability.
+--
+-- THIS COPYRIGHT NOTICE AND DISCLAIMER MUST BE RETAINED AS
+-- PART OF THIS FILE AT ALL TIMES.
+--
+-- BSDL file for device ZYNQULTRASCALE_ARM_DAP, package NONE
+------------------------------------------------------------------------
+-- Modification History
+-- | Generated on 01/06/17
+-- | Details -  Initial Release.
+------------------------------------------------------------------------
+--
+-- For technical support, www.xilinx.com/support.html -> enter text 'bsdl'
+-- in the text search box.  If none of these Answers resolve the problem,
+-- open a service request at www.xilinx.com/support/service-portal.html
+------------------------------------------------------------------------
+entity ZYNQULTRASCALE_DUMMY_DAP is
+
+generic (PHYSICAL_PIN_MAP : string := "X_PACKAGE");
+
+port (TCK: in bit; TDI: in bit; TDO: out bit; TMS: in bit);
+
+use STD_1149_1_2001.all;
+attribute COMPONENT_CONFORMANCE of ZYNQULTRASCALE_DUMMY_DAP : entity is "STD_1149_1_2001";
+
+attribute PIN_MAP of ZYNQULTRASCALE_DUMMY_DAP : entity is PHYSICAL_PIN_MAP;
+
+constant X_PACKAGE:PIN_MAP_STRING := "TCK : 1," & "TDI : 2," & "TDO : 3," & "TMS : 4";
+attribute Tap_Scan_In of TDI: signal is true;
+attribute Tap_Scan_Mode of TMS: signal is true;
+attribute Tap_Scan_Out of TDO: signal is true;
+attribute Tap_Scan_Clock of TCK: signal is (30.0e06, BOTH);
+
+attribute INSTRUCTION_LENGTH of ZYNQULTRASCALE_DUMMY_DAP: entity is 4;
+attribute INSTRUCTION_OPCODE of ZYNQULTRASCALE_DUMMY_DAP: entity is
+        "BYPASS     (1111),"
+        "EXTEST     (0000)," & -- DOES NOT EXIST; Defined to satisfy 1149.1
+        "SAMPLE     (0001)," & -- DOES NOT EXIST; Defined to satisfy 1149.1
+        "PRELOAD    (0001)";   -- DOES NOT EXIST; Defined to satisfy 1149.1
+attribute INSTRUCTION_CAPTURE of ZYNQULTRASCALE_DUMMY_DAP: entity is "XX01";
+attribute REGISTER_ACCESS of ZYNQULTRASCALE_DUMMY_DAP : entity is
+        "BYPASS     (BYPASS)," &
+        "BOUNDARY   (SAMPLE,PRELOAD,EXTEST)";
+attribute BOUNDARY_LENGTH of ZYNQULTRASCALE_DUMMY_DAP: entity is 1;
+attribute BOUNDARY_REGISTER of ZYNQULTRASCALE_DUMMY_DAP: entity is "0 (BC_1, *, control, 0)";
+
+attribute DESIGN_WARNING of ZYNQULTRASCALE_DUMMY_DAP : entity is
+"This is a preliminary BSDL file which has not been verified." &
+    "This BSDL describes a BYPASS-only device in the Zynq UltraScale+ MPSoC device " &
+    "DAP position in the JTAG chain." &
+    "During boundary-scan test, use only the BYPASS instruction." &
+    "Do NOT use the EXTEST, SAMPLE, or PRELOAD instructions." &
+        "This device does not have a boundary-scan register." &
+        "The EXTEST instruction, SAMPLE instruction, PRELOAD instruction, " &
+        "BOUNDARY_LENGTH attribute, and BOUNDARY_REGISTER attribute are defined " &
+        "within this BSDL file in order to satisfy IEEE Std 1149.1 BSDL " &
+        "reader requirements, but this device does not support " &
+        "these instructions and the associated boundary-register.";
+
+end ZYNQULTRASCALE_DUMMY_DAP;
+

@@ -1,0 +1,1431 @@
+-- (c) Copyright 2016 - 2017 Xilinx, Inc. All rights reserved.
+--
+-- This file contains confidential and proprietary information
+-- of Xilinx, Inc. and is protected under U.S. and
+-- international copyright and other intellectual property
+-- laws.
+--
+-- DISCLAIMER
+-- This disclaimer is not a license and does not grant any
+-- rights to the materials distributed herewith. Except as
+-- otherwise provided in a valid license issued to you by
+-- Xilinx, and to the maximum extent permitted by applicable
+-- law: (1) THESE MATERIALS ARE MADE AVAILABLE "AS IS" AND
+-- WITH ALL FAULTS, AND XILINX HEREBY DISCLAIMS ALL WARRANTIES
+-- AND CONDITIONS, EXPRESS, IMPLIED, OR STATUTORY, INCLUDING
+-- BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, NON-
+-- INFRINGEMENT, OR FITNESS FOR ANY PARTICULAR PURPOSE; and
+-- (2) Xilinx shall not be liable (whether in contract or tort,
+-- including negligence, or under any other theory of
+-- liability) for any loss or damage of any kind or nature
+-- related to, arising under or in connection with these
+-- materials, including for any direct, or any indirect,
+-- special, incidental, or consequential loss or damage
+-- (including loss of data, profits, goodwill, or any type of
+-- loss or damage suffered as a result of any action brought
+-- by a third party) even if such damage or loss was
+-- reasonably foreseeable or Xilinx had been advised of the
+-- possibility of the same.
+--
+-- CRITICAL APPLICATIONS
+-- Xilinx products are not designed or intended to be fail-
+-- safe, or for use in any application requiring fail-safe
+-- performance, such as life-support or safety devices or
+-- systems, Class III medical devices, nuclear facilities,
+-- applications related to the deployment of airbags, or any
+-- other applications that could lead to death, personal
+-- injury, or severe property or environmental damage
+-- (individually and collectively, "Critical
+-- Applications"). Customer assumes the sole risk and
+-- liability of any use of Xilinx products in Critical
+-- Applications, subject only to applicable laws and
+-- regulations governing limitations on product liability.
+--
+-- THIS COPYRIGHT NOTICE AND DISCLAIMER MUST BE RETAINED AS
+-- PART OF THIS FILE AT ALL TIMES.
+--
+-- BSDL file for device XC7Z007S, package CLG225
+-- Generated Aug 12, 2016
+-- Generated using schematic
+-- Schematic date = 2012-06-08 14:17:25
+-- Schematic ICM_VARIANT = 28t_n1
+-- Package File date = # Date    : 2012-08-08 08:56:34
+------------------------------------------------------------------------
+-- Modification History
+-- | Date: 8/12/16
+-- | Details -  Initial Release (Advance)
+------------------------------------------------------------------------
+-- | Date: 11/14/17
+-- | Details -  CR-986662: Revised RSVDGND to internal.
+------------------------------------------------------------------------
+--
+-- For technical support, go to https://www.xilinx.com/support.html
+--
+-- This BSDL file reflects the pre-configuration JTAG behavior. To reflect
+-- the post-configuration JTAG behavior (if any), edit this file as described
+-- below. Many of these changes are demonstrated by commented-out template
+-- lines preceding the lines they would replace:
+--
+-- 1. Enable USER instructions as appropriate (see below).
+-- 2. Set disable result of all pads as configured.
+-- 3. Set safe state of boundary cells as necessary.
+-- 4. Rename entity if necessary to avoid name collisions.
+-- 5. Modify USERCODE value in USERCODE_REGISTER declaration.
+--
+-- To prevent losing the current configuration, the boundary scan
+-- test vectors should keep the PROGRAM_B pin high.
+--
+-- PROGRAM_B can only be captured, not updated.  The value
+-- at the pin is always used by the device.
+--
+-- All IOBs prior to configuration, and unused and output-only IOBs following
+-- configuration, will sense their pad values during boundary-scan with an CMOS
+-- input buffer. In order to properly capture a logic high value at one
+-- of these IOBs into its input boundary scan cell, please refer to the
+-- data sheet and user guide for proper input levels.
+--
+-- For post-configuration boundary scan only: If an IOB is configured to use
+-- an input standard that uses VREF pins, then the boundary scan test vectors
+-- must keep the used VREF pins 3-stated.
+
+----------------------------------
+-- BSDL File for P1149.6 Standard.
+----------------------------------
+-- ----------------------------------------------------------------------
+-- This BSDL file has been checked and verified by JTAG Technologies B.V.
+-- on 2017-11-15, for syntactical and semantic compliance with
+-- IEEE standards 1149.1 and 1149.6
+-- using bsdl32.dll 1.7.2.2 - 20160128 Win32
+-- copyright (c) 2009 JTAG Technologies B.V., All rights reserved
+-- ----------------------------------------------------------------------
+
+entity XC7Z007S_CLG225 is
+
+-- Generic Parameter
+
+generic (PHYSICAL_PIN_MAP : string := "CLG225" );
+
+-- Logical Port Description
+
+port (
+        RSVDGND_E8: linkage bit; --  RSVDGND_0
+        CFGBVS_F6: in bit; --  CFGBVS_0
+        DONE_M7: inout bit; --  DONE_0
+        GND: linkage bit_vector (1 to 31);
+        GNDADC_0: linkage bit;
+        INIT_B_D5: inout bit; --  INIT_B_0
+        RSVDVCC3_H4: in bit; --  RSVDVCC3_0
+        RSVDVCC2_J4: in bit; --  RSVDVCC2_0
+        RSVDVCC1_G4: in bit; --  RSVDVCC1_0
+        PROGRAM_B: in bit; --  PROGRAM_B_0
+        PS_CLK: in bit;
+        PS_DDR_A0: inout bit;
+        PS_DDR_A1: inout bit;
+        PS_DDR_A10: inout bit;
+        PS_DDR_A11: inout bit;
+        PS_DDR_A12: inout bit;
+        PS_DDR_A13: inout bit;
+        PS_DDR_A14: inout bit;
+        PS_DDR_A2: inout bit;
+        PS_DDR_A3: inout bit;
+        PS_DDR_A4: inout bit;
+        PS_DDR_A5: inout bit;
+        PS_DDR_A6: inout bit;
+        PS_DDR_A7: inout bit;
+        PS_DDR_A8: inout bit;
+        PS_DDR_A9: inout bit;
+        PS_DDR_BA0: inout bit;
+        PS_DDR_BA1: inout bit;
+        PS_DDR_BA2: inout bit;
+        PS_DDR_CAS_B: inout bit;
+        PS_DDR_CKE: inout bit;
+        PS_DDR_CKN: inout bit;
+        PS_DDR_CKP: inout bit;
+        PS_DDR_CS_B: inout bit;
+        PS_DDR_DM0: inout bit;
+        PS_DDR_DM1: inout bit;
+        PS_DDR_DQ0: inout bit;
+        PS_DDR_DQ1: inout bit;
+        PS_DDR_DQ10: inout bit;
+        PS_DDR_DQ11: inout bit;
+        PS_DDR_DQ12: inout bit;
+        PS_DDR_DQ13: inout bit;
+        PS_DDR_DQ14: inout bit;
+        PS_DDR_DQ15: inout bit;
+        PS_DDR_DQ2: inout bit;
+        PS_DDR_DQ3: inout bit;
+        PS_DDR_DQ4: inout bit;
+        PS_DDR_DQ5: inout bit;
+        PS_DDR_DQ6: inout bit;
+        PS_DDR_DQ7: inout bit;
+        PS_DDR_DQ8: inout bit;
+        PS_DDR_DQ9: inout bit;
+        PS_DDR_DQS_N0: inout bit;
+        PS_DDR_DQS_N1: inout bit;
+        PS_DDR_DQS_P0: inout bit;
+        PS_DDR_DQS_P1: inout bit;
+        PS_DDR_DRST_B: inout bit;
+        PS_DDR_ODT: inout bit;
+        PS_DDR_RAS_B: inout bit;
+        PS_DDR_VREF0_502: linkage bit;
+        PS_DDR_VRN: linkage bit;
+        PS_DDR_VRP: linkage bit;
+        PS_DDR_WE_B: inout bit;
+        PS_MIO0: inout bit;
+        PS_MIO1: inout bit;
+        PS_MIO10: inout bit;
+        PS_MIO11: inout bit;
+        PS_MIO12: inout bit;
+        PS_MIO13: inout bit;
+        PS_MIO14: inout bit;
+        PS_MIO15: inout bit;
+        PS_MIO2: inout bit;
+        PS_MIO28: inout bit;
+        PS_MIO29: inout bit;
+        PS_MIO3: inout bit;
+        PS_MIO30: inout bit;
+        PS_MIO31: inout bit;
+        PS_MIO32: inout bit;
+        PS_MIO33: inout bit;
+        PS_MIO34: inout bit;
+        PS_MIO35: inout bit;
+        PS_MIO36: inout bit;
+        PS_MIO37: inout bit;
+        PS_MIO38: inout bit;
+        PS_MIO39: inout bit;
+        PS_MIO4: inout bit;
+        PS_MIO48: inout bit;
+        PS_MIO49: inout bit;
+        PS_MIO5: inout bit;
+        PS_MIO52: inout bit;
+        PS_MIO53: inout bit;
+        PS_MIO6: inout bit;
+        PS_MIO7: inout bit;
+        PS_MIO8: inout bit;
+        PS_MIO9: inout bit;
+        PS_POR_B: in bit;
+        PS_SRST_B: in bit;
+        TCK: in bit; --  TCK_0
+        TDI: in bit; --  TDI_0
+        TDO: out bit; --  TDO_0
+        TDP_J7: linkage bit; --  DXP_0
+        TMS: in bit; --  TMS_0
+        VCCADC_0: linkage bit;
+        VCCAUX: linkage bit_vector (1 to 3);
+        VCCBATT_0: linkage bit;
+        VCCINT: linkage bit_vector (1 to 5);
+        VCCO_0: linkage bit;
+        VCCO_34: linkage bit_vector (1 to 5);
+        VCCO_35: linkage bit_vector (1 to 2);
+        VCCO_DDR_502: linkage bit_vector (1 to 6);
+        VCCO_MIO0_500: linkage bit_vector (1 to 2);
+        VCCO_MIO1_501: linkage bit_vector (1 to 3);
+        VCCPAUX: linkage bit_vector (1 to 2);
+        VCCPINT: linkage bit_vector (1 to 3);
+        VCCPLL: linkage bit;
+        VN_H8: linkage bit; --  VN_0
+        VP_G7: linkage bit; --  VP_0
+        VREFN_G8: linkage bit; --  VREFN_0
+        VREFP_H7: linkage bit; --  VREFP_0
+        IO_E11: inout bit; --  PAD4
+        IO_E12: inout bit; --  PAD5
+        IO_E13: inout bit; --  PAD3
+        IO_F12: inout bit; --  PAD2
+        IO_F13: inout bit; --  PAD6
+        IO_F14: inout bit; --  PAD7
+        IO_F15: inout bit; --  PAD11
+        IO_G11: inout bit; --  PAD52
+        IO_G12: inout bit; --  PAD54
+        IO_G14: inout bit; --  PAD56
+        IO_G15: inout bit; --  PAD10
+        IO_H11: inout bit; --  PAD62
+        IO_H12: inout bit; --  PAD53
+        IO_H13: inout bit; --  PAD55
+        IO_H14: inout bit; --  PAD57
+        IO_J11: inout bit; --  PAD63
+        IO_J13: inout bit; --  PAD60
+        IO_J14: inout bit; --  PAD61
+        IO_J15: inout bit; --  PAD58
+        IO_K11: inout bit; --  PAD72
+        IO_K12: inout bit; --  PAD73
+        IO_K13: inout bit; --  PAD70
+        IO_K15: inout bit; --  PAD59
+        IO_L12: inout bit; --  PAD74
+        IO_L13: inout bit; --  PAD71
+        IO_L14: inout bit; --  PAD68
+        IO_L15: inout bit; --  PAD66
+        IO_M9: inout bit; --  PAD88
+        IO_M10: inout bit; --  PAD92
+        IO_M11: inout bit; --  PAD93
+        IO_M12: inout bit; --  PAD75
+        IO_M14: inout bit; --  PAD69
+        IO_M15: inout bit; --  PAD67
+        IO_N7: inout bit; --  PAD94
+        IO_N8: inout bit; --  PAD95
+        IO_N9: inout bit; --  PAD89
+        IO_N11: inout bit; --  PAD76
+        IO_N12: inout bit; --  PAD77
+        IO_N13: inout bit; --  PAD64
+        IO_N14: inout bit; --  PAD65
+        IO_P8: inout bit; --  PAD96
+        IO_P9: inout bit; --  PAD97
+        IO_P10: inout bit; --  PAD98
+        IO_P11: inout bit; --  PAD82
+        IO_P13: inout bit; --  PAD86
+        IO_P14: inout bit; --  PAD87
+        IO_P15: inout bit; --  PAD80
+        IO_R7: inout bit; --  PAD90
+        IO_R8: inout bit; --  PAD91
+        IO_R10: inout bit; --  PAD99
+        IO_R11: inout bit; --  PAD83
+        IO_R12: inout bit; --  PAD84
+        IO_R13: inout bit; --  PAD85
+        IO_R15: inout bit --  PAD81
+); --end port list
+
+-- Use Statements
+
+use STD_1149_1_2001.all;
+use STD_1149_6_2003.all;
+
+-- Component Conformance Statement(s)
+
+attribute COMPONENT_CONFORMANCE of XC7Z007S_CLG225 : entity is
+        "STD_1149_1_2001";
+
+-- Device Package Pin Mappings
+
+attribute PIN_MAP of XC7Z007S_CLG225 : entity is PHYSICAL_PIN_MAP;
+
+constant CLG225: PIN_MAP_STRING:=
+        "RSVDGND_E8:E8," &
+        "CFGBVS_F6:F6," &
+        "DONE_M7:M7," &
+        "GND:(A1,A11,B8,C5,C15,D2,D12,E5,E7,E9," &
+                "F10,G3,G5,G13,H6,H10,J5,J9,K4,K7," &
+                "K10,K14,L1,L5,L11,M8,N5,N15,P2,P12," &
+                "R9)," &
+        "GNDADC_0:F8," &
+        "INIT_B_D5:D5," &
+        "RSVDVCC3_H4:H4," &
+        "RSVDVCC2_J4:J4," &
+        "RSVDVCC1_G4:G4," &
+        "PROGRAM_B:K6," &
+        "PS_CLK:C7," &
+        "PS_DDR_A0:P1," &
+        "PS_DDR_A1:N1," &
+        "PS_DDR_A10:J1," &
+        "PS_DDR_A11:L2," &
+        "PS_DDR_A12:M2," &
+        "PS_DDR_A13:K2," &
+        "PS_DDR_A14:K1," &
+        "PS_DDR_A2:M1," &
+        "PS_DDR_A3:M4," &
+        "PS_DDR_A4:P3," &
+        "PS_DDR_A5:P4," &
+        "PS_DDR_A6:P5," &
+        "PS_DDR_A7:M5," &
+        "PS_DDR_A8:P6," &
+        "PS_DDR_A9:N4," &
+        "PS_DDR_BA0:M6," &
+        "PS_DDR_BA1:R1," &
+        "PS_DDR_BA2:N6," &
+        "PS_DDR_CAS_B:R5," &
+        "PS_DDR_CKE:L3," &
+        "PS_DDR_CKN:N2," &
+        "PS_DDR_CKP:N3," &
+        "PS_DDR_CS_B:R2," &
+        "PS_DDR_DM0:B1," &
+        "PS_DDR_DM1:D3," &
+        "PS_DDR_DQ0:D4," &
+        "PS_DDR_DQ1:A2," &
+        "PS_DDR_DQ10:E2," &
+        "PS_DDR_DQ11:E3," &
+        "PS_DDR_DQ12:F3," &
+        "PS_DDR_DQ13:G1," &
+        "PS_DDR_DQ14:H1," &
+        "PS_DDR_DQ15:H2," &
+        "PS_DDR_DQ2:C4," &
+        "PS_DDR_DQ3:C1," &
+        "PS_DDR_DQ4:B4," &
+        "PS_DDR_DQ5:A4," &
+        "PS_DDR_DQ6:C3," &
+        "PS_DDR_DQ7:A3," &
+        "PS_DDR_DQ8:E1," &
+        "PS_DDR_DQ9:D1," &
+        "PS_DDR_DQS_N0:B2," &
+        "PS_DDR_DQS_N1:F2," &
+        "PS_DDR_DQS_P0:C2," &
+        "PS_DDR_DQS_P1:G2," &
+        "PS_DDR_DRST_B:L4," &
+        "PS_DDR_ODT:K3," &
+        "PS_DDR_RAS_B:R6," &
+        "PS_DDR_VREF0_502:F4," &
+        "PS_DDR_VRN:J3," &
+        "PS_DDR_VRP:H3," &
+        "PS_DDR_WE_B:R3," &
+        "PS_MIO0:D8," &
+        "PS_MIO1:A5," &
+        "PS_MIO10:D6," &
+        "PS_MIO11:B10," &
+        "PS_MIO12:B7," &
+        "PS_MIO13:C6," &
+        "PS_MIO14:B9," &
+        "PS_MIO15:D10," &
+        "PS_MIO2:A8," &
+        "PS_MIO28:A15," &
+        "PS_MIO29:D11," &
+        "PS_MIO3:A7," &
+        "PS_MIO30:B15," &
+        "PS_MIO31:C12," &
+        "PS_MIO32:E15," &
+        "PS_MIO33:C11," &
+        "PS_MIO34:D15," &
+        "PS_MIO35:A14," &
+        "PS_MIO36:B14," &
+        "PS_MIO37:C14," &
+        "PS_MIO38:A13," &
+        "PS_MIO39:D14," &
+        "PS_MIO4:C8," &
+        "PS_MIO48:B12," &
+        "PS_MIO49:D13," &
+        "PS_MIO5:A9," &
+        "PS_MIO52:A12," &
+        "PS_MIO53:C13," &
+        "PS_MIO6:A10," &
+        "PS_MIO7:D9," &
+        "PS_MIO8:B6," &
+        "PS_MIO9:B5," &
+        "PS_POR_B:C9," &
+        "PS_SRST_B:B11," &
+        "TCK:G9," &
+        "TDI:L7," &
+        "TDO:L8," &
+        "TDP_J7:J7," &
+        "TMS:L9," &
+        "VCCADC_0:F7," &
+        "VCCAUX:(H9,J8,K9)," &
+        "VCCBATT_0:E6," &
+        "VCCINT:(E10,F9,G10,J10,L10)," &
+        "VCCO_0:K8," &
+        "VCCO_34:(J12,M13,N10,P7,R14)," &
+        "VCCO_35:(F11,H15)," &
+        "VCCO_DDR_502:(B3,E4,F1,J2,M3,R4)," &
+        "VCCO_MIO0_500:(A6,D7)," &
+        "VCCO_MIO1_501:(B13,C10,E14)," &
+        "VCCPAUX:(J6,L6)," &
+        "VCCPINT:(G6,H5,K5)," &
+        "VCCPLL:F5," &
+        "VN_H8:H8," &
+        "VP_G7:G7," &
+        "VREFN_G8:G8," &
+        "VREFP_H7:H7," &
+        "IO_E11:E11," &
+        "IO_E12:E12," &
+        "IO_E13:E13," &
+        "IO_F12:F12," &
+        "IO_F13:F13," &
+        "IO_F14:F14," &
+        "IO_F15:F15," &
+        "IO_G11:G11," &
+        "IO_G12:G12," &
+        "IO_G14:G14," &
+        "IO_G15:G15," &
+        "IO_H11:H11," &
+        "IO_H12:H12," &
+        "IO_H13:H13," &
+        "IO_H14:H14," &
+        "IO_J11:J11," &
+        "IO_J13:J13," &
+        "IO_J14:J14," &
+        "IO_J15:J15," &
+        "IO_K11:K11," &
+        "IO_K12:K12," &
+        "IO_K13:K13," &
+        "IO_K15:K15," &
+        "IO_L12:L12," &
+        "IO_L13:L13," &
+        "IO_L14:L14," &
+        "IO_L15:L15," &
+        "IO_M9:M9," &
+        "IO_M10:M10," &
+        "IO_M11:M11," &
+        "IO_M12:M12," &
+        "IO_M14:M14," &
+        "IO_M15:M15," &
+        "IO_N7:N7," &
+        "IO_N8:N8," &
+        "IO_N9:N9," &
+        "IO_N11:N11," &
+        "IO_N12:N12," &
+        "IO_N13:N13," &
+        "IO_N14:N14," &
+        "IO_P8:P8," &
+        "IO_P9:P9," &
+        "IO_P10:P10," &
+        "IO_P11:P11," &
+        "IO_P13:P13," &
+        "IO_P14:P14," &
+        "IO_P15:P15," &
+        "IO_R7:R7," &
+        "IO_R8:R8," &
+        "IO_R10:R10," &
+        "IO_R11:R11," &
+        "IO_R12:R12," &
+        "IO_R13:R13," &
+        "IO_R15:R15";
+
+
+-- Grouped Port Identification
+
+
+
+-- Scan Port Identification
+
+attribute TAP_SCAN_IN    of TDI : signal is true;
+attribute TAP_SCAN_MODE  of TMS : signal is true;
+attribute TAP_SCAN_OUT   of TDO : signal is true;
+attribute TAP_SCAN_CLOCK of TCK : signal is (66.0e6, BOTH);
+
+-- Compliance-Enable Description
+
+attribute COMPLIANCE_PATTERNS of XC7Z007S_CLG225 : entity is
+       "(PROGRAM_B,PS_POR_B,PS_SRST_B) (111)";
+
+-- Instruction Register Description
+
+attribute INSTRUCTION_LENGTH of XC7Z007S_CLG225 : entity is 6;
+
+attribute INSTRUCTION_OPCODE of XC7Z007S_CLG225 : entity is
+        "IDCODE         (001001)," & -- DEVICE_ID
+        "BYPASS         (111111)," & -- BYPASS
+        "EXTEST         (100110)," & -- BOUNDARY
+        "SAMPLE         (000001)," & -- BOUNDARY
+        "PRELOAD        (000001)," & -- Same as SAMPLE
+        "USERCODE       (001000)," & -- DEVICE_ID
+        "HIGHZ          (001010)," & -- BYPASS
+        "EXTEST_PULSE   (111100)," & -- BOUNDARY
+        "EXTEST_TRAIN   (111101)," & -- BOUNDARY
+        "ISC_ENABLE     (010000)," & -- ISC_CONFIG
+        "ISC_PROGRAM    (010001)," & -- ISC_PDATA
+        "ISC_NOOP       (010100)," & -- ISC_DEFAULT
+        "XSC_READ_RSVD  (010101)," & -- PRIVATE
+        "ISC_DISABLE    (010110)," & -- ISC_CONFIG
+        "XSC_PROGRAM_KEY        (010010)," & -- XSC_KEY_DATA
+        "XSC_DNA        (010111)," & -- DNA
+        "CFG_OUT        (000100)," & -- Not available during configuration with another mode.
+        "CFG_IN         (000101)," & -- Not available during configuration with another mode.
+        "JPROGRAM       (001011)," & -- Not available during configuration with another mode.
+        "JSTART         (001100)," & -- Not available during configuration with another mode.
+        "JSHUTDOWN      (001101)," & -- Not available during configuration with another mode.
+        "FUSE_CTS       (110000)," & -- PRIVATE
+        "FUSE_KEY       (110001)," & -- PRIVATE
+        "FUSE_DNA       (110010)," & -- PRIVATE
+        "FUSE_USER      (110011)," & -- PRIVATE
+        "FUSE_CNTL      (110100)," & -- PRIVATE
+        "USER1          (000010)," & -- Not available until after configuration
+        "USER2          (000011)," & -- Not available until after configuration
+        "USER3          (100010)," & -- Not available until after configuration
+        "USER4          (100011)," & -- Not available until after configuration
+        "XADC_DRP       (110111)," & -- PRIVATE
+        "INTEST_RSVD    (000111)"; -- PRIVATE
+
+attribute INSTRUCTION_CAPTURE of XC7Z007S_CLG225 : entity is
+-- Bit 5 is 1 when DONE is released (part of startup sequence)
+-- Bit 4 is 1 if house-cleaning is complete
+-- Bit 3 is ISC_Enabled
+-- Bit 2 is ISC_Done
+        "XXXX01";
+
+attribute INSTRUCTION_PRIVATE of XC7Z007S_CLG225 : entity is
+-- If the device is configured, and a USER instruction is implemented
+-- and not private to the FPGA designer, then it should be removed
+-- from INSTRUCTION_PRIVATE, and the target register should be defined
+-- in REGISTER_ACCESS.
+        "ISC_ENABLE," &
+        "ISC_PROGRAM," &
+        "ISC_NOOP," &
+        "XSC_READ_RSVD," &
+        "ISC_DISABLE," &
+        "XSC_PROGRAM_KEY," &
+        "XSC_DNA," &
+        "CFG_OUT," &
+        "CFG_IN," &
+        "JPROGRAM," &
+        "JSTART," &
+        "JSHUTDOWN," &
+        "FUSE_CTS," &
+        "FUSE_KEY," &
+        "FUSE_DNA," &
+        "FUSE_USER," &
+        "FUSE_CNTL," &
+        "USER1," &
+        "USER2," &
+        "USER3," &
+        "USER4," &
+        "XADC_DRP," &
+        "INTEST_RSVD";
+
+-- Optional Register Description
+
+attribute IDCODE_REGISTER of XC7Z007S_CLG225 : entity is
+        "XXXX" &        -- version
+        "0011011" &     -- family
+        "100100011" &   -- array size
+        "00001001001" & -- manufacturer
+        "1";            -- required by 1149.1
+
+
+attribute USERCODE_REGISTER of XC7Z007S_CLG225 : entity is
+        "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+
+-- Register Access Description
+
+attribute REGISTER_ACCESS of XC7Z007S_CLG225 : entity is
+--      "<reg_name>[<length>] (USER1)," &
+--      "<reg_name>[<length>] (USER2)," &
+--      "<reg_name>[<length>] (USER3)," &
+--      "<reg_name>[<length>] (USER4)," &
+        "DATAREG[57] (XSC_DNA)," &
+        "BYPASS (HIGHZ,BYPASS)," &
+        "DEVICE_ID (USERCODE,IDCODE)," &
+        "BOUNDARY (SAMPLE,PRELOAD,EXTEST,EXTEST_PULSE,EXTEST_TRAIN)";
+
+-- Boundary-Scan Register Description
+
+attribute BOUNDARY_LENGTH of XC7Z007S_CLG225 : entity is 770;
+
+attribute BOUNDARY_REGISTER of XC7Z007S_CLG225 : entity is
+-- cellnum (type, port, function, safe[, ccell, disval, disrslt])
+        "   0 (BC_2, *, internal, 1)," &
+        "   1 (BC_2, *, internal, 0)," & --  RSVDGND_0
+        "   2 (BC_2, *, internal, X)," & --  RSVDGND_0
+        "   3 (BC_2, RSVDVCC3_H4, input, X)," &
+        "   4 (BC_2, RSVDVCC2_J4, input, X)," &
+        "   5 (BC_2, RSVDVCC1_G4, input, X)," &
+        "   6 (BC_2, CFGBVS_F6, input, X)," &
+        "   7 (BC_2, *, internal, 1)," & --  PROGRAM_B
+        "   8 (BC_2, *, controlr, 1)," &
+        "   9 (BC_2, INIT_B_D5, output3, X, 8, 1, Z)," & --  INIT_B_0
+        "  10 (BC_2, INIT_B_D5, input, X)," & --  INIT_B_0
+        "  11 (BC_2, *, controlr, 1)," &
+        "  12 (BC_2, DONE_M7, output3, X, 11, 1, Z)," & --  DONE_0
+        "  13 (BC_2, DONE_M7, input, X)," & --  DONE_0
+        "  14 (BC_2, *, internal, X)," &
+        "  15 (BC_2, *, internal, X)," &
+        "  16 (BC_2, *, internal, X)," &
+        "  17 (BC_2, *, internal, X)," &
+        "  18 (BC_2, *, internal, X)," &
+        "  19 (BC_2, *, internal, X)," &
+        "  20 (BC_2, *, internal, X)," &
+        "  21 (BC_2, *, internal, X)," &
+        "  22 (BC_2, *, internal, X)," &
+        "  23 (BC_2, *, internal, X)," &
+        "  24 (BC_2, *, internal, X)," &
+        "  25 (BC_2, *, internal, X)," &
+        "  26 (BC_2, *, internal, 1)," & --  PAD100.T
+        "  27 (BC_2, *, internal, X)," & --  PAD100.O
+        "  28 (BC_2, *, internal, X)," & --  PAD100.I
+        "  29 (BC_2, *, controlr, 1)," &
+        "  30 (BC_2, IO_R10, output3, X, 29, 1, Z)," & --  PAD99
+        "  31 (BC_2, IO_R10, input, X)," & --  PAD99
+        "  32 (BC_2, *, controlr, 1)," &
+        "  33 (BC_2, IO_P10, output3, X, 32, 1, Z)," & --  PAD98
+        "  34 (BC_2, IO_P10, input, X)," & --  PAD98
+        "  35 (BC_2, *, controlr, 1)," &
+        "  36 (BC_2, IO_P9, output3, X, 35, 1, Z)," & --  PAD97
+        "  37 (BC_2, IO_P9, input, X)," & --  PAD97
+        "  38 (BC_2, *, controlr, 1)," &
+        "  39 (BC_2, IO_P8, output3, X, 38, 1, Z)," & --  PAD96
+        "  40 (BC_2, IO_P8, input, X)," & --  PAD96
+        "  41 (BC_2, *, controlr, 1)," &
+        "  42 (BC_2, IO_N8, output3, X, 41, 1, Z)," & --  PAD95
+        "  43 (BC_2, IO_N8, input, X)," & --  PAD95
+        "  44 (BC_2, *, controlr, 1)," &
+        "  45 (BC_2, IO_N7, output3, X, 44, 1, Z)," & --  PAD94
+        "  46 (BC_2, IO_N7, input, X)," & --  PAD94
+        "  47 (BC_2, *, controlr, 1)," &
+        "  48 (BC_2, IO_M11, output3, X, 47, 1, Z)," & --  PAD93
+        "  49 (BC_2, IO_M11, input, X)," & --  PAD93
+        "  50 (BC_2, *, controlr, 1)," &
+        "  51 (BC_2, IO_M10, output3, X, 50, 1, Z)," & --  PAD92
+        "  52 (BC_2, IO_M10, input, X)," & --  PAD92
+        "  53 (BC_2, *, controlr, 1)," &
+        "  54 (BC_2, IO_R8, output3, X, 53, 1, Z)," & --  PAD91
+        "  55 (BC_2, IO_R8, input, X)," & --  PAD91
+        "  56 (BC_2, *, controlr, 1)," &
+        "  57 (BC_2, IO_R7, output3, X, 56, 1, Z)," & --  PAD90
+        "  58 (BC_2, IO_R7, input, X)," & --  PAD90
+        "  59 (BC_2, *, controlr, 1)," &
+        "  60 (BC_2, IO_N9, output3, X, 59, 1, Z)," & --  PAD89
+        "  61 (BC_2, IO_N9, input, X)," & --  PAD89
+        "  62 (BC_2, *, controlr, 1)," &
+        "  63 (BC_2, IO_M9, output3, X, 62, 1, Z)," & --  PAD88
+        "  64 (BC_2, IO_M9, input, X)," & --  PAD88
+        "  65 (BC_2, *, controlr, 1)," &
+        "  66 (BC_2, IO_P14, output3, X, 65, 1, Z)," & --  PAD87
+        "  67 (BC_2, IO_P14, input, X)," & --  PAD87
+        "  68 (BC_2, *, controlr, 1)," &
+        "  69 (BC_2, IO_P13, output3, X, 68, 1, Z)," & --  PAD86
+        "  70 (BC_2, IO_P13, input, X)," & --  PAD86
+        "  71 (BC_2, *, controlr, 1)," &
+        "  72 (BC_2, IO_R13, output3, X, 71, 1, Z)," & --  PAD85
+        "  73 (BC_2, IO_R13, input, X)," & --  PAD85
+        "  74 (BC_2, *, controlr, 1)," &
+        "  75 (BC_2, IO_R12, output3, X, 74, 1, Z)," & --  PAD84
+        "  76 (BC_2, IO_R12, input, X)," & --  PAD84
+        "  77 (BC_2, *, controlr, 1)," &
+        "  78 (BC_2, IO_R11, output3, X, 77, 1, Z)," & --  PAD83
+        "  79 (BC_2, IO_R11, input, X)," & --  PAD83
+        "  80 (BC_2, *, controlr, 1)," &
+        "  81 (BC_2, IO_P11, output3, X, 80, 1, Z)," & --  PAD82
+        "  82 (BC_2, IO_P11, input, X)," & --  PAD82
+        "  83 (BC_2, *, controlr, 1)," &
+        "  84 (BC_2, IO_R15, output3, X, 83, 1, Z)," & --  PAD81
+        "  85 (BC_2, IO_R15, input, X)," & --  PAD81
+        "  86 (BC_2, *, controlr, 1)," &
+        "  87 (BC_2, IO_P15, output3, X, 86, 1, Z)," & --  PAD80
+        "  88 (BC_2, IO_P15, input, X)," & --  PAD80
+        "  89 (BC_2, *, internal, 1)," & --  PAD79.T
+        "  90 (BC_2, *, internal, X)," & --  PAD79.O
+        "  91 (BC_2, *, internal, X)," & --  PAD79.I
+        "  92 (BC_2, *, internal, 1)," & --  PAD78.T
+        "  93 (BC_2, *, internal, X)," & --  PAD78.O
+        "  94 (BC_2, *, internal, X)," & --  PAD78.I
+        "  95 (BC_2, *, controlr, 1)," &
+        "  96 (BC_2, IO_N12, output3, X, 95, 1, Z)," & --  PAD77
+        "  97 (BC_2, IO_N12, input, X)," & --  PAD77
+        "  98 (BC_2, *, controlr, 1)," &
+        "  99 (BC_2, IO_N11, output3, X, 98, 1, Z)," & --  PAD76
+        " 100 (BC_2, IO_N11, input, X)," & --  PAD76
+        " 101 (BC_2, *, controlr, 1)," &
+        " 102 (BC_2, IO_M12, output3, X, 101, 1, Z)," & --  PAD75
+        " 103 (BC_2, IO_M12, input, X)," & --  PAD75
+        " 104 (BC_2, *, controlr, 1)," &
+        " 105 (BC_2, IO_L12, output3, X, 104, 1, Z)," & --  PAD74
+        " 106 (BC_2, IO_L12, input, X)," & --  PAD74
+        " 107 (BC_2, *, controlr, 1)," &
+        " 108 (BC_2, IO_K12, output3, X, 107, 1, Z)," & --  PAD73
+        " 109 (BC_2, IO_K12, input, X)," & --  PAD73
+        " 110 (BC_2, *, controlr, 1)," &
+        " 111 (BC_2, IO_K11, output3, X, 110, 1, Z)," & --  PAD72
+        " 112 (BC_2, IO_K11, input, X)," & --  PAD72
+        " 113 (BC_2, *, controlr, 1)," &
+        " 114 (BC_2, IO_L13, output3, X, 113, 1, Z)," & --  PAD71
+        " 115 (BC_2, IO_L13, input, X)," & --  PAD71
+        " 116 (BC_2, *, controlr, 1)," &
+        " 117 (BC_2, IO_K13, output3, X, 116, 1, Z)," & --  PAD70
+        " 118 (BC_2, IO_K13, input, X)," & --  PAD70
+        " 119 (BC_2, *, controlr, 1)," &
+        " 120 (BC_2, IO_M14, output3, X, 119, 1, Z)," & --  PAD69
+        " 121 (BC_2, IO_M14, input, X)," & --  PAD69
+        " 122 (BC_2, *, controlr, 1)," &
+        " 123 (BC_2, IO_L14, output3, X, 122, 1, Z)," & --  PAD68
+        " 124 (BC_2, IO_L14, input, X)," & --  PAD68
+        " 125 (BC_2, *, controlr, 1)," &
+        " 126 (BC_2, IO_M15, output3, X, 125, 1, Z)," & --  PAD67
+        " 127 (BC_2, IO_M15, input, X)," & --  PAD67
+        " 128 (BC_2, *, controlr, 1)," &
+        " 129 (BC_2, IO_L15, output3, X, 128, 1, Z)," & --  PAD66
+        " 130 (BC_2, IO_L15, input, X)," & --  PAD66
+        " 131 (BC_2, *, controlr, 1)," &
+        " 132 (BC_2, IO_N14, output3, X, 131, 1, Z)," & --  PAD65
+        " 133 (BC_2, IO_N14, input, X)," & --  PAD65
+        " 134 (BC_2, *, controlr, 1)," &
+        " 135 (BC_2, IO_N13, output3, X, 134, 1, Z)," & --  PAD64
+        " 136 (BC_2, IO_N13, input, X)," & --  PAD64
+        " 137 (BC_2, *, controlr, 1)," &
+        " 138 (BC_2, IO_J11, output3, X, 137, 1, Z)," & --  PAD63
+        " 139 (BC_2, IO_J11, input, X)," & --  PAD63
+        " 140 (BC_2, *, controlr, 1)," &
+        " 141 (BC_2, IO_H11, output3, X, 140, 1, Z)," & --  PAD62
+        " 142 (BC_2, IO_H11, input, X)," & --  PAD62
+        " 143 (BC_2, *, controlr, 1)," &
+        " 144 (BC_2, IO_J14, output3, X, 143, 1, Z)," & --  PAD61
+        " 145 (BC_2, IO_J14, input, X)," & --  PAD61
+        " 146 (BC_2, *, controlr, 1)," &
+        " 147 (BC_2, IO_J13, output3, X, 146, 1, Z)," & --  PAD60
+        " 148 (BC_2, IO_J13, input, X)," & --  PAD60
+        " 149 (BC_2, *, controlr, 1)," &
+        " 150 (BC_2, IO_K15, output3, X, 149, 1, Z)," & --  PAD59
+        " 151 (BC_2, IO_K15, input, X)," & --  PAD59
+        " 152 (BC_2, *, controlr, 1)," &
+        " 153 (BC_2, IO_J15, output3, X, 152, 1, Z)," & --  PAD58
+        " 154 (BC_2, IO_J15, input, X)," & --  PAD58
+        " 155 (BC_2, *, controlr, 1)," &
+        " 156 (BC_2, IO_H14, output3, X, 155, 1, Z)," & --  PAD57
+        " 157 (BC_2, IO_H14, input, X)," & --  PAD57
+        " 158 (BC_2, *, controlr, 1)," &
+        " 159 (BC_2, IO_G14, output3, X, 158, 1, Z)," & --  PAD56
+        " 160 (BC_2, IO_G14, input, X)," & --  PAD56
+        " 161 (BC_2, *, controlr, 1)," &
+        " 162 (BC_2, IO_H13, output3, X, 161, 1, Z)," & --  PAD55
+        " 163 (BC_2, IO_H13, input, X)," & --  PAD55
+        " 164 (BC_2, *, controlr, 1)," &
+        " 165 (BC_2, IO_G12, output3, X, 164, 1, Z)," & --  PAD54
+        " 166 (BC_2, IO_G12, input, X)," & --  PAD54
+        " 167 (BC_2, *, controlr, 1)," &
+        " 168 (BC_2, IO_H12, output3, X, 167, 1, Z)," & --  PAD53
+        " 169 (BC_2, IO_H12, input, X)," & --  PAD53
+        " 170 (BC_2, *, controlr, 1)," &
+        " 171 (BC_2, IO_G11, output3, X, 170, 1, Z)," & --  PAD52
+        " 172 (BC_2, IO_G11, input, X)," & --  PAD52
+        " 173 (BC_2, *, internal, 1)," & --  PAD51.T
+        " 174 (BC_2, *, internal, X)," & --  PAD51.O
+        " 175 (BC_2, *, internal, X)," & --  PAD51.I
+        " 176 (BC_2, *, internal, 1)," & --  PAD50.T
+        " 177 (BC_2, *, internal, X)," & --  PAD50.O
+        " 178 (BC_2, *, internal, X)," & --  PAD50.I
+        " 179 (BC_2, *, internal, 1)," & --  PAD49.T
+        " 180 (BC_2, *, internal, X)," & --  PAD49.O
+        " 181 (BC_2, *, internal, X)," & --  PAD49.I
+        " 182 (BC_2, *, internal, 1)," & --  PAD48.T
+        " 183 (BC_2, *, internal, X)," & --  PAD48.O
+        " 184 (BC_2, *, internal, X)," & --  PAD48.I
+        " 185 (BC_2, *, internal, 1)," & --  PAD47.T
+        " 186 (BC_2, *, internal, X)," & --  PAD47.O
+        " 187 (BC_2, *, internal, X)," & --  PAD47.I
+        " 188 (BC_2, *, internal, 1)," & --  PAD46.T
+        " 189 (BC_2, *, internal, X)," & --  PAD46.O
+        " 190 (BC_2, *, internal, X)," & --  PAD46.I
+        " 191 (BC_2, *, internal, 1)," & --  PAD45.T
+        " 192 (BC_2, *, internal, X)," & --  PAD45.O
+        " 193 (BC_2, *, internal, X)," & --  PAD45.I
+        " 194 (BC_2, *, internal, 1)," & --  PAD44.T
+        " 195 (BC_2, *, internal, X)," & --  PAD44.O
+        " 196 (BC_2, *, internal, X)," & --  PAD44.I
+        " 197 (BC_2, *, internal, 1)," & --  PAD43.T
+        " 198 (BC_2, *, internal, X)," & --  PAD43.O
+        " 199 (BC_2, *, internal, X)," & --  PAD43.I
+        " 200 (BC_2, *, internal, 1)," & --  PAD42.T
+        " 201 (BC_2, *, internal, X)," & --  PAD42.O
+        " 202 (BC_2, *, internal, X)," & --  PAD42.I
+        " 203 (BC_2, *, internal, 1)," & --  PAD41.T
+        " 204 (BC_2, *, internal, X)," & --  PAD41.O
+        " 205 (BC_2, *, internal, X)," & --  PAD41.I
+        " 206 (BC_2, *, internal, 1)," & --  PAD40.T
+        " 207 (BC_2, *, internal, X)," & --  PAD40.O
+        " 208 (BC_2, *, internal, X)," & --  PAD40.I
+        " 209 (BC_2, *, internal, 1)," & --  PAD39.T
+        " 210 (BC_2, *, internal, X)," & --  PAD39.O
+        " 211 (BC_2, *, internal, X)," & --  PAD39.I
+        " 212 (BC_2, *, internal, 1)," & --  PAD38.T
+        " 213 (BC_2, *, internal, X)," & --  PAD38.O
+        " 214 (BC_2, *, internal, X)," & --  PAD38.I
+        " 215 (BC_2, *, internal, 1)," & --  PAD37.T
+        " 216 (BC_2, *, internal, X)," & --  PAD37.O
+        " 217 (BC_2, *, internal, X)," & --  PAD37.I
+        " 218 (BC_2, *, internal, 1)," & --  PAD36.T
+        " 219 (BC_2, *, internal, X)," & --  PAD36.O
+        " 220 (BC_2, *, internal, X)," & --  PAD36.I
+        " 221 (BC_2, *, internal, 1)," & --  PAD35.T
+        " 222 (BC_2, *, internal, X)," & --  PAD35.O
+        " 223 (BC_2, *, internal, X)," & --  PAD35.I
+        " 224 (BC_2, *, internal, 1)," & --  PAD34.T
+        " 225 (BC_2, *, internal, X)," & --  PAD34.O
+        " 226 (BC_2, *, internal, X)," & --  PAD34.I
+        " 227 (BC_2, *, internal, 1)," & --  PAD33.T
+        " 228 (BC_2, *, internal, X)," & --  PAD33.O
+        " 229 (BC_2, *, internal, X)," & --  PAD33.I
+        " 230 (BC_2, *, internal, 1)," & --  PAD32.T
+        " 231 (BC_2, *, internal, X)," & --  PAD32.O
+        " 232 (BC_2, *, internal, X)," & --  PAD32.I
+        " 233 (BC_2, *, internal, 1)," & --  PAD31.T
+        " 234 (BC_2, *, internal, X)," & --  PAD31.O
+        " 235 (BC_2, *, internal, X)," & --  PAD31.I
+        " 236 (BC_2, *, internal, 1)," & --  PAD30.T
+        " 237 (BC_2, *, internal, X)," & --  PAD30.O
+        " 238 (BC_2, *, internal, X)," & --  PAD30.I
+        " 239 (BC_2, *, internal, 1)," & --  PAD29.T
+        " 240 (BC_2, *, internal, X)," & --  PAD29.O
+        " 241 (BC_2, *, internal, X)," & --  PAD29.I
+        " 242 (BC_2, *, internal, 1)," & --  PAD28.T
+        " 243 (BC_2, *, internal, X)," & --  PAD28.O
+        " 244 (BC_2, *, internal, X)," & --  PAD28.I
+        " 245 (BC_2, *, internal, 1)," & --  PAD27.T
+        " 246 (BC_2, *, internal, X)," & --  PAD27.O
+        " 247 (BC_2, *, internal, X)," & --  PAD27.I
+        " 248 (BC_2, *, internal, 1)," & --  PAD26.T
+        " 249 (BC_2, *, internal, X)," & --  PAD26.O
+        " 250 (BC_2, *, internal, X)," & --  PAD26.I
+        " 251 (BC_2, *, internal, 1)," & --  PAD25.T
+        " 252 (BC_2, *, internal, X)," & --  PAD25.O
+        " 253 (BC_2, *, internal, X)," & --  PAD25.I
+        " 254 (BC_2, *, internal, 1)," & --  PAD24.T
+        " 255 (BC_2, *, internal, X)," & --  PAD24.O
+        " 256 (BC_2, *, internal, X)," & --  PAD24.I
+        " 257 (BC_2, *, internal, 1)," & --  PAD23.T
+        " 258 (BC_2, *, internal, X)," & --  PAD23.O
+        " 259 (BC_2, *, internal, X)," & --  PAD23.I
+        " 260 (BC_2, *, internal, 1)," & --  PAD22.T
+        " 261 (BC_2, *, internal, X)," & --  PAD22.O
+        " 262 (BC_2, *, internal, X)," & --  PAD22.I
+        " 263 (BC_2, *, internal, 1)," & --  PAD21.T
+        " 264 (BC_2, *, internal, X)," & --  PAD21.O
+        " 265 (BC_2, *, internal, X)," & --  PAD21.I
+        " 266 (BC_2, *, internal, 1)," & --  PAD20.T
+        " 267 (BC_2, *, internal, X)," & --  PAD20.O
+        " 268 (BC_2, *, internal, X)," & --  PAD20.I
+        " 269 (BC_2, *, internal, 1)," & --  PAD19.T
+        " 270 (BC_2, *, internal, X)," & --  PAD19.O
+        " 271 (BC_2, *, internal, X)," & --  PAD19.I
+        " 272 (BC_2, *, internal, 1)," & --  PAD18.T
+        " 273 (BC_2, *, internal, X)," & --  PAD18.O
+        " 274 (BC_2, *, internal, X)," & --  PAD18.I
+        " 275 (BC_2, *, internal, 1)," & --  PAD17.T
+        " 276 (BC_2, *, internal, X)," & --  PAD17.O
+        " 277 (BC_2, *, internal, X)," & --  PAD17.I
+        " 278 (BC_2, *, internal, 1)," & --  PAD16.T
+        " 279 (BC_2, *, internal, X)," & --  PAD16.O
+        " 280 (BC_2, *, internal, X)," & --  PAD16.I
+        " 281 (BC_2, *, internal, 1)," & --  PAD15.T
+        " 282 (BC_2, *, internal, X)," & --  PAD15.O
+        " 283 (BC_2, *, internal, X)," & --  PAD15.I
+        " 284 (BC_2, *, internal, 1)," & --  PAD14.T
+        " 285 (BC_2, *, internal, X)," & --  PAD14.O
+        " 286 (BC_2, *, internal, X)," & --  PAD14.I
+        " 287 (BC_2, *, internal, 1)," & --  PAD13.T
+        " 288 (BC_2, *, internal, X)," & --  PAD13.O
+        " 289 (BC_2, *, internal, X)," & --  PAD13.I
+        " 290 (BC_2, *, internal, 1)," & --  PAD12.T
+        " 291 (BC_2, *, internal, X)," & --  PAD12.O
+        " 292 (BC_2, *, internal, X)," & --  PAD12.I
+        " 293 (BC_2, *, controlr, 1)," &
+        " 294 (BC_2, IO_F15, output3, X, 293, 1, Z)," & --  PAD11
+        " 295 (BC_2, IO_F15, input, X)," & --  PAD11
+        " 296 (BC_2, *, controlr, 1)," &
+        " 297 (BC_2, IO_G15, output3, X, 296, 1, Z)," & --  PAD10
+        " 298 (BC_2, IO_G15, input, X)," & --  PAD10
+        " 299 (BC_2, *, internal, 1)," & --  PAD9.T
+        " 300 (BC_2, *, internal, X)," & --  PAD9.O
+        " 301 (BC_2, *, internal, X)," & --  PAD9.I
+        " 302 (BC_2, *, internal, 1)," & --  PAD8.T
+        " 303 (BC_2, *, internal, X)," & --  PAD8.O
+        " 304 (BC_2, *, internal, X)," & --  PAD8.I
+        " 305 (BC_2, *, controlr, 1)," &
+        " 306 (BC_2, IO_F14, output3, X, 305, 1, Z)," & --  PAD7
+        " 307 (BC_2, IO_F14, input, X)," & --  PAD7
+        " 308 (BC_2, *, controlr, 1)," &
+        " 309 (BC_2, IO_F13, output3, X, 308, 1, Z)," & --  PAD6
+        " 310 (BC_2, IO_F13, input, X)," & --  PAD6
+        " 311 (BC_2, *, controlr, 1)," &
+        " 312 (BC_2, IO_E12, output3, X, 311, 1, Z)," & --  PAD5
+        " 313 (BC_2, IO_E12, input, X)," & --  PAD5
+        " 314 (BC_2, *, controlr, 1)," &
+        " 315 (BC_2, IO_E11, output3, X, 314, 1, Z)," & --  PAD4
+        " 316 (BC_2, IO_E11, input, X)," & --  PAD4
+        " 317 (BC_2, *, controlr, 1)," &
+        " 318 (BC_2, IO_E13, output3, X, 317, 1, Z)," & --  PAD3
+        " 319 (BC_2, IO_E13, input, X)," & --  PAD3
+        " 320 (BC_2, *, controlr, 1)," &
+        " 321 (BC_2, IO_F12, output3, X, 320, 1, Z)," & --  PAD2
+        " 322 (BC_2, IO_F12, input, X)," & --  PAD2
+        " 323 (BC_2, *, internal, 1)," & --  PAD1.T
+        " 324 (BC_2, *, internal, X)," & --  PAD1.O
+        " 325 (BC_2, *, internal, X)," & --  PAD1.I
+        " 326 (BC_2, *, internal, X)," &
+        " 327 (BC_2, *, internal, X)," &
+        " 328 (BC_2, *, internal, X)," &
+        " 329 (BC_2, *, internal, X)," &
+        " 330 (BC_2, *, internal, X)," &
+        " 331 (BC_2, *, internal, X)," &
+        " 332 (BC_2, *, internal, X)," &
+        " 333 (BC_2, *, internal, X)," &
+        " 334 (BC_2, *, internal, X)," &
+        " 335 (BC_2, *, internal, X)," &
+        " 336 (BC_2, *, internal, X)," &
+        " 337 (BC_2, *, internal, X)," &
+        " 338 (BC_2, *, internal, X)," &
+        " 339 (BC_2, *, internal, X)," &
+        " 340 (BC_2, *, internal, X)," &
+        " 341 (BC_2, *, internal, X)," &
+        " 342 (BC_2, *, internal, X)," &
+        " 343 (BC_2, *, internal, 1)," & --  PS_DDR_DQ31.T
+        " 344 (BC_2, *, internal, X)," & --  PS_DDR_DQ31.O
+        " 345 (BC_2, *, internal, X)," & --  PS_DDR_DQ31.I
+        " 346 (BC_2, *, internal, 1)," & --  PS_DDR_DQ30.T
+        " 347 (BC_2, *, internal, X)," & --  PS_DDR_DQ30.O
+        " 348 (BC_2, *, internal, X)," & --  PS_DDR_DQ30.I
+        " 349 (BC_2, *, internal, 1)," & --  PS_DDR_DQ29.T
+        " 350 (BC_2, *, internal, X)," & --  PS_DDR_DQ29.O
+        " 351 (BC_2, *, internal, X)," & --  PS_DDR_DQ29.I
+        " 352 (BC_2, *, internal, 1)," & --  PS_DDR_DQ28.T
+        " 353 (BC_2, *, internal, X)," & --  PS_DDR_DQ28.O
+        " 354 (BC_2, *, internal, X)," & --  PS_DDR_DQ28.I
+        " 355 (BC_2, *, internal, 1)," & --  PS_DDR_DQS_N3.T
+        " 356 (BC_2, *, internal, X)," & --  PS_DDR_DQS_N3.O
+        " 357 (BC_2, *, internal, X)," & --  PS_DDR_DQS_N3.I
+        " 358 (BC_2, *, internal, 1)," & --  PS_DDR_DQS_P3.T
+        " 359 (BC_2, *, internal, X)," & --  PS_DDR_DQS_P3.O
+        " 360 (BC_2, *, internal, X)," & --  PS_DDR_DQS_P3.I
+        " 361 (BC_2, *, internal, 1)," &
+        " 362 (BC_2, *, internal, X)," &
+        " 363 (BC_2, *, internal, X)," &
+        " 364 (BC_2, *, internal, 1)," & --  PS_DDR_DM3.T
+        " 365 (BC_2, *, internal, X)," & --  PS_DDR_DM3.O
+        " 366 (BC_2, *, internal, X)," & --  PS_DDR_DM3.I
+        " 367 (BC_2, *, internal, 1)," & --  PS_DDR_DQ27.T
+        " 368 (BC_2, *, internal, X)," & --  PS_DDR_DQ27.O
+        " 369 (BC_2, *, internal, X)," & --  PS_DDR_DQ27.I
+        " 370 (BC_2, *, internal, 1)," & --  PS_DDR_DQ26.T
+        " 371 (BC_2, *, internal, X)," & --  PS_DDR_DQ26.O
+        " 372 (BC_2, *, internal, X)," & --  PS_DDR_DQ26.I
+        " 373 (BC_2, *, internal, 1)," & --  PS_DDR_DQ25.T
+        " 374 (BC_2, *, internal, X)," & --  PS_DDR_DQ25.O
+        " 375 (BC_2, *, internal, X)," & --  PS_DDR_DQ25.I
+        " 376 (BC_2, *, internal, 1)," & --  PS_DDR_DQ24.T
+        " 377 (BC_2, *, internal, X)," & --  PS_DDR_DQ24.O
+        " 378 (BC_2, *, internal, X)," & --  PS_DDR_DQ24.I
+        " 379 (BC_2, *, internal, X)," &
+        " 380 (BC_2, *, internal, X)," &
+        " 381 (BC_2, *, internal, X)," &
+        " 382 (BC_2, *, internal, 1)," &
+        " 383 (BC_2, *, internal, X)," &
+        " 384 (BC_2, *, internal, X)," &
+        " 385 (BC_2, *, internal, 1)," & --  PS_DDR_DQ23.T
+        " 386 (BC_2, *, internal, X)," & --  PS_DDR_DQ23.O
+        " 387 (BC_2, *, internal, X)," & --  PS_DDR_DQ23.I
+        " 388 (BC_2, *, internal, 1)," & --  PS_DDR_DQ22.T
+        " 389 (BC_2, *, internal, X)," & --  PS_DDR_DQ22.O
+        " 390 (BC_2, *, internal, X)," & --  PS_DDR_DQ22.I
+        " 391 (BC_2, *, internal, 1)," & --  PS_DDR_DQ21.T
+        " 392 (BC_2, *, internal, X)," & --  PS_DDR_DQ21.O
+        " 393 (BC_2, *, internal, X)," & --  PS_DDR_DQ21.I
+        " 394 (BC_2, *, internal, 1)," & --  PS_DDR_DQ20.T
+        " 395 (BC_2, *, internal, X)," & --  PS_DDR_DQ20.O
+        " 396 (BC_2, *, internal, X)," & --  PS_DDR_DQ20.I
+        " 397 (BC_2, *, internal, 1)," & --  PS_DDR_DQS_N2.T
+        " 398 (BC_2, *, internal, X)," & --  PS_DDR_DQS_N2.O
+        " 399 (BC_2, *, internal, X)," & --  PS_DDR_DQS_N2.I
+        " 400 (BC_2, *, internal, 1)," & --  PS_DDR_DQS_P2.T
+        " 401 (BC_2, *, internal, X)," & --  PS_DDR_DQS_P2.O
+        " 402 (BC_2, *, internal, X)," & --  PS_DDR_DQS_P2.I
+        " 403 (BC_2, *, internal, 1)," &
+        " 404 (BC_2, *, internal, X)," &
+        " 405 (BC_2, *, internal, X)," &
+        " 406 (BC_2, *, internal, 1)," & --  PS_DDR_DM2.T
+        " 407 (BC_2, *, internal, X)," & --  PS_DDR_DM2.O
+        " 408 (BC_2, *, internal, X)," & --  PS_DDR_DM2.I
+        " 409 (BC_2, *, internal, 1)," & --  PS_DDR_DQ19.T
+        " 410 (BC_2, *, internal, X)," & --  PS_DDR_DQ19.O
+        " 411 (BC_2, *, internal, X)," & --  PS_DDR_DQ19.I
+        " 412 (BC_2, *, internal, 1)," & --  PS_DDR_DQ18.T
+        " 413 (BC_2, *, internal, X)," & --  PS_DDR_DQ18.O
+        " 414 (BC_2, *, internal, X)," & --  PS_DDR_DQ18.I
+        " 415 (BC_2, *, internal, 1)," & --  PS_DDR_DQ17.T
+        " 416 (BC_2, *, internal, X)," & --  PS_DDR_DQ17.O
+        " 417 (BC_2, *, internal, X)," & --  PS_DDR_DQ17.I
+        " 418 (BC_2, *, internal, 1)," & --  PS_DDR_DQ16.T
+        " 419 (BC_2, *, internal, X)," & --  PS_DDR_DQ16.O
+        " 420 (BC_2, *, internal, X)," & --  PS_DDR_DQ16.I
+        " 421 (BC_2, *, controlr, 1)," &
+        " 422 (BC_2, PS_DDR_RAS_B, output3, X, 421, 1, Z)," &
+        " 423 (BC_2, PS_DDR_RAS_B, input, X)," &
+        " 424 (BC_2, *, controlr, 1)," &
+        " 425 (BC_2, PS_DDR_CAS_B, output3, X, 424, 1, Z)," &
+        " 426 (BC_2, PS_DDR_CAS_B, input, X)," &
+        " 427 (BC_2, *, controlr, 1)," &
+        " 428 (BC_2, PS_DDR_WE_B, output3, X, 427, 1, Z)," &
+        " 429 (BC_2, PS_DDR_WE_B, input, X)," &
+        " 430 (BC_2, *, controlr, 1)," &
+        " 431 (BC_2, PS_DDR_CKE, output3, X, 430, 1, Z)," &
+        " 432 (BC_2, PS_DDR_CKE, input, X)," &
+        " 433 (BC_2, *, controlr, 1)," &
+        " 434 (BC_2, PS_DDR_CS_B, output3, X, 433, 1, Z)," &
+        " 435 (BC_2, PS_DDR_CS_B, input, X)," &
+        " 436 (BC_2, *, controlr, 1)," &
+        " 437 (BC_2, PS_DDR_ODT, output3, X, 436, 1, Z)," &
+        " 438 (BC_2, PS_DDR_ODT, input, X)," &
+        " 439 (BC_2, *, controlr, 1)," &
+        " 440 (BC_2, PS_DDR_BA0, output3, X, 439, 1, Z)," &
+        " 441 (BC_2, PS_DDR_BA0, input, X)," &
+        " 442 (BC_2, *, controlr, 1)," &
+        " 443 (BC_2, PS_DDR_BA1, output3, X, 442, 1, Z)," &
+        " 444 (BC_2, PS_DDR_BA1, input, X)," &
+        " 445 (BC_2, *, controlr, 1)," &
+        " 446 (BC_2, PS_DDR_BA2, output3, X, 445, 1, Z)," &
+        " 447 (BC_2, PS_DDR_BA2, input, X)," &
+        " 448 (BC_2, *, controlr, 1)," &
+        " 449 (BC_2, PS_DDR_A0, output3, X, 448, 1, Z)," &
+        " 450 (BC_2, PS_DDR_A0, input, X)," &
+        " 451 (BC_2, *, controlr, 1)," &
+        " 452 (BC_2, PS_DDR_A1, output3, X, 451, 1, Z)," &
+        " 453 (BC_2, PS_DDR_A1, input, X)," &
+        " 454 (BC_2, *, controlr, 1)," &
+        " 455 (BC_2, PS_DDR_A2, output3, X, 454, 1, Z)," &
+        " 456 (BC_2, PS_DDR_A2, input, X)," &
+        " 457 (BC_2, *, controlr, 1)," &
+        " 458 (BC_2, PS_DDR_CKN, output3, X, 457, 1, Z)," &
+        " 459 (BC_2, PS_DDR_CKN, input, X)," &
+        " 460 (BC_2, *, controlr, 1)," &
+        " 461 (BC_2, PS_DDR_CKP, output3, X, 460, 1, Z)," &
+        " 462 (BC_2, PS_DDR_CKP, input, X)," &
+        " 463 (BC_2, *, internal, 1)," &
+        " 464 (BC_2, *, internal, X)," &
+        " 465 (BC_2, *, internal, X)," &
+        " 466 (BC_2, *, internal, 1)," &
+        " 467 (BC_2, *, internal, X)," &
+        " 468 (BC_2, *, internal, X)," &
+        " 469 (BC_2, *, controlr, 1)," &
+        " 470 (BC_2, PS_DDR_A3, output3, X, 469, 1, Z)," &
+        " 471 (BC_2, PS_DDR_A3, input, X)," &
+        " 472 (BC_2, *, controlr, 1)," &
+        " 473 (BC_2, PS_DDR_A4, output3, X, 472, 1, Z)," &
+        " 474 (BC_2, PS_DDR_A4, input, X)," &
+        " 475 (BC_2, *, controlr, 1)," &
+        " 476 (BC_2, PS_DDR_A5, output3, X, 475, 1, Z)," &
+        " 477 (BC_2, PS_DDR_A5, input, X)," &
+        " 478 (BC_2, *, controlr, 1)," &
+        " 479 (BC_2, PS_DDR_A6, output3, X, 478, 1, Z)," &
+        " 480 (BC_2, PS_DDR_A6, input, X)," &
+        " 481 (BC_2, *, controlr, 1)," &
+        " 482 (BC_2, PS_DDR_A7, output3, X, 481, 1, Z)," &
+        " 483 (BC_2, PS_DDR_A7, input, X)," &
+        " 484 (BC_2, *, controlr, 1)," &
+        " 485 (BC_2, PS_DDR_A8, output3, X, 484, 1, Z)," &
+        " 486 (BC_2, PS_DDR_A8, input, X)," &
+        " 487 (BC_2, *, controlr, 1)," &
+        " 488 (BC_2, PS_DDR_A9, output3, X, 487, 1, Z)," &
+        " 489 (BC_2, PS_DDR_A9, input, X)," &
+        " 490 (BC_2, *, controlr, 1)," &
+        " 491 (BC_2, PS_DDR_A10, output3, X, 490, 1, Z)," &
+        " 492 (BC_2, PS_DDR_A10, input, X)," &
+        " 493 (BC_2, *, controlr, 1)," &
+        " 494 (BC_2, PS_DDR_A11, output3, X, 493, 1, Z)," &
+        " 495 (BC_2, PS_DDR_A11, input, X)," &
+        " 496 (BC_2, *, controlr, 1)," &
+        " 497 (BC_2, PS_DDR_A12, output3, X, 496, 1, Z)," &
+        " 498 (BC_2, PS_DDR_A12, input, X)," &
+        " 499 (BC_2, *, controlr, 1)," &
+        " 500 (BC_2, PS_DDR_A13, output3, X, 499, 1, Z)," &
+        " 501 (BC_2, PS_DDR_A13, input, X)," &
+        " 502 (BC_2, *, controlr, 1)," &
+        " 503 (BC_2, PS_DDR_A14, output3, X, 502, 1, Z)," &
+        " 504 (BC_2, PS_DDR_A14, input, X)," &
+        " 505 (BC_2, *, controlr, 1)," &
+        " 506 (BC_2, PS_DDR_DQ15, output3, X, 505, 1, Z)," &
+        " 507 (BC_2, PS_DDR_DQ15, input, X)," &
+        " 508 (BC_2, *, controlr, 1)," &
+        " 509 (BC_2, PS_DDR_DQ14, output3, X, 508, 1, Z)," &
+        " 510 (BC_2, PS_DDR_DQ14, input, X)," &
+        " 511 (BC_2, *, controlr, 1)," &
+        " 512 (BC_2, PS_DDR_DQ13, output3, X, 511, 1, Z)," &
+        " 513 (BC_2, PS_DDR_DQ13, input, X)," &
+        " 514 (BC_2, *, controlr, 1)," &
+        " 515 (BC_2, PS_DDR_DQ12, output3, X, 514, 1, Z)," &
+        " 516 (BC_2, PS_DDR_DQ12, input, X)," &
+        " 517 (BC_2, *, controlr, 1)," &
+        " 518 (BC_2, PS_DDR_DQS_N1, output3, X, 517, 1, Z)," &
+        " 519 (BC_2, PS_DDR_DQS_N1, input, X)," &
+        " 520 (BC_2, *, controlr, 1)," &
+        " 521 (BC_2, PS_DDR_DQS_P1, output3, X, 520, 1, Z)," &
+        " 522 (BC_2, PS_DDR_DQS_P1, input, X)," &
+        " 523 (BC_2, *, internal, 1)," &
+        " 524 (BC_2, *, internal, X)," &
+        " 525 (BC_2, *, internal, X)," &
+        " 526 (BC_2, *, controlr, 1)," &
+        " 527 (BC_2, PS_DDR_DM1, output3, X, 526, 1, Z)," &
+        " 528 (BC_2, PS_DDR_DM1, input, X)," &
+        " 529 (BC_2, *, controlr, 1)," &
+        " 530 (BC_2, PS_DDR_DQ11, output3, X, 529, 1, Z)," &
+        " 531 (BC_2, PS_DDR_DQ11, input, X)," &
+        " 532 (BC_2, *, controlr, 1)," &
+        " 533 (BC_2, PS_DDR_DQ10, output3, X, 532, 1, Z)," &
+        " 534 (BC_2, PS_DDR_DQ10, input, X)," &
+        " 535 (BC_2, *, controlr, 1)," &
+        " 536 (BC_2, PS_DDR_DQ9, output3, X, 535, 1, Z)," &
+        " 537 (BC_2, PS_DDR_DQ9, input, X)," &
+        " 538 (BC_2, *, controlr, 1)," &
+        " 539 (BC_2, PS_DDR_DQ8, output3, X, 538, 1, Z)," &
+        " 540 (BC_2, PS_DDR_DQ8, input, X)," &
+        " 541 (BC_2, *, internal, X)," &
+        " 542 (BC_2, *, internal, X)," &
+        " 543 (BC_2, *, internal, X)," &
+        " 544 (BC_2, *, internal, 1)," &
+        " 545 (BC_2, *, internal, X)," &
+        " 546 (BC_2, *, internal, X)," &
+        " 547 (BC_2, *, controlr, 1)," &
+        " 548 (BC_2, PS_DDR_DQ7, output3, X, 547, 1, Z)," &
+        " 549 (BC_2, PS_DDR_DQ7, input, X)," &
+        " 550 (BC_2, *, controlr, 1)," &
+        " 551 (BC_2, PS_DDR_DQ6, output3, X, 550, 1, Z)," &
+        " 552 (BC_2, PS_DDR_DQ6, input, X)," &
+        " 553 (BC_2, *, controlr, 1)," &
+        " 554 (BC_2, PS_DDR_DQ5, output3, X, 553, 1, Z)," &
+        " 555 (BC_2, PS_DDR_DQ5, input, X)," &
+        " 556 (BC_2, *, controlr, 1)," &
+        " 557 (BC_2, PS_DDR_DQ4, output3, X, 556, 1, Z)," &
+        " 558 (BC_2, PS_DDR_DQ4, input, X)," &
+        " 559 (BC_2, *, controlr, 1)," &
+        " 560 (BC_2, PS_DDR_DQS_N0, output3, X, 559, 1, Z)," &
+        " 561 (BC_2, PS_DDR_DQS_N0, input, X)," &
+        " 562 (BC_2, *, controlr, 1)," &
+        " 563 (BC_2, PS_DDR_DQS_P0, output3, X, 562, 1, Z)," &
+        " 564 (BC_2, PS_DDR_DQS_P0, input, X)," &
+        " 565 (BC_2, *, internal, 1)," &
+        " 566 (BC_2, *, internal, X)," &
+        " 567 (BC_2, *, internal, X)," &
+        " 568 (BC_2, *, controlr, 1)," &
+        " 569 (BC_2, PS_DDR_DM0, output3, X, 568, 1, Z)," &
+        " 570 (BC_2, PS_DDR_DM0, input, X)," &
+        " 571 (BC_2, *, controlr, 1)," &
+        " 572 (BC_2, PS_DDR_DQ3, output3, X, 571, 1, Z)," &
+        " 573 (BC_2, PS_DDR_DQ3, input, X)," &
+        " 574 (BC_2, *, controlr, 1)," &
+        " 575 (BC_2, PS_DDR_DQ2, output3, X, 574, 1, Z)," &
+        " 576 (BC_2, PS_DDR_DQ2, input, X)," &
+        " 577 (BC_2, *, controlr, 1)," &
+        " 578 (BC_2, PS_DDR_DQ1, output3, X, 577, 1, Z)," &
+        " 579 (BC_2, PS_DDR_DQ1, input, X)," &
+        " 580 (BC_2, *, controlr, 1)," &
+        " 581 (BC_2, PS_DDR_DQ0, output3, X, 580, 1, Z)," &
+        " 582 (BC_2, PS_DDR_DQ0, input, X)," &
+        " 583 (BC_2, *, controlr, 1)," &
+        " 584 (BC_2, PS_DDR_DRST_B, output3, X, 583, 1, Z)," &
+        " 585 (BC_2, PS_DDR_DRST_B, input, X)," &
+        " 586 (BC_2, *, controlr, 1)," &
+        " 587 (BC_2, PS_MIO0, output3, X, 586, 1, Z)," &
+        " 588 (BC_2, PS_MIO0, input, X)," &
+        " 589 (BC_2, *, controlr, 1)," &
+        " 590 (BC_2, PS_MIO1, output3, X, 589, 1, Z)," &
+        " 591 (BC_2, PS_MIO1, input, X)," &
+        " 592 (BC_2, *, controlr, 1)," &
+        " 593 (BC_2, PS_MIO2, output3, X, 592, 1, Z)," &
+        " 594 (BC_2, PS_MIO2, input, X)," &
+        " 595 (BC_2, *, controlr, 1)," &
+        " 596 (BC_2, PS_MIO3, output3, X, 595, 1, Z)," &
+        " 597 (BC_2, PS_MIO3, input, X)," &
+        " 598 (BC_2, *, controlr, 1)," &
+        " 599 (BC_2, PS_MIO4, output3, X, 598, 1, Z)," &
+        " 600 (BC_2, PS_MIO4, input, X)," &
+        " 601 (BC_2, *, controlr, 1)," &
+        " 602 (BC_2, PS_MIO5, output3, X, 601, 1, Z)," &
+        " 603 (BC_2, PS_MIO5, input, X)," &
+        " 604 (BC_2, *, controlr, 1)," &
+        " 605 (BC_2, PS_MIO6, output3, X, 604, 1, Z)," &
+        " 606 (BC_2, PS_MIO6, input, X)," &
+        " 607 (BC_2, *, controlr, 1)," &
+        " 608 (BC_2, PS_MIO7, output3, X, 607, 1, Z)," &
+        " 609 (BC_2, PS_MIO7, input, X)," &
+        " 610 (BC_2, *, controlr, 1)," &
+        " 611 (BC_2, PS_MIO8, output3, X, 610, 1, Z)," &
+        " 612 (BC_2, PS_MIO8, input, X)," &
+        " 613 (BC_2, *, controlr, 1)," &
+        " 614 (BC_2, PS_MIO9, output3, X, 613, 1, Z)," &
+        " 615 (BC_2, PS_MIO9, input, X)," &
+        " 616 (BC_2, *, controlr, 1)," &
+        " 617 (BC_2, PS_MIO10, output3, X, 616, 1, Z)," &
+        " 618 (BC_2, PS_MIO10, input, X)," &
+        " 619 (BC_2, *, controlr, 1)," &
+        " 620 (BC_2, PS_MIO11, output3, X, 619, 1, Z)," &
+        " 621 (BC_2, PS_MIO11, input, X)," &
+        " 622 (BC_2, *, controlr, 1)," &
+        " 623 (BC_2, PS_MIO12, output3, X, 622, 1, Z)," &
+        " 624 (BC_2, PS_MIO12, input, X)," &
+        " 625 (BC_2, *, controlr, 1)," &
+        " 626 (BC_2, PS_MIO13, output3, X, 625, 1, Z)," &
+        " 627 (BC_2, PS_MIO13, input, X)," &
+        " 628 (BC_2, *, controlr, 1)," &
+        " 629 (BC_2, PS_MIO14, output3, X, 628, 1, Z)," &
+        " 630 (BC_2, PS_MIO14, input, X)," &
+        " 631 (BC_2, *, controlr, 1)," &
+        " 632 (BC_2, PS_MIO15, output3, X, 631, 1, Z)," &
+        " 633 (BC_2, PS_MIO15, input, X)," &
+        " 634 (BC_2, *, internal, 1)," &
+        " 635 (BC_2, *, internal, X)," &
+        " 636 (BC_2, *, internal, 1)," & --PS_POR_B
+        " 637 (BC_2, *, internal, 1)," &
+        " 638 (BC_2, *, internal, X)," &
+        " 639 (BC_2, PS_CLK, input, X)," &
+        " 640 (BC_2, *, internal, 1)," & --  PS_MIO16.T
+        " 641 (BC_2, *, internal, X)," & --  PS_MIO16.O
+        " 642 (BC_2, *, internal, X)," & --  PS_MIO16.I
+        " 643 (BC_2, *, internal, 1)," & --  PS_MIO17.T
+        " 644 (BC_2, *, internal, X)," & --  PS_MIO17.O
+        " 645 (BC_2, *, internal, X)," & --  PS_MIO17.I
+        " 646 (BC_2, *, internal, 1)," & --  PS_MIO18.T
+        " 647 (BC_2, *, internal, X)," & --  PS_MIO18.O
+        " 648 (BC_2, *, internal, X)," & --  PS_MIO18.I
+        " 649 (BC_2, *, internal, 1)," & --  PS_MIO19.T
+        " 650 (BC_2, *, internal, X)," & --  PS_MIO19.O
+        " 651 (BC_2, *, internal, X)," & --  PS_MIO19.I
+        " 652 (BC_2, *, internal, 1)," & --  PS_MIO20.T
+        " 653 (BC_2, *, internal, X)," & --  PS_MIO20.O
+        " 654 (BC_2, *, internal, X)," & --  PS_MIO20.I
+        " 655 (BC_2, *, internal, 1)," & --  PS_MIO21.T
+        " 656 (BC_2, *, internal, X)," & --  PS_MIO21.O
+        " 657 (BC_2, *, internal, X)," & --  PS_MIO21.I
+        " 658 (BC_2, *, internal, 1)," & --  PS_MIO22.T
+        " 659 (BC_2, *, internal, X)," & --  PS_MIO22.O
+        " 660 (BC_2, *, internal, X)," & --  PS_MIO22.I
+        " 661 (BC_2, *, internal, 1)," & --  PS_MIO23.T
+        " 662 (BC_2, *, internal, X)," & --  PS_MIO23.O
+        " 663 (BC_2, *, internal, X)," & --  PS_MIO23.I
+        " 664 (BC_2, *, internal, 1)," & --  PS_MIO24.T
+        " 665 (BC_2, *, internal, X)," & --  PS_MIO24.O
+        " 666 (BC_2, *, internal, X)," & --  PS_MIO24.I
+        " 667 (BC_2, *, internal, 1)," & --  PS_MIO25.T
+        " 668 (BC_2, *, internal, X)," & --  PS_MIO25.O
+        " 669 (BC_2, *, internal, X)," & --  PS_MIO25.I
+        " 670 (BC_2, *, internal, 1)," & --  PS_MIO26.T
+        " 671 (BC_2, *, internal, X)," & --  PS_MIO26.O
+        " 672 (BC_2, *, internal, X)," & --  PS_MIO26.I
+        " 673 (BC_2, *, internal, 1)," & --  PS_MIO27.T
+        " 674 (BC_2, *, internal, X)," & --  PS_MIO27.O
+        " 675 (BC_2, *, internal, X)," & --  PS_MIO27.I
+        " 676 (BC_2, *, controlr, 1)," &
+        " 677 (BC_2, PS_MIO28, output3, X, 676, 1, Z)," &
+        " 678 (BC_2, PS_MIO28, input, X)," &
+        " 679 (BC_2, *, controlr, 1)," &
+        " 680 (BC_2, PS_MIO29, output3, X, 679, 1, Z)," &
+        " 681 (BC_2, PS_MIO29, input, X)," &
+        " 682 (BC_2, *, controlr, 1)," &
+        " 683 (BC_2, PS_MIO30, output3, X, 682, 1, Z)," &
+        " 684 (BC_2, PS_MIO30, input, X)," &
+        " 685 (BC_2, *, controlr, 1)," &
+        " 686 (BC_2, PS_MIO31, output3, X, 685, 1, Z)," &
+        " 687 (BC_2, PS_MIO31, input, X)," &
+        " 688 (BC_2, *, controlr, 1)," &
+        " 689 (BC_2, PS_MIO32, output3, X, 688, 1, Z)," &
+        " 690 (BC_2, PS_MIO32, input, X)," &
+        " 691 (BC_2, *, controlr, 1)," &
+        " 692 (BC_2, PS_MIO33, output3, X, 691, 1, Z)," &
+        " 693 (BC_2, PS_MIO33, input, X)," &
+        " 694 (BC_2, *, controlr, 1)," &
+        " 695 (BC_2, PS_MIO34, output3, X, 694, 1, Z)," &
+        " 696 (BC_2, PS_MIO34, input, X)," &
+        " 697 (BC_2, *, controlr, 1)," &
+        " 698 (BC_2, PS_MIO35, output3, X, 697, 1, Z)," &
+        " 699 (BC_2, PS_MIO35, input, X)," &
+        " 700 (BC_2, *, controlr, 1)," &
+        " 701 (BC_2, PS_MIO36, output3, X, 700, 1, Z)," &
+        " 702 (BC_2, PS_MIO36, input, X)," &
+        " 703 (BC_2, *, internal, 1)," &
+        " 704 (BC_2, *, internal, X)," &
+        " 705 (BC_2, *, internal, X)," & --  PS_MIO_VREF_501
+        " 706 (BC_2, *, controlr, 1)," &
+        " 707 (BC_2, PS_MIO37, output3, X, 706, 1, Z)," &
+        " 708 (BC_2, PS_MIO37, input, X)," &
+        " 709 (BC_2, *, controlr, 1)," &
+        " 710 (BC_2, PS_MIO38, output3, X, 709, 1, Z)," &
+        " 711 (BC_2, PS_MIO38, input, X)," &
+        " 712 (BC_2, *, controlr, 1)," &
+        " 713 (BC_2, PS_MIO39, output3, X, 712, 1, Z)," &
+        " 714 (BC_2, PS_MIO39, input, X)," &
+        " 715 (BC_2, *, internal, 1)," & --  PS_MIO40.T
+        " 716 (BC_2, *, internal, X)," & --  PS_MIO40.O
+        " 717 (BC_2, *, internal, X)," & --  PS_MIO40.I
+        " 718 (BC_2, *, internal, 1)," & --  PS_MIO41.T
+        " 719 (BC_2, *, internal, X)," & --  PS_MIO41.O
+        " 720 (BC_2, *, internal, X)," & --  PS_MIO41.I
+        " 721 (BC_2, *, internal, 1)," & --  PS_MIO42.T
+        " 722 (BC_2, *, internal, X)," & --  PS_MIO42.O
+        " 723 (BC_2, *, internal, X)," & --  PS_MIO42.I
+        " 724 (BC_2, *, internal, 1)," & --  PS_MIO43.T
+        " 725 (BC_2, *, internal, X)," & --  PS_MIO43.O
+        " 726 (BC_2, *, internal, X)," & --  PS_MIO43.I
+        " 727 (BC_2, *, internal, 1)," & --  PS_MIO44.T
+        " 728 (BC_2, *, internal, X)," & --  PS_MIO44.O
+        " 729 (BC_2, *, internal, X)," & --  PS_MIO44.I
+        " 730 (BC_2, *, internal, 1)," & --  PS_MIO45.T
+        " 731 (BC_2, *, internal, X)," & --  PS_MIO45.O
+        " 732 (BC_2, *, internal, X)," & --  PS_MIO45.I
+        " 733 (BC_2, *, internal, 1)," & --  PS_MIO46.T
+        " 734 (BC_2, *, internal, X)," & --  PS_MIO46.O
+        " 735 (BC_2, *, internal, X)," & --  PS_MIO46.I
+        " 736 (BC_2, *, internal, 1)," & --  PS_MIO47.T
+        " 737 (BC_2, *, internal, X)," & --  PS_MIO47.O
+        " 738 (BC_2, *, internal, X)," & --  PS_MIO47.I
+        " 739 (BC_2, *, controlr, 1)," &
+        " 740 (BC_2, PS_MIO48, output3, X, 739, 1, Z)," &
+        " 741 (BC_2, PS_MIO48, input, X)," &
+        " 742 (BC_2, *, controlr, 1)," &
+        " 743 (BC_2, PS_MIO49, output3, X, 742, 1, Z)," &
+        " 744 (BC_2, PS_MIO49, input, X)," &
+        " 745 (BC_2, *, internal, 1)," & --  PS_MIO50.T
+        " 746 (BC_2, *, internal, X)," & --  PS_MIO50.O
+        " 747 (BC_2, *, internal, X)," & --  PS_MIO50.I
+        " 748 (BC_2, *, internal, 1)," & --  PS_MIO51.T
+        " 749 (BC_2, *, internal, X)," & --  PS_MIO51.O
+        " 750 (BC_2, *, internal, X)," & --  PS_MIO51.I
+        " 751 (BC_2, *, controlr, 1)," &
+        " 752 (BC_2, PS_MIO52, output3, X, 751, 1, Z)," &
+        " 753 (BC_2, PS_MIO52, input, X)," &
+        " 754 (BC_2, *, controlr, 1)," &
+        " 755 (BC_2, PS_MIO53, output3, X, 754, 1, Z)," &
+        " 756 (BC_2, PS_MIO53, input, X)," &
+        " 757 (BC_2, *, internal, 1)," &
+        " 758 (BC_2, *, internal, X)," &
+        " 759 (BC_2, *, internal, 1)," & --PS_SRST_B
+        " 760 (BC_2, *, internal, X)," &
+        " 761 (BC_2, *, internal, X)," &
+        " 762 (BC_2, *, internal, X)," &
+        " 763 (BC_2, *, internal, X)," &
+        " 764 (BC_2, *, internal, X)," &
+        " 765 (BC_2, *, internal, X)," &
+        " 766 (BC_2, *, internal, X)," &
+        " 767 (BC_2, *, internal, X)," &
+        " 768 (BC_2, *, internal, X)," &
+        " 769 (BC_2, *, internal, X)";
+
+
+-- Advanced I/O Description
+
+attribute AIO_COMPONENT_CONFORMANCE of XC7Z007S_CLG225 : entity is
+        "STD_1149_6_2003";
+
+attribute AIO_EXTEST_Pulse_Execution of XC7Z007S_CLG225 : entity is
+        "Wait_Duration TCK 15";
+
+attribute AIO_EXTEST_Train_Execution of XC7Z007S_CLG225 : entity is
+        "train 30, maximum_time 120.0e-6";
+
+
+
+-- Design Warning Section
+
+attribute DESIGN_WARNING of XC7Z007S_CLG225 : entity is
+        "The Zynq-7000 AP SoC device contains two TAPs in series:" &
+                "the ARM DAP and the PL TAP. See the JTAG and DAP" &
+                "Subsystem chapter in the Xilinx UG585, Zynq AP SoC" &
+                "Technical Reference Manual. The Zynq BSDL file" &
+                "represents the PL TAP and the device boundary-register." &
+                "The ARM DAP (zynq7000_arm_dap.bsd) must be inserted" &
+                "before the Zynq device in the JTAG scan chain to correctly" &
+                "model the JTAG chain." &
+        "When no bitstream is loaded and GTPs are not instantiated," &
+                "the boundary-scan cells associated with GTPs will not" &
+                "capture correct state information.  To model the boundary-" &
+                "scan cell behavior correctly post-configuration, use" &
+                "BSDLanno to modify the BSDL file." &
+        "This BSDL file must be modified by the FPGA designer in order to" &
+                "reflect post-configuration behavior (if any)." &
+        "To avoid losing the current configuration, the boundary scan" &
+                "test vectors should keep the PROGRAM_B pin" &
+                "high.  If the PROGRAM_B pin goes low by any means," &
+                "the configuration will be cleared." &
+        "PROGRAM_B can only be captured, not updated." &
+                "The value at the pin is always used by the device." &
+        "In EXTEST, output and tristate values are not captured in the" &
+                "Capture-DR state - those register cells are unchanged." &
+        "Differential Serial IO pins do not support INTEST." &
+        "In INTEST, the pin input values are not captured in the" &
+                "Capture-DR state - those register cells are unchanged." &
+        "The output and tristate capture values are not valid until after" &
+                "the device is configured." &
+        "The tristate control value is not captured properly when" &
+                "GTS is activated." &
+        "To avoid changes to the internal JTAG chain routing, the boundary scan" &
+                 "test vectors should keep the PS_POR_B and PS_SRST_B pins high." &
+        "The IEEE Std 1149.6 EXTEST_PULSE and EXTEST_TRAIN instructions" &
+                "require a minimum TCK freq of 15 MHz and min temp of 0C." &
+        "NOCONNECT pins should not be connected to any supply" &
+                "or GND.  They should be left floating." &
+        "PS IOs do not support INTEST" &
+        "PS IOs do not support cfg_ts which is asserted for TSC instructions" &
+        "BSCAN is not available if the PS power supplies are not applied" &
+        "PS_POR_B can only be captured, not updated." &
+                "The value at the pin is always used by the device.";
+
+end XC7Z007S_CLG225;
+
