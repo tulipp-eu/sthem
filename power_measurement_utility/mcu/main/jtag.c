@@ -96,7 +96,7 @@ static uint32_t dpRead(uint16_t addr) {
 
 static void dpAbort(uint32_t abort) {
 #ifdef DUMP_PINS
-  printf("abort\n");
+  if(dumpPins) printf("abort\n");
 #endif
 
   uint8_t request_buf[8];
@@ -166,7 +166,7 @@ void axiWriteMem(uint64_t addr, uint32_t val) {
 void coreWriteReg(struct Core *core, uint16_t reg, uint32_t val) {
   uint32_t addr = core->baddr + 4*reg;
 #ifdef DUMP_PINS
-  printf("Write Reg %x = %x\n", (unsigned)addr, (unsigned)val);
+  if(dumpPins) printf("Write Reg %x = %x\n", (unsigned)addr, (unsigned)val);
 #endif
   apWrite(core->ap, AP_TAR, addr);
   dpWrite(AP_DRW, val);
@@ -177,7 +177,7 @@ uint32_t coreReadReg(struct Core *core, uint16_t reg) {
   apWrite(core->ap, AP_TAR, addr);
   uint32_t ret = dpRead(AP_DRW);
 #ifdef DUMP_PINS
-  printf("Read Reg %x = %x\n", (unsigned)addr, (unsigned)ret);
+  if(dumpPins) printf("Read Reg %x = %x\n", (unsigned)addr, (unsigned)ret);
 #endif
   return ret;
 }
@@ -527,7 +527,7 @@ void parseDebugEntry(unsigned apSel, uint32_t compBase) {
 
       numCores++;
 
-    } else if(((pidr0 & 0xff) == 0x7) && // found a Cortex A53
+    } else if(((pidr0 & 0xff) == 0x7) && // found a Cortex A57
              ((pidr1 & 0xff) == 0xbd) &&
              ((pidr2 & 0x0f) == 0xb) &&
              ((pidr4 & 0x0f) == 0x4)) {

@@ -65,5 +65,6 @@ extern uint64_t continuousCurrentAcc[7];
 extern int continuousSamplesSinceLast[7];
 extern int16_t continuousCurrentInstant[7];
 extern int16_t continuousCurrentAvg[7];
+extern bool dumpPins;
 
 #endif

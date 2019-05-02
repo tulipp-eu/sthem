@@ -31,16 +31,17 @@ static uint32_t initOk = false;
 
 #ifdef USE_FPGA_JTAG_CONTROLLER
 
-#define SPI_CMD_STATUS      0 // CMD/status - 0/status
-#define SPI_CMD_MAGIC       1 // CMD/status - 0/data
-#define SPI_CMD_JTAG_SEL    2 // CMD/status - sel/0
-#define SPI_CMD_WR_SEQ      3 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
-#define SPI_CMD_RDWR_SEQ    4 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
-#define SPI_CMD_GET_DATA    5 // CMD/status - (0/data)*
-#define SPI_CMD_STORE_SEQ   6 // CMD/status - size/0 size/0 (tdidata/0 tmsdata/0 readdata/0)*
-#define SPI_CMD_EXECUTE_SEQ 7 // CMD/status - 0/0
-#define SPI_CMD_JTAG_TEST   8 // CMD/status - 0/data
-#define SPI_CMD_OSC_TEST    9 // CMD/status - 0/data
+#define SPI_CMD_STATUS          0 // CMD/status - 0/status
+#define SPI_CMD_MAGIC           1 // CMD/status - 0/data
+#define SPI_CMD_JTAG_SEL        2 // CMD/status - sel/0
+#define SPI_CMD_WR_SEQ          3 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
+#define SPI_CMD_RDWR_SEQ        4 // CMD/status - size/0 - (tdidata/0 tmsdata/0)* 0/0
+#define SPI_CMD_GET_DATA        5 // CMD/status - (0/data)* (ff/data)
+#define SPI_CMD_STORE_SEQ       6 // CMD/status - size/0 (tdidata/0 tmsdata/0)* 0/0
+#define SPI_CMD_STORE_PROG      7 // CMD/status - size/0 (initpos/0 looppos/0 ackpos/0 endpos/0)* 0/0
+#define SPI_CMD_EXECUTE_SEQ     8 // CMD/status - 0/0
+#define SPI_CMD_JTAG_TEST       9 // CMD/status - 0/data
+#define SPI_CMD_OSC_TEST       10 // CMD/status - 0/data
 
 #define JTAG_EXT  0
 #define JTAG_INT  1
@@ -74,6 +75,7 @@ static inline uint8_t startCmd(uint8_t cmd) {
       case SPI_CMD_RDWR_SEQ:    printf("spi_command(`SPI_CMD_RDWR_SEQ, data);\n"); break;
       case SPI_CMD_GET_DATA:    printf("spi_command(`SPI_CMD_GET_DATA, data);\n"); break;
       case SPI_CMD_STORE_SEQ:   printf("spi_command(`SPI_CMD_STORE_SEQ, data);\n"); break;
+      case SPI_CMD_STORE_PROG:  printf("spi_command(`SPI_CMD_STORE_PROG, data);\n"); break;
       case SPI_CMD_EXECUTE_SEQ: printf("spi_command(`SPI_CMD_EXECUTE_SEQ, data);\n"); break;
       case SPI_CMD_JTAG_TEST:   printf("spi_command(`SPI_CMD_JTAG_TEST, data);\n"); break;
       case SPI_CMD_OSC_TEST:    printf("spi_command(`SPI_CMD_OSC_TEST, data);\n"); break;
@@ -168,6 +170,60 @@ void waitStatus() {
     
 ///////////////////////////////////////////////////////////////////////////////
 
+void storeSeq(uint16_t size, uint8_t *tdiData, uint8_t *tmsData) {
+  if(size > 2048) panic("Size\n");
+  if(size) {
+    size *= 2;
+    startCmd(SPI_CMD_STORE_SEQ);
+    transfer(size & 0xff);
+    transfer((size >> 8) & 0xff);
+
+    for(int i = 0; i < size; i++) {
+      transfer(*tdiData++);
+      transfer(*tmsData++);
+    }
+
+    transfer(0);
+    endCmd();
+  }
+
+  int bytes = size / 8;
+  if(size % 8) bytes++;
+  if(tdoData) free(tdoData);
+  tdoData = (uint8_t*)malloc(bytes);
+}
+
+void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPos, uint16_t *ackPos, uint16_t *endPos) {
+  if(size >= 64) panic("Stored program size is %d\n", size);
+  if(size) {
+    startCmd(SPI_CMD_STORE_PROG);
+    transfer(size);
+
+    for(int i = 0; i < size; i++) {
+      transfer(read[i]);
+      transfer(initPos[i] & 0xff);
+      transfer((initPos[i] >> 8) & 0xff);
+      transfer(loopPos[i] & 0xff);
+      transfer((loopPos[i] >> 8) & 0xff);
+      transfer(ackPos[i] & 0xff);
+      transfer((ackPos[i] >> 8) & 0xff);
+      transfer(endPos[i] & 0xff);
+      transfer((endPos[i] >> 8) & 0xff);
+    }
+
+    transfer(0);
+    endCmd();
+  }
+}
+
+void executeSeq(void) {
+  startCmd(SPI_CMD_EXECUTE_SEQ);
+  transfer(0);
+  endCmd();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
   if(size > MAX_SEQ_SIZE) panic("Size %d\n", size);
   if(size) {
@@ -183,38 +239,6 @@ void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
     transfer(0);
     endCmd();
   }
-}
-
-void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData) {
-  if(size > MAX_STORED_SEQ_SIZE) panic("Size %d\n", size);
-  if(size) {
-    unsigned bytes = size/8;
-    unsigned bits = size%8;
-
-    if(bits) bytes++;
-
-    startCmd(SPI_CMD_STORE_SEQ);
-    transfer(size & 0xff);
-    transfer((size >> 8) & 0xff);
-    for(int i = 0; i < bytes; i++) {
-      if(readData) transfer(*readData++);
-      else transfer(0);
-      transfer(*tdiData++);
-      transfer(*tmsData++);
-    }
-    endCmd();
-  }
-
-  int bytes = size / 8;
-  if(size % 8) bytes++;
-  if(tdoData) free(tdoData);
-  tdoData = (uint8_t*)malloc(bytes);
-}
-
-void executeSeq(void) {
-  startCmd(SPI_CMD_EXECUTE_SEQ);
-  transfer(0);
-  endCmd();
 }
 
 uint8_t *readSeq(unsigned size) {
@@ -296,7 +320,7 @@ static inline void writeBit(bool tdi, bool tms) {
   jtagPinWrite(false, tdi, tms);
   jtagPinWrite(true, tdi, tms);
 #ifdef DUMP_PINS
-  printf("  Actual: TMS: %d TDI: %d TDO: %d\n", tms, tdi, readBit());
+  if(dumpPins) printf("  Actual: TMS: %d TDI: %d TDO: %d\n", tms, tdi, readBit());
 #endif
 }
 

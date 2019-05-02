@@ -27,22 +27,39 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+bool dumpPins = false;
+
 static uint8_t recTdi[2048];
 static uint8_t recTms[2048];
 static uint8_t recRead[2048];
-static unsigned recSize;
+static unsigned seqSize;
+
+static uint8_t recReadFlag[64];
+static uint16_t recInitPos[64];
+static uint16_t recLoopPos[64];
+static uint16_t recAckPos[64];
+static uint16_t recEndPos[64];
+static unsigned progSize;
 
 static uint8_t *tdiPtr;
 static uint8_t *tmsPtr;
 static uint8_t *readPtr;
 
+static uint8_t *readFlagPtr;
+static uint16_t *initPosPtr;
+static uint16_t *loopPosPtr;
+static uint16_t *ackPosPtr;
+static uint16_t *endPosPtr;
+
 static unsigned fastBitsToRead;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static inline uint32_t extractWord(unsigned pos, uint8_t *buf) {
-  unsigned byte = pos / 8;
-  unsigned bit = pos % 8;
+static inline uint32_t extractWord(unsigned *pos, uint8_t *buf) {
+  unsigned byte = *pos / 8;
+  unsigned bit = *pos % 8;
+
+  *pos += 32;
 
   switch(bit) {
     case 0: return (buf[byte+3] << 24) | (buf[byte+2] << 16) | (buf[byte+1] << 8) | buf[byte];
@@ -58,9 +75,11 @@ static inline uint32_t extractWord(unsigned pos, uint8_t *buf) {
   return 0;
 }
 
-static inline uint8_t extractAck(unsigned pos, uint8_t *buf) {
-  unsigned byte = pos / 8;
-  unsigned bit = pos % 8;
+static inline uint8_t extractAck(unsigned *pos, uint8_t *buf) {
+  unsigned byte = *pos / 8;
+  unsigned bit = *pos % 8;
+
+  *pos += 3;
 
   switch(bit) {
     case 0:
@@ -80,25 +99,37 @@ static inline uint8_t extractAck(unsigned pos, uint8_t *buf) {
 
 #ifdef DUMP_PINS
 static void dumpRec(void) {
-  unsigned bytes = recSize / 8;
-  if(recSize % 8) bytes++;
+  if(dumpPins) {
+    unsigned bytes = seqSize / 8;
+    if(seqSize % 8) bytes++;
 
-  unsigned n = recSize;
+    unsigned n = seqSize;
 
-  for(int i = 0; i < bytes; i++) {
-    for(int j = 0; j < 8 && n; j++) {
-      printf("TMS: %d TDI: %d Read: %d\n", (recTms[i] >> j) & 1, (recTdi[i] >> j) & 1, (recRead[i] >> j) & 1);
-      n--;
+    for(int i = 0; i < bytes; i++) {
+      for(int j = 0; j < 8 && n; j++) {
+        printf("TMS: %d TDI: %d Read: %d\n", (recTms[i] >> j) & 1, (recTdi[i] >> j) & 1, (recRead[i] >> j) & 1);
+        n--;
+      }
+    }
+
+    for(int i = 0; i < progSize; i++) {
+      printf("Prog (%d) %d %d %d %d\n", recReadFlag[i], recInitPos[i], recLoopPos[i], recAckPos[i], recEndPos[i]);
     }
   }
 }
 #endif
 
 static void startRec(void) {
-  recSize = 0;
+  seqSize = 0;
+  progSize = 0;
   tdiPtr = recTdi;
   tmsPtr = recTms;
   readPtr = recRead;
+  readFlagPtr = recReadFlag;
+  initPosPtr = recInitPos;
+  loopPosPtr = recLoopPos;
+  ackPosPtr = recAckPos;
+  endPosPtr = recEndPos;
   *tdiPtr = 0;
   *tmsPtr = 0;
   *readPtr = 0;
@@ -108,27 +139,33 @@ static void sendRec(void) {
 #ifdef DUMP_PINS
   dumpRec();
 #endif
-  writeSeq(recSize, recTdi, recTms);
-}
-
-static void storeRec(void) {
-#ifdef DUMP_PINS
-  dumpRec();
-#endif
-  storeSeq(recSize, recTdi, recTms, recRead);
+  writeSeq(seqSize, recTdi, recTms);
 }
 
 static void readWriteRec(uint8_t *response_buf) {
 #ifdef DUMP_PINS
   dumpRec();
 #endif
-  readWriteSeq(recSize, recTdi, recTms, response_buf);
+  readWriteSeq(seqSize, recTdi, recTms, response_buf);
+}
+
+static void storeRec(void) {
+#ifdef DUMP_PINS
+  dumpRec();
+#endif
+  for(int i = 0; i < progSize; i++) {
+    printf("Prog (%d) %d %d %d %d\n", recReadFlag[i], recInitPos[i], recLoopPos[i], recAckPos[i], recEndPos[i]);
+  }
+  unsigned words = seqSize / 8;
+  if(seqSize % 8) words++;
+  storeSeq(words, recTdi, recTms);
+  storeProg(progSize, recReadFlag, recInitPos, recLoopPos, recAckPos, recEndPos);
 }
 
 static void recordSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData) {
   for(int i = 0; i < size; i++) {
     unsigned sourceBit = i % 8;
-    unsigned targetBit = recSize % 8;
+    unsigned targetBit = seqSize % 8;
 
     if(*tdiData & (1 << sourceBit)) *tdiPtr |= (1 << targetBit);
     if(*tmsData & (1 << sourceBit)) *tmsPtr |= (1 << targetBit);
@@ -150,8 +187,17 @@ static void recordSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t
       *readPtr = 0;
     }
 
-    recSize++;
+    seqSize++;
   }
+}
+
+static void recordCommand(uint8_t read, uint16_t initPos, uint16_t loopPos, uint16_t ackPos, uint16_t endPos) {
+  *readFlagPtr++ = read;
+  *initPosPtr++ = initPos;
+  *loopPosPtr++ = loopPos;
+  *ackPosPtr++ = ackPos;
+  *endPosPtr++ = endPos;
+  progSize++;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -161,14 +207,16 @@ static inline void gotoShiftIr(void) {
   uint8_t tdi = 0;
 
 #ifdef DUMP_PINS
-  printf("Goto shift IR\n");
+  if(dumpPins) printf("Goto shift IR\n");
 #endif
 
   recordSeq(4, &tdi, &tms, NULL);
 
 #ifdef DUMP_PINS
-  sendRec();
-  startRec();
+  if(dumpPins){
+    sendRec();
+    startRec();
+  }
 #endif
 }
 
@@ -179,9 +227,11 @@ static inline void exitIrToShiftDr(void) {
   recordSeq(4, &tdi, &tms, NULL);
 
 #ifdef DUMP_PINS
-  printf("Exit IR to shift DR\n");
-  sendRec();
-  startRec();
+  if(dumpPins) {
+    printf("Exit IR to shift DR\n");
+    sendRec();
+    startRec();
+  }
 #endif
 }
 
@@ -192,9 +242,11 @@ static inline void gotoShiftDr(void) {
   recordSeq(3, &tdi, &tms, NULL);
 
 #ifdef DUMP_PINS
-  printf("Goto shift DR\n");
-  sendRec();
-  startRec();
+  if(dumpPins) {
+    printf("Goto shift DR\n");
+    sendRec();
+    startRec();
+  }
 #endif
 }
 
@@ -205,9 +257,11 @@ static inline void exitIrToIdle(void) {
   recordSeq(2, &tdi, &tms, NULL);
 
 #ifdef DUMP_PINS
-  printf("Exit IR to idle\n");
-  sendRec();
-  startRec();
+  if(dumpPins) {
+    printf("Exit IR to idle\n");
+    sendRec();
+    startRec();
+  }
 #endif
 }
 
@@ -218,15 +272,17 @@ static inline void exitDrToIdle(void) {
   recordSeq(2, &tdi, &tms, NULL);
 
 #ifdef DUMP_PINS
-  printf("Exit DR to idle\n");
-  sendRec();
-  startRec();
+  if(dumpPins) {
+    printf("Exit DR to idle\n");
+    sendRec();
+    startRec();
+  }
 #endif
 }
 
-static void writeIrInt(uint32_t idcode, uint32_t ir) {
-  static uint32_t lastIr = -1;
+static uint32_t lastIr = -1;
 
+static void writeIrInt(uint32_t idcode, uint32_t ir) {
   if(ir != lastIr) {
     lastIr = ir;
     gotoShiftIr();
@@ -243,9 +299,11 @@ static void writeIrInt(uint32_t idcode, uint32_t ir) {
         recordSeq(dev->irlen, &tdi, &tms, NULL);
 
 #ifdef DUMP_PINS
-        printf("Write IR %d\n", i);
-        sendRec();
-        startRec();
+        if(dumpPins) {
+          printf("Write IR %d\n", i);
+          sendRec();
+          startRec();
+        }
 #endif
       } else {
         uint8_t tms[4] = {0, 0, 0, 0};
@@ -261,9 +319,11 @@ static void writeIrInt(uint32_t idcode, uint32_t ir) {
         recordSeq(dev->irlen, tdi, tms, NULL);
 
 #ifdef DUMP_PINS
-        printf("Write ones %d\n", i);
-        sendRec();
-        startRec();
+        if(dumpPins) {
+          printf("Write ones %d\n", i);
+          sendRec();
+          startRec();
+        }
 #endif
       }
     }
@@ -295,9 +355,11 @@ static unsigned readWriteDrPre(uint32_t idcode) {
     recordSeq(devNum, tdi, tms, NULL);
 
 #ifdef DUMP_PINS
-    printf("prescan\n");
-    sendRec();
-    startRec();
+    if(dumpPins) {
+      printf("prescan\n");
+      sendRec();
+      startRec();
+    }
 #endif
   }
 
@@ -320,9 +382,11 @@ static void readWriteDrPost(unsigned postscan) {
     recordSeq(postscan, tdi, tms, NULL);
 
 #ifdef DUMP_PINS
-    printf("postscan\n");
-    sendRec();
-    startRec();
+    if(dumpPins) {
+      printf("postscan\n");
+      sendRec();
+      startRec();
+    }
 #endif
   }
 
@@ -333,34 +397,40 @@ static void dpLowAccessFast(uint8_t RnW, uint16_t addr, uint32_t value, bool dis
   bool apndp = addr & APNDP;
   addr &= 0xff;
 
-  int readBits = 3;
-  if(RnW) readBits += 32;
+  uint16_t initPos = seqSize;
 
   writeIrInt(dpIdcode, apndp ? JTAG_IR_APACC : JTAG_IR_DPACC);
 
+  uint16_t loopPos = seqSize;
+
   unsigned postscan = readWriteDrPre(dpIdcode);
+
+  uint16_t ackPos = seqSize;
 
   { // addr + readbit
     uint8_t tdi = ((addr >> 1) & 0x06) | (RnW?1:0);
     uint8_t tms = 0;
-    uint8_t read = 0x07;
-    recordSeq(3, &tdi, &tms, &read);
+    recordSeq(3, &tdi, &tms, NULL);
+    fastBitsToRead += 3;
   }
 
   { // value
     uint8_t tms[4];
-    uint8_t read[4];
     memset(tms, 0, 4);
-    if(!discard) memset(read, 0xff, 4);
-    else memset(read, 0, 4);
 
     if(!postscan) {
       tms[3] = 0x80;
     }
-    recordSeq(32, (uint8_t*)&value, tms, read);
+    recordSeq(32, (uint8_t*)&value, tms, NULL);
+
+    if(!discard) fastBitsToRead += 32;
   }
 
   readWriteDrPost(postscan);
+
+  uint16_t endPos = seqSize;
+
+  recordCommand(!discard, initPos, loopPos, ackPos, endPos);
 }
 
 static void dpReadFast(uint16_t addr) {
@@ -387,7 +457,7 @@ static void coreReadRegFast(struct Core core, uint16_t reg) {
 
 void writeIr(uint32_t idcode, uint32_t ir) {
 #ifdef DUMP_PINS
-  printf("Write IR %x\n", (unsigned)ir);
+  if(dumpPins) printf("Write IR %x\n", (unsigned)ir);
 #endif
   startRec();
   writeIrInt(idcode, ir);
@@ -396,7 +466,7 @@ void writeIr(uint32_t idcode, uint32_t ir) {
 
 void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
 #ifdef DUMP_PINS
-  printf("Read/Write DR\n");
+  if(dumpPins) printf("Read/Write DR\n");
 #endif
   startRec();
   int postscan = readWriteDrPre(idcode);
@@ -405,7 +475,7 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
   startRec();
 
 #ifdef DUMP_PINS
-  printf("scan\n");
+  if(dumpPins) printf("scan\n");
 #endif
 
   uint8_t tms[MAX_SEQ_SIZE];
@@ -414,7 +484,7 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
 
   if(!postscan) {
 #ifdef DUMP_PINS
-    printf("no postscan\n");
+    if(dumpPins) printf("no postscan\n");
 #endif
     int byte = (size-1) / 8;
     int bit = (size-1) % 8;
@@ -432,7 +502,7 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
 
 uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
 #ifdef DUMP_PINS
-  printf("Low Access\n");
+  if(dumpPins) printf("Low Access\n");
 #endif
 
   startRec();
@@ -495,12 +565,14 @@ uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
     panic("Error: Invalid ACK (%x != JTAG_ACK_OK)\n", ack);
   }
 
-  return extractWord(0, response_buf);
+  unsigned pos = 0;
+
+  return extractWord(&pos, response_buf);
 }
 
 int getNumDevices(void) {
 #ifdef DUMP_PINS
-  printf("Get Num Devices\n");
+  if(dumpPins) printf("Get Num Devices\n");
 #endif
 
   uint8_t tdi[MAX_JTAG_DEVICES/8];
@@ -516,9 +588,11 @@ int getNumDevices(void) {
   recordSeq(MAX_JTAG_DEVICES, tdi, tms, NULL);
 
 #ifdef DUMP_PINS
-  printf("send ones\n");
-  sendRec();
-  startRec();
+  if(dumpPins) {
+    printf("send ones\n");
+    sendRec();
+    startRec();
+  }
 #endif
 
   // flush DR with 0
@@ -528,7 +602,7 @@ int getNumDevices(void) {
   recordSeq(MAX_JTAG_DEVICES, tdi, tms, NULL);
 
 #ifdef DUMP_PINS
-  printf("flush with 0\n");
+  if(dumpPins) printf("flush with 0\n");
 #endif
 
   sendRec();
@@ -542,8 +616,10 @@ int getNumDevices(void) {
     uint8_t tdo;
 
 #ifdef DUMP_PINS
-    printf("test with 1\n");
-    printf("TMS: %d TDI: %d Read: %d\n", 0, 1, 1);
+    if(dumpPins) {
+      printf("test with 1\n");
+      printf("TMS: %d TDI: %d Read: %d\n", 0, 1, 1);
+    }
 #endif
 
     readWriteSeq(1, &tdi, &tms, &tdo);
@@ -557,7 +633,7 @@ int getNumDevices(void) {
 
 void getIdCodes(uint32_t *idcodes) {
 #ifdef DUMP_PINS
-  printf("Get ID Codes\n");
+  if(dumpPins) printf("Get ID Codes\n");
 #endif
 
   startRec();
@@ -570,15 +646,18 @@ void getIdCodes(uint32_t *idcodes) {
     uint8_t tdo[4];
 
 #ifdef DUMP_PINS
-    printf("read id code\n");
-    for(int i = 0; i < 32; i++) {
-      printf("TMS: %d TDI: %d Read: %d\n", 0, 0, 1);
+    if(dumpPins) {printf("read id code\n");
+      for(int i = 0; i < 32; i++) {
+        printf("TMS: %d TDI: %d Read: %d\n", 0, 0, 1);
+      }
     }
 #endif
 
     readWriteSeq(32, tdi, tms, tdo);
 
-    *idcodes++ = extractWord(0, tdo);
+    unsigned pos = 0;
+
+    *idcodes++ = extractWord(&pos, tdo);
   }
 
   gotoResetThenIdle();
@@ -591,14 +670,16 @@ void gotoResetThenIdle(void) {
   writeSeq(6, &tdi, &tms);
 }
 
-#if 1
+#if 0
 
 void coreReadPcsrInit(void) {
 }
 
 bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
   for(unsigned i = 0; (i < numCores) && (i < MAX_CORES); i++) {
-    pcs[i] = coreReadPcsr(&cores[i]);
+    if(cores[i].enabled) {
+      pcs[i] = coreReadPcsr(&cores[i]);
+    }
   }
 
   if(cores[0].type == ARMV8A) {
@@ -617,26 +698,41 @@ void coreReadPcsrInit(void) {
 
   fastBitsToRead = 0;
 
+  lastIr = -1;
+
   for(int i = 0; i < numCores; i++) {
     if(cores[i].type == ARMV7A) {
       coreReadRegFast(cores[i], ARMV7A_PCSR);
-      fastBitsToRead += 44;
 
     } else if(cores[0].type == ARMV8A) {
       if(cores[i].enabled) {
         coreReadRegFast(cores[i], ARMV8A_PCSR_H);
         coreReadRegFast(cores[i], ARMV8A_PCSR_L);
-        fastBitsToRead += 88;
       }
     }
   }
 
   if(cores[stopCore].type == ARMV8A) {
     coreReadRegFast(cores[stopCore], ARMV8A_PRSR);
-    fastBitsToRead += 44;
   }
 
+  //outputSpiCommands = true;
   storeRec();
+  //outputSpiCommands = false;
+}
+
+bool coreParseReg(uint32_t *value, uint8_t *buf, unsigned *pos) {
+  uint8_t ack0 = extractAck(pos, buf);
+  uint8_t ack1 = extractAck(pos, buf);
+  uint8_t ack2 = extractAck(pos, buf);
+  *value = extractWord(pos, buf);
+  uint8_t ack3 = extractAck(pos, buf);
+
+  return
+    (ack0 == JTAG_ACK_OK) &&
+    (ack1 == JTAG_ACK_OK) &&
+    (ack2 == JTAG_ACK_OK) &&
+    (ack3 == JTAG_ACK_OK);
 }
 
 bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
@@ -645,6 +741,8 @@ bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
 
   executeSeq();
 
+  unsigned pos = 0;
+
   buf = readSeq(fastBitsToRead);
 
   unsigned core = 0;
@@ -652,17 +750,9 @@ bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
   for(unsigned i = 0; i < numCores; i++) {
     if(cores[i].enabled) {
       if(cores[i].type == ARMV7A) {
-        uint8_t ack0 = extractAck(core*44 + 0, buf);
-        uint8_t ack1 = extractAck(core*44 + 3, buf);
-        uint8_t ack2 = extractAck(core*44 + 6, buf);
-        uint8_t ack3 = extractAck(core*44 + 9, buf);
+        uint32_t dbgpcsr;
 
-        if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
-          printf("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
-          return false;
-        }
-
-        uint32_t dbgpcsr = extractWord(core*44 + 12, buf);
+        if(!coreParseReg(&dbgpcsr, buf, &pos)) panic("Error reading register (fast)\n");
 
         if(i < MAX_CORES) {
           if(dbgpcsr == 0xffffffff) {
@@ -671,25 +761,12 @@ bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
             pcs[i] = calcOffset(dbgpcsr);
           }
         }
+      } else if(cores[0].type == ARMV8A) {
+        uint32_t dbgpcsrHigh;
+        uint32_t dbgpcsrLow;
 
-      } else if(cores[i].type == ARMV8A) {
-        uint8_t ack0 = extractAck(core*88 + 0, buf);
-        uint8_t ack1 = extractAck(core*88 + 3, buf);
-        uint8_t ack2 = extractAck(core*88 + 6, buf);
-        uint8_t ack3 = extractAck(core*88 + 9, buf);
-        uint8_t ack4 = extractAck(core*88 + 44, buf);
-        uint8_t ack5 = extractAck(core*88 + 47, buf);
-        uint8_t ack6 = extractAck(core*88 + 50, buf);
-        uint8_t ack7 = extractAck(core*88 + 53, buf);
-
-        if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK) ||
-           (ack4 != JTAG_ACK_OK) || (ack5 != JTAG_ACK_OK) || (ack6 != JTAG_ACK_OK) || (ack7 != JTAG_ACK_OK)) {
-          printf("Invalid ACK %x %x %x %x %x %x %x %x\n", ack0, ack1, ack2, ack3, ack4, ack5, ack6, ack7);
-          return false;
-        }
-
-        uint32_t dbgpcsrHigh = extractWord(core*88 + 12, buf);
-        uint32_t dbgpcsrLow = extractWord(core*88 + 56, buf);
+        if(!coreParseReg(&dbgpcsrHigh, buf, &pos)) panic("Error reading register (fast)\n");
+        if(!coreParseReg(&dbgpcsrLow, buf, &pos)) panic("Error reading register (fast)\n");
 
         uint64_t dbgpcsr = ((uint64_t)dbgpcsrHigh << 32) | dbgpcsrLow;
 
@@ -712,16 +789,10 @@ bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
   }
 
   if(cores[stopCore].type == ARMV8A) {
-    uint8_t ack0 = extractAck(core*88 + 0, buf);
-    uint8_t ack1 = extractAck(core*88 + 3, buf);
-    uint8_t ack2 = extractAck(core*88 + 6, buf);
-    uint8_t ack3 = extractAck(core*88 + 9, buf);
+    uint32_t prsr;
 
-    if((ack0 != JTAG_ACK_OK) || (ack1 != JTAG_ACK_OK) || (ack2 != JTAG_ACK_OK) || (ack3 != JTAG_ACK_OK)) {
-      panic("Invalid ACK %x %x %x %x\n", ack0, ack1, ack2, ack3);
-    }
+    if(!coreParseReg(&prsr, buf, &pos)) panic("Error reading register (fast)\n");
 
-    uint32_t prsr = extractWord(core*88 + 12, buf);
     *halted = prsr & (1 << 4);
 
   } else if(cores[stopCore].type == ARMV7A) {

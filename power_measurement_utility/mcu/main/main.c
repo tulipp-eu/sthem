@@ -117,13 +117,31 @@ int main(void) {
 
     memset(devices, 0, sizeof(devices));
 
-    devices[0].idcode = 0x5ba00477;
+    devices[0].idcode = 0x4ba00477;
     devices[0].irlen = 4;
+
+    devices[1].idcode = 0x1372c093;
+    devices[1].irlen = 6;
+
+    devices[2].idcode = 0x5ba00477;
+    devices[2].irlen = 4;
+
+    devices[3].idcode = 0x14710093;
+    devices[3].irlen = 12;
+
+    devices[4].idcode = 0x04721093;
+    devices[4].irlen = 12;
+
+    devices[5].idcode = 0x28e20126;
+    devices[5].irlen = 12;
 
     jtagInt();
     jtagInitCores(devices);
 
+    
+ 
     while(1) {
+    //{
       uint64_t pc[4];
       bool halted;
 
@@ -256,6 +274,11 @@ int main(void) {
       __enable_irq();
     }
   } 
+}
+
+void wait(unsigned cycles) {
+  DWT->CYCCNT = 0;
+  while(DWT->CYCCNT < cycles);
 }
 
 int64_t calculateTime() {
