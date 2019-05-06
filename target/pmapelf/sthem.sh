@@ -14,7 +14,7 @@ PASS=%pass%
 
 TARGET_DIR="/tmp/sthem"
 
-WRAPPER_ARGS="--offset=$TARGET_DIR/offset --vmap=$TARGET_DIR/vmmap --pid=$TARGET_DIR/pidcollision --time=$DELAY"
+WRAPPER_ARGS="--offset=$TARGET_DIR/offset --vmmap=$TARGET_DIR/vmmap --pid=$TARGET_DIR/pidcollision --time=$DELAY"
 
 if [ $PASS -eq 0 ]; then
 
@@ -68,7 +68,7 @@ done
   exit 1
 }
 echo ready!
-disown -a -h" || exit 1
+disown || true" || exit 1
 
     scp $TARGET":"$TARGET_DIR"/offset" ./offset || exit 1
 
