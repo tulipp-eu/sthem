@@ -33,7 +33,7 @@ freq = 1 / sampleTime
 
 volts = 1 if (profile['volts'] == 0) else profile['volts']
 
-# profile['aggregatedProfile'][addr] = [samples, current, function, file, line]
+# profile['aggregatedProfile'][addr] = [samples, current, binary, function, file, line]
 
 # aggmap[function] = [ current, time, function ]
 
@@ -52,10 +52,12 @@ for sample in profile['aggregatedProfile']:
             aggmap[sample[3]] = [sample[1] * sampleTime, sample[0] * sampleTime, sample[3]]
 
 
-values = numpy.array(sorted(aggmap.values()), dtype=object)
-metrics = numpy.array(values[:, 0:1], dtype=float).flatten() * volts
-times = numpy.array(values[:, 1:2], dtype=float).flatten()
-functions = [profile['functions'][x] for x in numpy.array(values[:, 2:3].flatten(), dtype=int)]
+values = numpy.array(list(aggmap.values()), dtype=object)
+values = values[values[:, 0].argsort()]
+metrics = numpy.array(values[:, 0], dtype=float) * volts
+
+times = numpy.array(values[:, 1], dtype=float)
+functions = [profile['functions'][x] for x in numpy.array(values[:, 2], dtype=int)]
 labelUnit = "C" if profile['volts'] == 0 else "J"
 labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if profile['volts'] == 0 else f"{x:.4f} s, {y/x:.2f} W, {y:.2f} {labelUnit}" for x, y in zip(times, metrics)]
 
@@ -68,7 +70,7 @@ fig = {
         text=labels,
         textposition='auto',
         orientation='h',
-        hoverinfo="x"
+        hoverinfo="x",
     )],
     "layout": go.Layout(
         title=go.layout.Title(

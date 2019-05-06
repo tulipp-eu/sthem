@@ -65,9 +65,9 @@ def fetchPCInfo(pc):
         srcdemangled = label_unknown
 
         if (srcfunction != label_unknown):
-            cppfilt = subprocess.run(f"{cross_compile}c++filt -p -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
+            cppfilt = subprocess.run(f"{cross_compile}c++filt -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
             cppfilt.check_returncode()
-            srcdemangled = cppfilt.stdout.decode('utf-8')
+            srcdemangled = cppfilt.stdout.decode('utf-8').split("\n")[0]
 
         if elf not in profile['binaries']:
             profile['binaries'].append(elf)
