@@ -24,6 +24,7 @@ profile = {
     'target': label_unknown,
     'binaries': [label_unknown],
     'functions': [label_unknown],
+    'functions_mangled': [label_unknown],
     'files': [label_unknown],
     'fullProfile': [],
     'aggregatedProfile': {label_unknown: [0, 0, 0, 0, 0, 0]},
@@ -55,23 +56,30 @@ def fetchPCInfo(pc):
             break
 
     if found:
-        addr2line = subprocess.run(f"{cross_compile}addr2line -C -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
+        addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
         addr2line.check_returncode()
         result = addr2line.stdout.decode('utf-8').split("\n")
         srcfunction = result[1].replace('??', label_unknown)
         srcfile = result[2].split(':')[0].replace('??', label_unknown)
         srcline = int(result[2].split(':')[1].split(' ')[0].replace('?', '0'))
+        srcdemangled = label_unknown
+
+        if (srcfunction != label_unknown):
+            cppfilt = subprocess.run(f"{cross_compile}c++filt -p -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
+            cppfilt.check_returncode()
+            srcdemangled = cppfilt.stdout.decode('utf-8')
 
         if elf not in profile['binaries']:
             profile['binaries'].append(elf)
-        if srcfunction not in profile['functions']:
-            profile['functions'].append(srcfunction)
+        if srcfunction not in profile['functions_mangled']:
+            profile['functions_mangled'].append(srcfunction)
+            profile['functions'].append(srcdemangled)
         if srcfile not in profile['files']:
             profile['files'].append(srcfile)
 
         result = [
             profile['binaries'].index(elf),
-            profile['functions'].index(srcfunction),
+            profile['functions_mangled'].index(srcfunction),
             profile['files'].index(srcfile),
             srcline
         ]

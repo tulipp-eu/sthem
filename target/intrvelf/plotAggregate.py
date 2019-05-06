@@ -89,11 +89,11 @@ fig = {
         yaxis=go.layout.YAxis(
             tickfont=dict(
                 family='monospace',
-                size=12,
+                size=11,
                 color='black'
             )
         ),
-        # margin=go.layout.Margin(l=7.5 * numpy.max([len(x) for x in functions]))
+        margin=go.layout.Margin(l=min(500, 6.2 * numpy.max([len(x) for x in functions])))
     )
 }
 

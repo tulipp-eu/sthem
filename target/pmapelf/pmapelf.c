@@ -52,6 +52,24 @@ void freePIDList(struct pidList list) {
     }
 }
 
+bool collision(pid_t const targetPid ,struct VMMaps const targetMap, pid_t *whom) {
+    struct pidList list = getPIDList();
+    for (unsigned int i = 0; i < list.count; i++) {
+        if (targetPid == list.pids[i]) continue;
+        struct VMMaps checkMap = getProcessVMMaps(list.pids[i], 0);
+        if (VMMapCollision(targetMap, checkMap)) {
+            *whom = list.pids[i];
+            freeVMMaps(checkMap);
+            freeVMMaps(targetMap);
+            freePIDList(list);
+            return true;
+        }
+        freeVMMaps(checkMap);
+    }
+    freePIDList(list);
+    return false;
+}
+
 
 void help(char const opt, char const *optarg) {
     FILE *out = stdout; 
@@ -72,8 +90,9 @@ void help(char const opt, char const *optarg) {
     fprintf(out, "  -k, --key                 continue with keypress\n");
     fprintf(out, "  -t, --time=<milliseconds> continue after time\n");
     fprintf(out, "  -c, --collision           check on colissions\n");
+    fprintf(out, "  -p, --pid=<file>          write pid of colliding process to file\n");
     fprintf(out, "\n");
-    fprintf(out, "Example: pmapelf -o /tmp/map -c -k -- stress-ng --cpu 4\n");
+    fprintf(out, "Example: pmapelf -o /tmp/offset -v /tmp/vmap -c -k -- stress-ng --cpu 4\n");
 }
 
 int main(int const argc, char **argv) {
@@ -81,6 +100,7 @@ int main(int const argc, char **argv) {
     FILE *vmmapout = stdout; 
     char *vmmapFilename = NULL;
     char *offsetFilename = NULL;
+    char *pidFilename = NULL;
     char **argsStart = NULL;
     bool keyPress = false;
     unsigned long waitTime = 0;
@@ -92,6 +112,7 @@ int main(int const argc, char **argv) {
         {"key",       no_argument, 0, 'k'},
         {"collision", no_argument, 0, 'c'},
         {"deattach",  no_argument, 0, 'd'},
+        {"pid",       required_argument, 0, 'p'},
         {"offset",    required_argument, 0, 'o'},
         {"vmmap",     required_argument, 0, 'v'},
         {"time",      required_argument, 0, 't'},
@@ -105,7 +126,7 @@ int main(int const argc, char **argv) {
         int option_index = 0;
         size_t len = 0;
         
-        c = getopt_long (argc, argv, "dkchv:o:t:", long_options, &option_index);
+        c = getopt_long (argc, argv, "dkchv:o:t:p:", long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -122,6 +143,20 @@ int main(int const argc, char **argv) {
                     help(c, optarg);
                     return 1;
                 }
+                break;
+            case 'p':
+                len = strlen(optarg);
+                if (strlen(optarg) == 0) {
+                    help(c ,optarg);
+                    return 1;
+                }
+                pidFilename = (char *) malloc(len + 1);
+                if (pidFilename == NULL) {
+                    fprintf(stderr, "Memory allocation of %ld bytes failed!\n", len);
+                    return 1;
+                }
+                memset(pidFilename, 0, len + 1);
+                strncpy(pidFilename, optarg, len);
                 break;
             case 'v':
                 len = strlen(optarg);
@@ -166,7 +201,7 @@ int main(int const argc, char **argv) {
     }
 
 
-    for (unsigned int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--") == 0 && (i + 1) < argc) {
             argsStart = &argv[i + 1];
         }
@@ -232,6 +267,23 @@ int main(int const argc, char **argv) {
             ret = 1; goto exitWithTarget;
         }
 
+        if (collisionDetection) {
+            pid_t whom;
+            if (collision(targetPid, targetMap, &whom)) {
+                if (pidFilename != NULL) {
+                    FILE *pidout = fopen(pidFilename, "w+");
+                    if (pidout == NULL) {
+                        fprintf(stderr, "ERROR: Could not open %s for writing!\n", pidFilename);
+                        ret = 1; goto exitWithTarget;
+                    }
+                    fprintf(pidout, "%i", whom);
+                    fclose(pidout);
+                }
+                fprintf(stderr, "ERROR: current virtual memory mapping collides with pid %d\n", whom);
+                ret = 1; goto exitWithTarget;
+            }
+        }
+
         { //Output Offset
             if (offsetFilename != NULL) {
                 offsetout = fopen(offsetFilename, "w+");
@@ -247,24 +299,7 @@ int main(int const argc, char **argv) {
                 fclose(offsetout);
             }
         }
-        
-        if (collisionDetection) {
-            struct pidList list = getPIDList();
-            for (unsigned int i = 0; i < list.count; i++) {
-                if (targetPid == list.pids[i]) continue;
-                struct VMMaps checkMap = getProcessVMMaps(list.pids[i], 0);
-                if (VMMapCollision(targetMap, checkMap)) {
-                    fprintf(stderr, "ERROR: current virtual memory mapping collides with pid %d\n", list.pids[i]);
-                    freeVMMaps(checkMap);
-                    freeVMMaps(targetMap);
-                    freePIDList(list);
-                    ret = 1; goto exitWithTarget;
-                }
-                freeVMMaps(checkMap);
-            }
-            freePIDList(list);
-        }
-        
+       
         freeVMMaps(targetMap);
 
         if (keyPress <= 0 && waitTime > 0) {
@@ -298,7 +333,25 @@ int main(int const argc, char **argv) {
                 fprintf(stderr, "ERROR: could not find final process memory mapping!\n");
                 ret = 1; goto exitWithTarget;
             }
-            
+
+            if (collisionDetection) {
+                pid_t whom;
+                if (collision(targetPid, targetMap, &whom)) {
+                    if (pidFilename != NULL) {
+                        FILE *pidout = fopen(pidFilename, "w+");
+                        if (pidout == NULL) {
+                            fprintf(stderr, "ERROR: Could not open %s for writing!\n", pidFilename);
+                            ret = 1; goto exitWithTarget;
+                        }
+                        fprintf(pidout, "%i", whom);
+                        fclose(pidout);
+                    }
+                    fprintf(stderr, "ERROR: virtual memory mapping collided with pid %d\n", whom);
+                    ret = 1; goto exitWithTarget;
+                }
+            }
+           
+
             { // VMMap Output
                 if (vmmapFilename != NULL) {
                     vmmapout = fopen(vmmapFilename, "w+");
