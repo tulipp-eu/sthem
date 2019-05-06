@@ -93,7 +93,7 @@ fig = {
                 color='black'
             )
         ),
-        margin=go.layout.Margin(l=7.5 * numpy.max([len(x) for x in functions]))
+        # margin=go.layout.Margin(l=7.5 * numpy.max([len(x) for x in functions]))
     )
 }
 
