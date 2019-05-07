@@ -1109,7 +1109,7 @@ bool Project::parseProfFile(QString fileName) {
   return true;
 }
 
-bool Project::runUploadScript() {
+bool Project::runUploadScript(bool firstTime) {
   // upload binaries
   QFile file("temp-pmu-prof.script");
   bool success = file.open(QIODevice::WriteOnly);
@@ -1122,6 +1122,12 @@ bool Project::runUploadScript() {
     script.replace("%name%", name + "_instrumented");
   } else {
     script.replace("%name%", name);
+  }
+
+  if(firstTime) {
+    script.replace("%pass%", "0");
+  } else {
+    script.replace("%pass%", "1");
   }
       
   file.write(script.toUtf8());
@@ -1162,26 +1168,14 @@ bool Project::runProfiler() {
   } else {
     emit advance(0, "Uploading binary");
 
-    if(!runUploadScript()) {
+    if(!runUploadScript(true)) {
       emit finished(1, "Can't upload binaries");
       pmu.release();
       return false;
     }
   }
+  elfSupport.addElfOffsetsFromFile(offsetFile);
 
-  if(!offsetFile.trimmed().isEmpty()) {
-    QFile file(offsetFile);
-    if(file.open(QIODevice::ReadOnly)) {
-      if(!file.atEnd()) {
-        QStringList tokens = ((QString)file.readLine()).split(' ');
-        if(tokens.size()) {
-          elfSupport.setElfOffset(tokens[0].toULongLong(nullptr, 16));
-        }
-      }
-      file.close();
-    }
-  }
-  
   uint64_t samples = 0;
   int64_t minTime = 0;
   int64_t maxTime = 0;
@@ -1229,6 +1223,20 @@ bool Project::runProfiler() {
 
   pmu.release();
 
+  if(!runScript) {
+    emit advance(2, "Skipping upload");
+
+  } else {
+    emit advance(2, "Uploading binary");
+
+    if(!runUploadScript(false)) {
+      emit finished(1, "Can't upload binaries");
+      pmu.release();
+      return false;
+    }
+  }
+  elfSupport.addElfOffsetsFromFile(offsetFile);
+
   int64_t frameRuntimeMin = 0;
   int64_t frameRuntimeMax = 0;
   int64_t frameRuntimeAvg = 0;
@@ -1267,7 +1275,7 @@ bool Project::runProfiler() {
   double currentFrameEnergy[Pmu::sensors] = {0};
 
   {
-    emit advance(2, "Processing samples");
+    emit advance(3, "Processing samples");
 
     std::map<BasicBlock*,Location*> locations[Pmu::maxCores];
 
@@ -1537,7 +1545,7 @@ bool Project::runApp() {
 
   emit advance(0, "Uploading binary");
 
-  if(!runUploadScript()) {
+  if(!runUploadScript(true)) {
     emit finished(1, "Can't upload binaries");
     return false;
   }

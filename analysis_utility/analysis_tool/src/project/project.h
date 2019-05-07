@@ -56,7 +56,7 @@ protected:
   void copy(Project *p);
   Location *getLocation(unsigned core, uint64_t pc, ElfSupport *elfSupport, std::map<BasicBlock*,Location*> *locations);
   void getLocations(unsigned core, std::map<BasicBlock*,Location*> *locations);
-  bool runUploadScript();
+  bool runUploadScript(bool firstTime);
 
 public:
   Profile *profile;
@@ -151,7 +151,7 @@ public:
   int makeSteps() { return 1; }
   int xmlBuildSteps() { return 1; }
   int binBuildSteps() { return 2; }
-  int profileSteps() { return 3; }
+  int profileSteps() { return 4; }
   int runSteps() { return 1; }
 
   virtual bool isSdSocProject() { return false; }

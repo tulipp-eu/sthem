@@ -20,7 +20,9 @@
  *****************************************************************************/
 
 #include <QFile>
+#include <QFileInfo>
 #include <QDataStream>
+#include <QProcess>
 
 #include "elfsupport.h"
 
@@ -63,8 +65,18 @@ void ElfSupport::setPc(uint64_t pc) {
         std::stringstream pcStream;
         std::string cmd;
 
+        Offset elfOffset = elfOffsets.value(QFileInfo(elfFile).fileName());
+        uint64_t offset = elfOffset.offset;
+        uint64_t end = offset + elfOffset.size;
+
+        if((pc < offset) || (pc > end)) continue;
+
+        if(isStatic(elfFile)) {
+          offset = 0;
+        }
+
         // create command
-        pcStream << std::hex << (pc - elfOffset);
+        pcStream << std::hex << (pc - offset);
         cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
 
         // run addr2line program
@@ -176,6 +188,12 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
   char buf[1024];
 
   for(auto elfFile : elfFiles) {
+    Offset elfOffset = elfOffsets.value(QFileInfo(elfFile).fileName());
+    uint64_t offset = elfOffset.offset;
+    if(isStatic(elfFile)) {
+      offset = 0;
+    }
+
     // create command line
     QString cmd = QString("nm ") + elfFile;
 
@@ -186,7 +204,7 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
       if(readLine(buf, 1024, fp)) {
         QStringList line = QString::fromUtf8(buf).split(' ');
         if(line[2].trimmed() == symbol) {
-          return line[0].toULongLong(0, 16) + elfOffset;
+          return line[0].toULongLong(0, 16) + offset;
         }
       }
     }
@@ -194,4 +212,42 @@ uint64_t ElfSupport::lookupSymbol(QString symbol) {
 
  error:
   return 0;
+}
+
+void ElfSupport::addElfOffsetsFromFile(QString offsetFile) {
+  if(!offsetFile.trimmed().isEmpty()) {
+    QFile file(offsetFile);
+    if(file.open(QIODevice::ReadOnly)) {
+      while(!file.atEnd()) {
+        QStringList tokens = ((QString)file.readLine()).split(' ');
+        if(tokens.size() == 3) {
+          uint64_t offset = tokens[0].toULongLong(nullptr, 16);
+          uint64_t size = tokens[1].toULongLong(nullptr, 16);
+          QString elf = tokens[2].simplified();
+          elfOffsets[elf] = Offset(offset, size);
+        }
+      }
+      file.close();
+    }
+  }
+}
+
+bool ElfSupport::isStatic(QString elf) {
+  QString elfFileName = QFileInfo(elf).fileName();
+
+  if(elfStatic.find(elfFileName) == elfStatic.end()) {
+    QString cmd = "readelf -h " + elf;
+
+    QProcess process;
+    process.start(cmd);
+    process.waitForFinished(-1);
+
+    QString stdout = process.readAllStandardOutput();
+    bool stat = stdout.contains("EXEC");
+    elfStatic[elfFileName] = stat;
+
+    return stat;
+  }
+
+  return elfStatic[elfFileName];
 }

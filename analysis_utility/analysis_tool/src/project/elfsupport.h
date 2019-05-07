@@ -24,6 +24,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QMap>
 
 #include <map>
 #include <sstream>
@@ -50,6 +51,20 @@ public:
   }
 };
 
+struct Offset {
+  uint64_t offset;
+  uint64_t size;
+
+  Offset() {
+    offset = size = 0;
+  }
+
+  Offset(uint64_t o, uint64_t s) {
+    offset = o;
+    size = s;
+  }
+};
+
 class ElfSupport {
 
 private:
@@ -58,16 +73,17 @@ private:
   QStringList elfFiles;
   QString symsFile;
   uint64_t prevPc;
-  uint64_t elfOffset;
+  QMap<QString,Offset> elfOffsets;
+  QMap<QString,bool> elfStatic;
 
   Addr2Line addr2line;
 
   void setPc(uint64_t pc);
+  bool isStatic(QString elf);
 
 public:
   ElfSupport() {
     prevPc = -1;
-    elfOffset = 0;
   }
   void addElf(QString elfFile) {
     if(elfFile.trimmed() != "") {
@@ -77,9 +93,7 @@ public:
   void addKallsyms(QString symsFile) {
     this->symsFile = symsFile;
   }
-  void setElfOffset(uint64_t offset) {
-    elfOffset = offset;
-  }
+  void addElfOffsetsFromFile(QString offsetFile);
 
   // get debug info
   QString getFilename(uint64_t pc);

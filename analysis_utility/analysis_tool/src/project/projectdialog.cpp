@@ -213,7 +213,7 @@ ProjectProfPage::ProjectProfPage(Project *project, QWidget *parent) : QWidget(pa
   offsetLayout->addStretch(1);
   uploadLayout->addLayout(offsetLayout);
 
-  runScriptCheckBox = new QCheckBox("Upload binary and reset");
+  runScriptCheckBox = new QCheckBox("Run script");
   runScriptCheckBox->setCheckState(project->runScript ? Qt::Checked : Qt::Unchecked);
   connect(runScriptCheckBox, SIGNAL(clicked(bool)), this, SLOT(updateGui()));
 

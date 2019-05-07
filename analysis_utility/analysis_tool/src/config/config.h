@@ -99,7 +99,7 @@
   "after 10\n"
 
 #define DEFAULT_UPLOAD_SCRIPT_LINUX \
-  "echo \"hei %name%\"\n"
+  "echo asd\n"
 
 class Config {
 

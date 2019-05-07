@@ -475,7 +475,7 @@ bool Profile::exportMeasurements(QString fileName, Cfg *cfg) {
 
   QString header =
     "Time;Power 1;Power 2;Power 3;Power 4;Power 5;Power 6;Power 7;"
-    "Module 0;Function 0;Module 1;Function 1;Module 2;Function 2;Module 3;Function 3\n";
+    "pc1;pc2;pc3;pc4\n";
 
   csvFile.write(header.toUtf8());
   
@@ -491,9 +491,8 @@ bool Profile::exportMeasurements(QString fileName, Cfg *cfg) {
 
   success = query.exec("SELECT "
                        "time,"
-                       "module1,module2,module3,module4,"
-                       "basicblock1,basicblock2,basicblock3,basicblock4,"
-                       "power1,power2,power3,power4,power5,power6,power7 "
+                       "power1,power2,power3,power4,power5,power6,power7,"
+                       "pc1,pc2,pc3,pc4 "
                        "FROM measurements");
   assert(success);
 
@@ -508,20 +507,9 @@ bool Profile::exportMeasurements(QString fileName, Cfg *cfg) {
       measurement += ";" + QString::number(power);
     }
 
-
     for(unsigned core = 0; core < Pmu::maxCores; core++) {
-      QString moduleId = query.value("module" + QString::number(core+1)).toString();
-      measurement += ";" + moduleId;
-
-      QString bbId = query.value("basicblock" + QString::number(core+1)).toString();
-      Module *mod = cfg->getModuleById(moduleId);
-      if(!mod) {
-        csvFile.close();
-        return false;
-      }
-      BasicBlock *bb = mod->getBasicBlockById(bbId);
-      Function *func = bb->getFunction();
-      measurement += ";" + func->id;
+      uint64_t pc = query.value("pc" + QString::number(core+1)).toULongLong() << 2;
+      measurement += ";" + QString::number(pc);
     }
 
     measurement += "\n";
