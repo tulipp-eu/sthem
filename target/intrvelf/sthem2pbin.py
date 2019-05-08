@@ -15,6 +15,8 @@ if cross_compile != "":
     print(f"Using cross compilation prefix '{cross_compile}'")
 
 label_unknown = '_unknown'
+label_foreign = '_foreign'
+
 
 maxPowerSensors = 7
 
@@ -24,12 +26,12 @@ profile = {
     'latencyTimeUs': 0,
     'volts': 1,
     'target': label_unknown,
-    'binaries': [label_unknown],
-    'functions': [label_unknown],
-    'functions_mangled': [label_unknown],
-    'files': [label_unknown],
+    'binaries': [label_unknown, label_foreign],
+    'functions': [label_unknown, label_foreign],
+    'functions_mangled': [label_unknown, label_foreign],
+    'files': [label_unknown, label_foreign],
     'fullProfile': [],
-    'aggregatedProfile': {label_unknown: [0, 0, 0, 0, 0, 0]},
+    'aggregatedProfile': {label_unknown: [0, 0, 0, 0, 0, 0], label_foreign: [0, 0, 0, 0, 0, 0]},
     'mean': 1
 }
 
@@ -218,7 +220,12 @@ for sample in csvProfile:
 
         cpuSample = [cpu, cpuShare]
         # binary, function , file, line
-        pcInfo = [0, 0, 0, 0]
+        pcInfo = [
+            profile['binaries'].index(label_foreign),
+            profile['functions_mangled'].index(label_foreign),
+            profile['files'].index(label_foreign),
+            0
+        ]
         binary = isPcFromBinary(pc)
         if binary:
             pcInfo = fetchPCInfo(pc, binary)
@@ -226,16 +233,13 @@ for sample in csvProfile:
         cpuSample.extend(pcInfo)
         processedSample.append(cpuSample)
 
-        # Ignore pc values in aggregated profile not belonging to binary
-        # (they would appear as _unknown, which is also a valid field for pcs belonging to the binary)
-        if binary:
-            if pc in profile['aggregatedProfile']:
-                profile['aggregatedProfile'][pc][0] += 1
-                profile['aggregatedProfile'][pc][1] += power * cpuShare
-            else:
-                asample = [1, power * cpuShare]
-                asample.extend(pcInfo)
-                profile['aggregatedProfile'][pc] = asample
+        if pc in profile['aggregatedProfile']:
+            profile['aggregatedProfile'][pc][0] += 1
+            profile['aggregatedProfile'][pc][1] += power * cpuShare
+        else:
+            asample = [1, power * cpuShare]
+            asample.extend(pcInfo)
+            profile['aggregatedProfile'][pc] = asample
 
     profile['fullProfile'].append([power, processedSample])
 
