@@ -334,6 +334,24 @@ int main(int const argc, char **argv) {
                 ret = 1; goto exitWithTarget;
             }
 
+            { // VMMap Output
+                if (vmmapFilename != NULL) {
+                    vmmapout = fopen(vmmapFilename, "w+");
+                    if (vmmapout == NULL) {
+                        fprintf(stderr, "ERROR: Could not open %s for writing!\n", offsetFilename);
+                        ret = 1; goto exitWithTarget;
+                    }
+                }
+
+                for( unsigned int i = 0; i < targetMap.count; i++) {
+                    fprintf(vmmapout, "0x%016lx 0x%016lx %s\n", targetMap.maps[i].addr, targetMap.maps[i].size, targetMap.maps[i].label);
+                }
+
+                if (vmmapFilename != NULL) {
+                    fclose(vmmapout);
+                }
+            }
+            /*
             if (collisionDetection) {
                 pid_t whom;
                 if (collision(targetPid, targetMap, &whom)) {
@@ -350,27 +368,9 @@ int main(int const argc, char **argv) {
                     ret = 1; goto exitWithTarget;
                 }
             }
-           
-
-            { // VMMap Output
-                if (vmmapFilename != NULL) {
-                    vmmapout = fopen(vmmapFilename, "w+");
-                    if (vmmapout == NULL) {
-                        fprintf(stderr, "ERROR: Could not open %s for writing!\n", offsetFilename);
-                        ret = 1; goto exitWithTarget;
-                    }
-                }
-                
-                for( unsigned int i = 0; i < targetMap.count; i++) { 
-                    fprintf(vmmapout, "0x%016lx 0x%016lx %s\n", targetMap.maps[i].addr, targetMap.maps[i].size, targetMap.maps[i].label);
-                }
-                
-                if (vmmapFilename != NULL) {
-                    fclose(vmmapout);
-                }
-            }
-            
+            */
             freeVMMaps(targetMap);
+           
         }
 
         ptrace(PTRACE_DETACH, targetPid, NULL, NULL, NULL);

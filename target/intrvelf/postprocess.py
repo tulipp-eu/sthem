@@ -254,7 +254,8 @@ for sample in rawSamples:
     i += 1
 
     processedSample = []
-    sampleCpuTime = 0
+    sampleTargetCpuTime = 0
+
     threadCpuTimes = {}
 
     for thread in sample[1]:
@@ -262,13 +263,13 @@ for sample in rawSamples:
             prevCpuTimes[thread[0]] = thread[2]
         threadCpuTimes[thread[0]] = thread[2] - prevCpuTimes[thread[0]]
         prevCpuTimes[thread[0]] = thread[2]
-        sampleCpuTime += threadCpuTimes[thread[0]]
+        sampleTargetCpuTime += threadCpuTimes[thread[0]]
 
     for thread in sample[1]:
-        if (sampleCpuTime == 0):
+        if (sampleTargetCpuTime == 0):
             cpuShare = (1 / len(sample[1]))
         else:
-            cpuShare = threadCpuTimes[thread[0]] / sampleCpuTime
+            cpuShare = threadCpuTimes[thread[0]] / sampleTargetCpuTime
 
         threadSample = [thread[0], cpuShare]
         pcInfo = fetchPCInfo(thread[1])
