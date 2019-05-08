@@ -114,6 +114,7 @@ public:
     // find distance between xticks
     double xStep = 1000;
     while(((highTimeValue - lowTimeValue) / xStep) < 20) {
+      //printf("x %f %f %f\n", highTimeValue, lowTimeValue, xStep);
       xStep /= 10;
     }
     xStep *= 10;
