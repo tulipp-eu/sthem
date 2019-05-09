@@ -54,9 +54,9 @@ def convertStringRange(x):
 
 
 def isPcFromBinary(pc):
-    for i, binary in enumerate(binaryMap):
+    for binary in binaryMap:
         if (pc >= binary['start'] and pc <= binary['end']):
-            return i
+            return binary
     return False
 
 
@@ -66,8 +66,8 @@ def fetchPCInfo(pc, binary):
 
     lookupPc = pc
 
-    elf = binaryMap[binary]['binary']
-    lookupPc = pc if binaryMap[binary]['static'] else pc - binaryMap[binary]['start']
+    elf = binary['binary']
+    lookupPc = pc if binary['static'] else pc - binary['start']
 
     addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
     addr2line.check_returncode()
