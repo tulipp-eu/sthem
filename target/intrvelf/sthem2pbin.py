@@ -31,7 +31,7 @@ profile = {
     'functions_mangled': [label_unknown, label_foreign],
     'files': [label_unknown, label_foreign],
     'fullProfile': [],
-    'aggregatedProfile': {label_unknown: [0, 0, 0, 0, 0, 0], label_foreign: [0, 0, 0, 0, 0, 0]},
+    'aggregatedProfile': {},
     'mean': 1
 }
 
@@ -161,7 +161,7 @@ vmmapFile = open(args.vmmap, 'r').read()
 for line in vmmapFile.split("\n"):
     if (len(line) > 2):
         (addr, size, label,) = line.split(" ", 2)
-        vmmaps.append([int(addr,16), int(size,16), label])
+        vmmaps.append([int(addr, 16), int(size, 16), label])
 
 
 print("Reading vm maps... finished!")
