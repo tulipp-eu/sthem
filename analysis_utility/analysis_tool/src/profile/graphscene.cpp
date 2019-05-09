@@ -84,7 +84,7 @@ void GraphScene::drawProfile(unsigned core, unsigned sensor, Cfg *cfg, Profile *
       maxTimeDb = query.value(1).toLongLong();
 
       if(samples > 1) {
-        if(beginTime < 0) minTime = minTimeDb;
+        if(beginTime < minTimeDb) minTime = minTimeDb;
         else minTime = beginTime;
 
         if(endTime < 0) maxTime = maxTimeDb;

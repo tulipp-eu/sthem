@@ -1166,10 +1166,10 @@ bool Project::runProfiler() {
     emit advance(0, "Skipping upload");
 
   } else {
-    emit advance(0, "Uploading binary");
+    emit advance(0, "Running script (pass 1)");
 
     if(!runUploadScript(true)) {
-      emit finished(1, "Can't upload binaries");
+      emit finished(1, "Can't run script");
       pmu.release();
       return false;
     }
@@ -1224,14 +1224,13 @@ bool Project::runProfiler() {
   pmu.release();
 
   if(!runScript) {
-    emit advance(2, "Skipping upload");
+    emit advance(2, "Skipping script");
 
   } else {
-    emit advance(2, "Uploading binary");
+    emit advance(2, "Running script (pass 2)");
 
     if(!runUploadScript(false)) {
-      emit finished(1, "Can't upload binaries");
-      pmu.release();
+      emit finished(1, "Can't run script");
       return false;
     }
   }
