@@ -17,6 +17,7 @@ if cross_compile != "":
 label_unknown = '_unknown'
 label_foreign = '_foreign'
 
+aggregateKeys = [1]
 
 maxPowerSensors = 7
 
@@ -27,8 +28,8 @@ profile = {
     'volts': 1,
     'target': label_unknown,
     'binaries': [label_unknown, label_foreign],
-    'functions': [label_unknown, label_foreign],
     'functions_mangled': [label_unknown, label_foreign],
+    'functions': [label_unknown, label_foreign],
     'files': [label_unknown, label_foreign],
     'fullProfile': [],
     'aggregatedProfile': {},
@@ -233,13 +234,15 @@ for sample in csvProfile:
         cpuSample.extend(pcInfo)
         processedSample.append(cpuSample)
 
-        if pc in profile['aggregatedProfile']:
-            profile['aggregatedProfile'][pc][0] += 1
-            profile['aggregatedProfile'][pc][1] += power * cpuShare
+        aggregateIndex = ':'.join([str(pcInfo[i]) for i in aggregateKeys])
+
+        if aggregateIndex in profile['aggregatedProfile']:
+            profile['aggregatedProfile'][aggregateIndex][0] += 1
+            profile['aggregatedProfile'][aggregateIndex][1] += power * cpuShare
         else:
             asample = [1, power * cpuShare]
             asample.extend(pcInfo)
-            profile['aggregatedProfile'][pc] = asample
+            profile['aggregatedProfile'][aggregateIndex] = asample
 
     profile['fullProfile'].append([power, processedSample])
 

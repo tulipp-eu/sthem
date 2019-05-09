@@ -42,6 +42,8 @@ for profile in args.profiles:
     profiles.append(new)
 
 label_unknown = profiles[0]['binaries'][0]
+label_foreign = profiles[0]['binaries'][1]
+aggregateKeys = [1]
 
 meanprofile = {
     'samples': 0,
@@ -49,11 +51,12 @@ meanprofile = {
     'latencyTimeUs': 0,
     'volts': profiles[0]['volts'],
     'target': profiles[0]['target'],
-    'binaries': [label_unknown],
-    'functions': [label_unknown],
-    'files': [label_unknown],
+    'binaries': [label_unknown, label_foreign],
+    'functions': [label_unknown, label_foreign],
+    'functions_mangled': [label_unknown, label_foreign],
+    'files': [label_unknown, label_foreign],
     'fullProfile': [],
-    'aggregatedProfile': {label_unknown: [0, 0, 0, 0, 0, 0]},
+    'aggregatedProfile': {},
     'mean': 0
 }
 
@@ -80,34 +83,40 @@ for profile in profiles:
     meanprofile['samples'] += meanfac * profile['samples']
     meanprofile['samplingTimeUs'] += meanfac * profile['samplingTimeUs']
     meanprofile['latencyTimeUs'] += meanfac * profile['latencyTimeUs']
-    for pc in profile['aggregatedProfile']:
-        sample = profile['aggregatedProfile'][pc]
+    for aggregateIndex in profile['aggregatedProfile']:
+        sample = profile['aggregatedProfile'][aggregateIndex]
         samples = sample[0] * meanfac
         current = sample[1] * meanfac
         srcbinary = profile['binaries'][sample[2]]
-        srcfunction = profile['functions'][sample[3]]
+        srcfunction = profile['functions_mangled'][sample[3]]
+        srcdemangled = profile['functions'][sample[3]]
         srcfile = profile['files'][sample[4]]
         srcline = sample[5]
 
-        if pc not in meanprofile['aggregatedProfile']:
-            if srcbinary not in meanprofile['binaries']:
-                meanprofile['binaries'].append(srcbinary)
-            if srcfunction not in meanprofile['functions']:
-                meanprofile['functions'].append(srcfunction)
-            if srcfile not in meanprofile['files']:
-                meanprofile['files'].append(srcfile)
+        if srcbinary not in meanprofile['binaries']:
+            meanprofile['binaries'].append(srcbinary)
+        if srcfunction not in meanprofile['functions_mangled']:
+            meanprofile['functions_mangled'].append(srcfunction)
+            meanprofile['functions'].append(srcdemangled)
+        if srcfile not in meanprofile['files']:
+            meanprofile['files'].append(srcfile)
 
-            meanprofile['aggregatedProfile'][pc] = [
-                samples,
-                current,
-                meanprofile['binaries'].index(srcbinary),
-                meanprofile['functions'].index(srcfunction),
-                meanprofile['files'].index(srcfile),
-                srcline
-            ]
+        pcInfo = [
+            meanprofile['binaries'].index(srcbinary),
+            meanprofile['functions_mangled'].index(srcfunction),
+            meanprofile['files'].index(srcfile),
+            srcline
+        ]
+
+        newAggregateIndex = ':'.join([str(pcInfo[i]) for i in aggregateKeys])
+
+        if newAggregateIndex in meanprofile['aggregatedProfile']:
+            meanprofile['aggregatedProfile'][newAggregateIndex][0] += samples
+            meanprofile['aggregatedProfile'][newAggregateIndex][1] += current
         else:
-            meanprofile['aggregatedProfile'][pc][0] += samples
-            meanprofile['aggregatedProfile'][pc][1] += current
+            asample = [samples, current]
+            asample.extend(pcInfo)
+            meanprofile['aggregatedProfile'][newAggregateIndex] = asample
 
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()

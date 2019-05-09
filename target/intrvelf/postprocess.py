@@ -15,6 +15,9 @@ if cross_compile != "":
     print(f"Using cross compilation prefix '{cross_compile}'")
 
 label_unknown = '_unknown'
+label_foreign = '_foreign'
+
+aggregateKeys = [1]
 
 profile = {
     'samples': 0,
@@ -22,12 +25,12 @@ profile = {
     'latencyTimeUs': 0,
     'volts': 0,
     'target': label_unknown,
-    'binaries': [label_unknown],
-    'functions': [label_unknown],
-    'functions_mangled': [label_unknown],
-    'files': [label_unknown],
+    'binaries': [label_unknown, label_foreign],
+    'functions': [label_unknown, label_foreign],
+    'functions_mangled': [label_unknown, label_foreign],
+    'files': [label_unknown, label_foreign],
     'fullProfile': [],
-    'aggregatedProfile': {label_unknown: [0, 0, 0, 0, 0, 0]},
+    'aggregatedProfile': {},
     'mean': 1
 }
 
@@ -38,54 +41,47 @@ _unknown_pcs = []
 binaryMap = []
 
 
-def fetchPCInfo(pc):
-    if pc in _fetched_pc_data:
-        if _fetched_pc_data[pc][1] == 0:
-            _unknown_pcs.append(pc)
-        return _fetched_pc_data[pc]
-    found = False
-    lookupPc = pc
-    elf = ""
-    result = [0, 0, 0, 0]
+def isPcFromBinary(pc):
     for binary in binaryMap:
         if (pc >= binary['start'] and pc <= binary['end']):
-            found = True
-            elf = binary['binary']
-            if not binary['static']:
-                lookupPc -= binary['start']
-            break
+            return binary
+    return False
 
-    if found:
-        addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
-        addr2line.check_returncode()
-        result = addr2line.stdout.decode('utf-8').split("\n")
-        srcfunction = result[1].replace('??', label_unknown)
-        srcfile = result[2].split(':')[0].replace('??', label_unknown)
-        srcline = int(result[2].split(':')[1].split(' ')[0].replace('?', '0'))
-        srcdemangled = label_unknown
 
-        if (srcfunction != label_unknown):
-            cppfilt = subprocess.run(f"{cross_compile}c++filt -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
-            cppfilt.check_returncode()
-            srcdemangled = cppfilt.stdout.decode('utf-8').split("\n")[0]
+def fetchPCInfo(pc, binary):
+    if pc in _fetched_pc_data:
+        return _fetched_pc_data[pc]
 
-        if elf not in profile['binaries']:
-            profile['binaries'].append(elf)
-        if srcfunction not in profile['functions_mangled']:
-            profile['functions_mangled'].append(srcfunction)
-            profile['functions'].append(srcdemangled)
-        if srcfile not in profile['files']:
-            profile['files'].append(srcfile)
+    elf = binary['binary']
+    lookupPc = pc if binary['static'] else pc - binary['start']
 
-        result = [
-            profile['binaries'].index(elf),
-            profile['functions_mangled'].index(srcfunction),
-            profile['files'].index(srcfile),
-            srcline
-        ]
+    addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
+    addr2line.check_returncode()
+    result = addr2line.stdout.decode('utf-8').split("\n")
+    srcfunction = result[1].replace('??', label_unknown)
+    srcfile = result[2].split(':')[0].replace('??', label_unknown)
+    srcline = int(result[2].split(':')[1].split(' ')[0].replace('?', '0'))
+    srcdemangled = label_unknown
 
-    if (result[1] == 0):
-        _unknown_pcs.append(pc)
+    if (srcfunction != label_unknown):
+        cppfilt = subprocess.run(f"{cross_compile}c++filt -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
+        cppfilt.check_returncode()
+        srcdemangled = cppfilt.stdout.decode('utf-8').split("\n")[0]
+
+    if elf not in profile['binaries']:
+        profile['binaries'].append(elf)
+    if srcfunction not in profile['functions_mangled']:
+        profile['functions_mangled'].append(srcfunction)
+        profile['functions'].append(srcdemangled)
+    if srcfile not in profile['files']:
+        profile['files'].append(srcfile)
+
+    result = [
+        profile['binaries'].index(elf),
+        profile['functions_mangled'].index(srcfunction),
+        profile['files'].index(srcfile),
+        srcline
+    ]
 
     _fetched_pc_data[pc] = result
     return result
@@ -272,18 +268,28 @@ for sample in rawSamples:
             cpuShare = threadCpuTimes[thread[0]] / sampleTargetCpuTime
 
         threadSample = [thread[0], cpuShare]
-        pcInfo = fetchPCInfo(thread[1])
-        threadSample.extend(pcInfo)
+        pcInfo = [
+            profile['binaries'].index(label_foreign),
+            profile['functions_mangled'].index(label_foreign),
+            profile['files'].index(label_foreign),
+            0
+        ]
+        binary = isPcFromBinary(pc)
+        if binary:
+            pcInfo = fetchPCInfo(pc, binary)
 
+        threadSample.extend(pcInfo)
         processedSample.append(threadSample)
 
-        if thread[1] in profile['aggregatedProfile']:
-            profile['aggregatedProfile'][thread[1]][0] += 1  # /len(sample[1]);
-            profile['aggregatedProfile'][thread[1]][1] += (sample[0] * cpuShare)
+        aggregateIndex = ':'.join([str(pcInfo[i]) for i in aggregateKeys])
+
+        if aggregateIndex in profile['aggregatedProfile']:
+            profile['aggregatedProfile'][aggregateIndex][0] += 1  # /len(sample[1]);
+            profile['aggregatedProfile'][aggregateIndex][1] += (sample[0] * cpuShare)
         else:
             asample = [1, (sample[0] * cpuShare)]  # /len(sample[1])
             asample.extend(pcInfo)
-            profile['aggregatedProfile'][thread[1]] = asample
+            profile['aggregatedProfile'][aggregateIndex] = asample
 
     profile['fullProfile'].append([sample[0], processedSample])
 
