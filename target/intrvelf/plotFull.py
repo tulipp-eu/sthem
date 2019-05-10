@@ -142,7 +142,8 @@ fig.append_trace(
     go.Scatter(
         name="A" if profile['volts'] == 0 else "W",
         x=times,
-        y=currents
+        y=currents,
+        line={'width': 1},
     ), 1, 1
 )
 
