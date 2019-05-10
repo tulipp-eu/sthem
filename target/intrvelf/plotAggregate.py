@@ -10,63 +10,144 @@ import plotly.graph_objs as go
 import numpy
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
-parser.add_argument("profile", help="postprocessed profile from intrvelf")
+parser.add_argument("profiles", help="postprocessed profiles from intrvelf", nargs="+")
 parser.add_argument("-o", "--output", help="html output file")
 parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open output file")
 
 
 args = parser.parse_args()
 
-if (not args.profile) or (not os.path.isfile(args.profile)):
-    print("ERROR: profile not found")
+if (not args.profiles) or (len(args.profiles) <= 0):
+    print("ERROR: unsufficient amount of profiles passed")
     parser.print_help()
     sys.exit(1)
 
-if args.profile.endswith(".bz2"):
-    profile = pickle.load(bz2.BZ2File(args.profile, mode="rb"))
-else:
-    profile = pickle.load(open(args.profile, mode="rb"))
+profiles = []
 
-latencyUs = int(profile['latencyTimeUs'] / profile['samples'])
-sampleTime = profile['samplingTimeUs'] / (profile['samples'] * 1000000)
-freq = 1 / sampleTime
+for profile in args.profiles:
+    if profile.endswith(".bz2"):
+        new = pickle.load(bz2.BZ2File(profile, mode="rb"))
+    else:
+        new = pickle.load(open(profile, mode="rb"))
+    profiles.append(new)
 
-volts = 1 if (profile['volts'] == 0) else profile['volts']
+label_unknown = profiles[0]['binaries'][0]
+label_foreign = profiles[0]['binaries'][1]
+
+
+# [binary, function_mangled, function, file, line]
+aggregateKeys = [2]
+
+
+useVolts = False if profiles[0]['volts'] == 0 else True
+
+samples = 0  # profiles[0]['samples']
+samplingTimeUs = 0  # profiles[0]['samplingTimeUs']
+latencyTimeUs = 0  # profiles[0]['latencyTimeUs']
+binaries = profiles[0]['binaries']
+functions = profiles[0]['functions']
+functions_mangled = profiles[0]['functions_mangled']
+files = profiles[0]['files']
+volts = profiles[0]['volts']
+target = profiles[0]['target']
+mean = len(profiles)
+
+meanFac = 1 / mean
+
+
+avgLatencyUs = 0  # int(profiles['latencyTimeUs'] / profile['samples'])
+avgSampleTime = 0  # profile['samplingTimeUs'] / (profile['samples'] * 1000000)
+
+aggregatedProfile = {}
+
+
+for profile in profiles:
+    if (profile['volts'] != volts):
+        print("ERROR: profile voltages don't match!")
+    latencyTimeUs += profile['latencyTimeUs'] * meanFac
+    samplingTimeUs += profile['samplingTimeUs'] * meanFac
+    samples += profile['samples'] * meanFac
+
+    for sample in profile['profile']:
+        metric = sample[0]
+        sampleCpuTime = sample[1]
+        for thread in sample[2]:
+            threadId = thread[0]
+            threadCpuTime = thread[1]
+            srcbinary = profile['binaries'][thread[2]]
+            srcfunction = profile['functions_mangled'][thread[3]]
+            srcdemangled = profile['functions'][thread[3]]
+            srcfile = profile['files'][thread[4]]
+            srcline = thread[5]
+
+            # Needs improvement
+            if (sampleCpuTime == 0):
+                cpuShare = 0
+            else:
+                cpuShare = threadCpuTime / sampleCpuTime
+
+            if srcbinary not in binaries:
+                binaries.append(srcbinary)
+            if srcfunction not in functions_mangled:
+                functions_mangled.append(srcfunction)
+                functions.append(srcdemangled)
+            if srcfile not in files:
+                files.append(srcfile)
+
+            sampleInfo = [
+                binaries.index(srcbinary),
+                functions_mangled.index(srcfunction),
+                functions.index(srcdemangled),
+                files.index(srcfile),
+                srcline
+            ]
+            sampleInfoText = [
+                srcbinary,
+                srcfunction,
+                srcdemangled,
+                srcfile,
+                srcline
+            ]
+
+            aggregateIndex = ':'.join([str(sampleInfo[i]) for i in aggregateKeys])
+            aggregateString = ':'.join([str(sampleInfoText[i]) for i in aggregateKeys])
+
+            sampleData = [
+                1 * meanFac,
+                metric * (volts if useVolts else 1) * cpuShare * meanFac,
+                aggregateString
+            ]
+
+            if aggregateIndex in aggregatedProfile:
+                aggregatedProfile[aggregateIndex][0] += sampleData[0]
+                aggregatedProfile[aggregateIndex][1] += sampleData[1]
+            else:
+                aggregatedProfile[aggregateIndex] = sampleData
+
+
+avgLatencyUs = latencyTimeUs / samples
+avgSampleTime = samplingTimeUs / (samples * 1000000)
+frequency = 1 / avgSampleTime
 
 # profile['aggregatedProfile'][addr] = [samples, current, binary, function, file, line]
 
 # aggmap[function] = [ current, time, function ]
 
-# Fix for introduced mean
-if 'mean' not in profile:
-    profile['mean'] = 1
+values = numpy.array(list(aggregatedProfile.values()), dtype=object)
+values = values[values[:, 1].argsort()]
 
-aggmap = {}
-for sample in profile['aggregatedProfile']:
-    sample = profile['aggregatedProfile'][sample]
-    if (sample[0] > 0):
-        if sample[3] in aggmap:
-            aggmap[sample[3]][0] += sample[1] * sampleTime
-            aggmap[sample[3]][1] += sample[0] * sampleTime
-        else:
-            aggmap[sample[3]] = [sample[1] * sampleTime, sample[0] * sampleTime, sample[3]]
-
-
-values = numpy.array(list(aggmap.values()), dtype=object)
-values = values[values[:, 0].argsort()]
-metrics = numpy.array(values[:, 0], dtype=float) * volts
-
-times = numpy.array(values[:, 1], dtype=float)
-functions = [profile['functions'][x] for x in numpy.array(values[:, 2], dtype=int)]
-labelUnit = "C" if profile['volts'] == 0 else "J"
+times = numpy.array(values[:, 0], dtype=float) * avgSampleTime
+metrics = numpy.array(values[:, 1], dtype=float)
+aggregation = values[:, 2]
+labelUnit = "J" if useVolts else "C"
 labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if profile['volts'] == 0 else f"{x:.4f} s, {y/x:.2f} W, {y:.2f} {labelUnit}" for x, y in zip(times, metrics)]
 
-functionLength = numpy.max([len(x) for x in functions])
+aggregationLength = numpy.max([len(x) for x in aggregation])
 
 fig = {
     "data": [go.Bar(
         x=metrics,
-        y=functions,
+        y=aggregation,
         text=labels,
         textposition='auto',
         orientation='h',
@@ -74,13 +155,13 @@ fig = {
     )],
     "layout": go.Layout(
         title=go.layout.Title(
-            text=f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency" + (f", mean of {profile['mean']} runs" if profile['mean'] > 1 else ""),
+            text=f"{target}, {frequency:.2f} Hz, {samples:.2f} samples, {avgLatencyUs:.2f} us latency" + (f", mean of {mean} runs" if mean > 1 else ""),
             xref='paper',
             x=0
         ),
         xaxis=go.layout.XAxis(
             title=go.layout.xaxis.Title(
-                text="Charge in C" if profile['volts'] == 0 else "Energy in J",
+                text="Energy in J" if useVolts else "Charge in C",
                 font=dict(
                     family='Courier New, monospace',
                     size=18,

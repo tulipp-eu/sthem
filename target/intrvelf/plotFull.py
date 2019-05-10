@@ -30,7 +30,7 @@ if args.profile.endswith(".bz2"):
 else:
     profile = pickle.load(open(args.profile, mode="rb"))
 
-if not profile['fullProfile']:
+if not profile['profile']:
     print("Profile does not contain full samples!")
     sys.exit(1)
 
@@ -40,10 +40,10 @@ latencyUs = int(profile['latencyTimeUs'] / profile['samples'])
 sampleTime = profile['samplingTimeUs'] / (profile['samples'] * 1000000)
 freq = 1 / sampleTime
 
-# profile['fullProfile'] = [[current , [tid, function, file, line]]]
+# profile['profile'] = [[current , smapleCpuTime [tid, threadCpuTime, binary, function, file, line]]]
 
 
-samples = numpy.array(profile['fullProfile'], dtype=object)
+samples = numpy.array(profile['profile'], dtype=object)
 # samples = numpy.array([[x[0], numpy.array(x[1][0])] for x in profile['fullProfile']], dtype=object)
 
 title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency"
@@ -62,7 +62,7 @@ if (args.interpolate):
     title += f", {args.interpolate} samples interpolated"
     if (len(samples) % args.interpolate != 0):
         samples = numpy.delete(samples, numpy.s_[-(len(samples) % args.interpolate):], axis=0)
-    samples = samples.reshape(-1, args.interpolate, 2)
+    samples = samples.reshape(-1, args.interpolate, 3)
     samples = numpy.array([[x[:, :1].mean(), x[0][1]] for x in samples], dtype=object)
     samples = samples.reshape(-1, 2)
 else:
@@ -78,7 +78,8 @@ if not args.no_threads:
     threadNone = [None] * len(samples)
     threadMap = {}
     for i in range(0, len(samples)):
-        for threadSample in samples[i][1]:
+        sampleCpuTime = samples[i][1]
+        for threadSample in samples[i][2]:
             if threadSample[0] in threadMap:
                 threadIndex = threadMap[threadSample[0]]
             else:
@@ -86,9 +87,9 @@ if not args.no_threads:
                 threadMap[threadSample[0]] = threadIndex
                 threads.append(list.copy(threadNone))
                 threadFunctions.append(list.copy(threadNone))
-
+            cpuShare = (threadSample[1] / sampleCpuTime) if sampleCpuTime > 0 else 0
             threads[threadIndex][i] = threadIndex + 1
-            threadFunctions[threadIndex][i] = profile['functions'][threadSample[3]] + f", {threadSample[1]:.2f}"
+            threadFunctions[threadIndex][i] = profile['functions'][threadSample[3]] + f", {cpuShare:.2f}"
 
 fig = plotly.tools.make_subplots(
     rows=1 if args.no_threads else 2,

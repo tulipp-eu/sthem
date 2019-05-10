@@ -31,9 +31,7 @@ profile = {
     'functions_mangled': [label_unknown, label_foreign],
     'functions': [label_unknown, label_foreign],
     'files': [label_unknown, label_foreign],
-    'fullProfile': [],
-    'aggregatedProfile': {},
-    'mean': 1
+    'profile': [],
 }
 
 _fetched_pc_data = {}
@@ -205,6 +203,8 @@ i = 0
 csvProfile.pop(0)
 profile['samples'] = len(csvProfile)
 profile['samplingTimeUs'] = float(csvProfile[-1][0]) * 1000000
+avgSampleTime = float(csvProfile[-1][0]) / profile['samples']
+
 
 for sample in csvProfile:
     if (i % 100 == 0):
@@ -216,10 +216,9 @@ for sample in csvProfile:
     power = float(sample[args.power_sensor])
 
     for cpu in useCpus:
-        cpuShare = (1 / len(useCpus))
         pc = int(sample[maxPowerSensors + cpu + 1])
 
-        cpuSample = [cpu, cpuShare]
+        cpuSample = [cpu, avgSampleTime / len(useCpus)]
         # binary, function , file, line
         pcInfo = [
             profile['binaries'].index(label_foreign),
@@ -236,15 +235,7 @@ for sample in csvProfile:
 
         aggregateIndex = ':'.join([str(pcInfo[i]) for i in aggregateKeys])
 
-        if aggregateIndex in profile['aggregatedProfile']:
-            profile['aggregatedProfile'][aggregateIndex][0] += 1
-            profile['aggregatedProfile'][aggregateIndex][1] += power * cpuShare
-        else:
-            asample = [1, power * cpuShare]
-            asample.extend(pcInfo)
-            profile['aggregatedProfile'][aggregateIndex] = asample
-
-    profile['fullProfile'].append([power, processedSample])
+    profile['fullProfile'].append([power, avgSampleTime, processedSample])
 
 
 print("Post processing... finished!")
