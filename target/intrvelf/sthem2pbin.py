@@ -17,8 +17,6 @@ if cross_compile != "":
 label_unknown = '_unknown'
 label_foreign = '_foreign'
 
-aggregateKeys = [1]
-
 maxPowerSensors = 7
 
 profile = {
@@ -233,9 +231,7 @@ for sample in csvProfile:
         cpuSample.extend(pcInfo)
         processedSample.append(cpuSample)
 
-        aggregateIndex = ':'.join([str(pcInfo[i]) for i in aggregateKeys])
-
-    profile['fullProfile'].append([power, avgSampleTime, processedSample])
+    profile['profile'].append([power, avgSampleTime, processedSample])
 
 
 print("Post processing... finished!")
