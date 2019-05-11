@@ -25,10 +25,15 @@ if (not args.profile) or (not os.path.isfile(args.profile)):
     parser.print_help()
     sys.exit(1)
 
+print("Reading profile... ", end="")
+sys.stdout.flush()
+
 if args.profile.endswith(".bz2"):
     profile = pickle.load(bz2.BZ2File(args.profile, mode="rb"))
 else:
     profile = pickle.load(open(args.profile, mode="rb"))
+
+print("finished")
 
 if not profile['profile']:
     print("Profile does not contain full samples!")
@@ -59,12 +64,15 @@ if (args.end):
     samples = samples[:int(args.end / sampleTime)]
 
 if (args.interpolate):
+    print("Interpolating... ", end="")
+    sys.stdout.flush()
     title += f", {args.interpolate} samples interpolated"
     if (len(samples) % args.interpolate != 0):
         samples = numpy.delete(samples, numpy.s_[-(len(samples) % args.interpolate):], axis=0)
     samples = samples.reshape(-1, args.interpolate, 3)
-    samples = numpy.array([[x[:, :1].mean(), x[0][1]] for x in samples], dtype=object)
-    samples = samples.reshape(-1, 2)
+    samples = numpy.array([[x[:, :1].mean(), 0, x[0][2]] for x in samples], dtype=object)
+    samples = samples.reshape(-1, 3)
+    print("finished")
 else:
     args.interpolate = 1
 
@@ -75,10 +83,15 @@ threads = []
 threadFunctions = []
 
 if not args.no_threads:
+    print("Parsing threads... ", end="")
+    sys.stdout.flush()
     threadNone = [None] * len(samples)
     threadMap = {}
     for i in range(0, len(samples)):
-        sampleCpuTime = samples[i][1]
+        sampleCpuTime = 0
+        for threadSample in samples[i][2]:
+            sampleCpuTime += threadSample[1]
+
         for threadSample in samples[i][2]:
             if threadSample[0] in threadMap:
                 threadIndex = threadMap[threadSample[0]]
@@ -90,6 +103,9 @@ if not args.no_threads:
             cpuShare = (threadSample[1] / sampleCpuTime) if sampleCpuTime > 0 else 0
             threads[threadIndex][i] = threadIndex + 1
             threadFunctions[threadIndex][i] = profile['functions'][threadSample[3]] + f", {cpuShare:.2f}"
+    print("finished")
+
+threadAxisHeight = 0 if args.no_threads else 0.1 + (0.233 * min(1, len(threads) / 32))
 
 fig = plotly.tools.make_subplots(
     rows=1 if args.no_threads else 2,
@@ -100,9 +116,6 @@ fig = plotly.tools.make_subplots(
     vertical_spacing=0.001,
     print_grid=False
 )
-
-
-threadAxisHeight = 0 if args.no_threads else 0.1 + (0.233 * min(1, len(threads) / 32))
 
 fig['layout'].update(
     title=go.layout.Title(
@@ -148,7 +161,6 @@ fig.append_trace(
 )
 
 if not args.no_threads:
-    print(f"Including {len(threads)} threads")
     ticknumbers = numpy.arange(len(threads) + 2)
     ticklabels = numpy.array(list(map(str, ticknumbers)))
     ticklabels[0] = ''
@@ -172,6 +184,8 @@ if not args.no_threads:
     )
 
     for i in range(0, len(threads)):
+        print(f"Including thread {i}... ", end="")
+        sys.stdout.flush()
         fig.append_trace(
             go.Scatter(
                 name=f"Thread {i+1}",
@@ -181,8 +195,11 @@ if not args.no_threads:
                 hoverinfo='text+x'
             ), 2, 1
         )
+        print("finished")
 
 file = "temp-plot.html" if not args.output else args.output
-
+print("Saving plot... ", end="")
+sys.stdout.flush()
 plotly.offline.plot(fig, filename=file, auto_open=not args.quiet)
+print("finished")
 print(f"Plot saved to {file}")
