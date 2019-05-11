@@ -137,12 +137,20 @@ useCpus = list(set(convertStringRange(args.cpus)))
 
 args.search_path.append(os.getcwd())
 
+print("Reading csv...\r", end="")
 
 csvProfile = []
-with open(args.csv, "r") as csvFile:
-    csvProfile = list(csv.reader(csvFile, delimiter=";"))
+if args.csv.endswith(".bz2"):
+    with bz2.open(args.csv, "rt") as csvFile:
+        csvProfile = list(csv.reader(csvFile, delimiter=";"))
+else:
+    with open(args.csv, "r") as csvFile:
+        csvProfile = list(csv.reader(csvFile, delimiter=";"))
+
 
 print("Reading csv... finished!")
+
+print("Reading vm maps...\r", end="")
 
 if (args.bzip2):
     if not args.output.endswith(".bz2"):

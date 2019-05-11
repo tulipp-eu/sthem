@@ -22,35 +22,20 @@ if (not args.profiles) or (len(args.profiles) <= 0):
     parser.print_help()
     sys.exit(1)
 
-profiles = []
-
-for profile in args.profiles:
-    if profile.endswith(".bz2"):
-        new = pickle.load(bz2.BZ2File(profile, mode="rb"))
-    else:
-        new = pickle.load(open(profile, mode="rb"))
-    profiles.append(new)
-
-label_unknown = profiles[0]['binaries'][0]
-label_foreign = profiles[0]['binaries'][1]
-
 
 # [binary, function_mangled, function, file, line]
 aggregateKeys = [2]
 
-
-useVolts = False if profiles[0]['volts'] == 0 else True
-
 samples = 0  # profiles[0]['samples']
 samplingTimeUs = 0  # profiles[0]['samplingTimeUs']
 latencyTimeUs = 0  # profiles[0]['latencyTimeUs']
-binaries = profiles[0]['binaries']
-functions = profiles[0]['functions']
-functions_mangled = profiles[0]['functions_mangled']
-files = profiles[0]['files']
-volts = profiles[0]['volts']
-target = profiles[0]['target']
-mean = len(profiles)
+binaries = []
+functions = []
+functions_mangled = []
+files = []
+volts = 0
+target = False
+mean = len(args.profiles)
 
 meanFac = 1 / mean
 
@@ -60,10 +45,25 @@ avgSampleTime = 0  # profile['samplingTimeUs'] / (profile['samples'] * 1000000)
 
 aggregatedProfile = {}
 
+i = 1
+for fileProfile in args.profiles:
+    print(f"Aggreagte profile {i}/{len(args.profiles)}...\r", end="")
+    i += 1
 
-for profile in profiles:
+    profile = {}
+    if fileProfile.endswith(".bz2"):
+        profile = pickle.load(bz2.BZ2File(fileProfile, mode="rb"))
+    else:
+        profile = pickle.load(open(fileProfile, mode="rb"))
+
+    if not target:
+        target = profile['target']
+        volts = profile['volts']
+        useVolts = False if profile['volts'] == 0 else True
+
     if (profile['volts'] != volts):
         print("ERROR: profile voltages don't match!")
+
     latencyTimeUs += profile['latencyTimeUs'] * meanFac
     samplingTimeUs += profile['samplingTimeUs'] * meanFac
     samples += profile['samples'] * meanFac
@@ -124,6 +124,9 @@ for profile in profiles:
             else:
                 aggregatedProfile[aggregateIndex] = sampleData
 
+    del profile
+
+print(f"Successfully aggregated {len(args.profiles)} profiles!")
 
 avgLatencyUs = latencyTimeUs / samples
 avgSampleTime = samplingTimeUs / (samples * 1000000)
@@ -140,7 +143,7 @@ times = numpy.array(values[:, 0], dtype=float) * avgSampleTime
 metrics = numpy.array(values[:, 1], dtype=float)
 aggregation = values[:, 2]
 labelUnit = "J" if useVolts else "C"
-labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if profile['volts'] == 0 else f"{x:.4f} s, {y/x:.2f} W, {y:.2f} {labelUnit}" for x, y in zip(times, metrics)]
+labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if not useVolts else f"{x:.4f} s, {y/x:.2f} W, {y:.2f} {labelUnit}" for x, y in zip(times, metrics)]
 
 aggregationLength = numpy.max([len(x) for x in aggregation])
 
