@@ -90,7 +90,7 @@ if not args.no_threads:
     for i in range(0, len(samples)):
         sampleCpuTime = 0
         # Determine possible active cores
-        activeCores = min(len(samples[i][2], profile['cpus'])
+        activeCores = min(len(samples[i][2]), profile['cpus'])
 
         for threadSample in samples[i][2]:
             sampleCpuTime += threadSample[1]
