@@ -21,9 +21,10 @@ maxPowerSensors = 7
 
 profile = {
     'samples': 0,
-    'samplingTimeUs': 0,
-    'latencyTimeUs': 0,
+    'samplingTime': 0,
+    'latencyTime': 0,
     'volts': 1,
+    'cpus': 1,
     'target': label_unknown,
     'binaries': [label_unknown, label_foreign],
     'functions_mangled': [label_unknown, label_foreign],
@@ -135,6 +136,8 @@ if (not args.search_path):
 
 useCpus = list(set(convertStringRange(args.cpus)))
 
+profile['cpus'] = len(useCpus)
+
 args.search_path.append(os.getcwd())
 
 print("Reading csv...\r", end="")
@@ -208,7 +211,7 @@ i = 0
 
 csvProfile.pop(0)
 profile['samples'] = len(csvProfile)
-profile['samplingTimeUs'] = float(csvProfile[-1][0]) * 1000000
+profile['samplingTime'] = float(csvProfile[-1][0])
 avgSampleTime = float(csvProfile[-1][0]) / profile['samples']
 
 

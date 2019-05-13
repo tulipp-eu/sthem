@@ -41,9 +41,9 @@ if not profile['profile']:
 
 volts = 1 if (profile['volts'] == 0) else profile['volts']
 
-latencyUs = int(profile['latencyTimeUs'] / profile['samples'])
-sampleTime = profile['samplingTimeUs'] / (profile['samples'] * 1000000)
-freq = 1 / sampleTime
+avgSampleLatency = profile['latencyTime'] / profile['samples']
+avgSampleTime = profile['samplingTime'] / profile['samples']
+freq = 1 / avgSampleTime
 
 # profile['profile'] = [[current , smapleCpuTime [tid, threadCpuTime, binary, function, file, line]]]
 
@@ -51,17 +51,17 @@ freq = 1 / sampleTime
 samples = numpy.array(profile['profile'], dtype=object)
 # samples = numpy.array([[x[0], numpy.array(x[1][0])] for x in profile['fullProfile']], dtype=object)
 
-title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {latencyUs} us latency"
+title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {int(avgSampleLatency * 1000000)} us latency"
 
 if (args.start):
-    samples = samples[int(args.start / sampleTime) - 1:]
+    samples = samples[int(args.start / avgSampleTime) - 1:]
     if (args.end):
         args.end -= args.start
 else:
     args.start = 0.0
 
 if (args.end):
-    samples = samples[:int(args.end / sampleTime)]
+    samples = samples[:int(args.end / avgSampleTime)]
 
 if (args.interpolate):
     print("Interpolating... ", end="")
@@ -76,7 +76,7 @@ if (args.interpolate):
 else:
     args.interpolate = 1
 
-times = numpy.arange(len(samples)) * sampleTime * args.interpolate + args.start
+times = numpy.arange(len(samples)) * avgSampleTime * args.interpolate + args.start
 currents = samples[:, :1].flatten() * volts
 
 threads = []
@@ -89,10 +89,15 @@ if not args.no_threads:
     threadMap = {}
     for i in range(0, len(samples)):
         sampleCpuTime = 0
+        # Determine possible active cores
+        activeCores = min(len(samples[i][2], profile['cpus'])
+
         for threadSample in samples[i][2]:
             sampleCpuTime += threadSample[1]
 
         for threadSample in samples[i][2]:
+            threadSampleCpuTime = threadSample[1]
+
             if threadSample[0] in threadMap:
                 threadIndex = threadMap[threadSample[0]]
             else:
@@ -100,7 +105,9 @@ if not args.no_threads:
                 threadMap[threadSample[0]] = threadIndex
                 threads.append(list.copy(threadNone))
                 threadFunctions.append(list.copy(threadNone))
-            cpuShare = (threadSample[1] / sampleCpuTime) if sampleCpuTime > 0 else 0
+
+            cpuShare = min(threadSampleCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
+
             threads[threadIndex][i] = threadIndex + 1
             threadFunctions[threadIndex][i] = profile['functions'][threadSample[3]] + f", {cpuShare:.2f}"
     print("finished")

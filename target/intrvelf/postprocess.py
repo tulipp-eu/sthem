@@ -21,9 +21,10 @@ aggregateKeys = [1]
 
 profile = {
     'samples': 0,
-    'samplingTimeUs': 0,
-    'latencyTimeUs': 0,
+    'samplingTime': 0,
+    'latencyTime': 0,
     'volts': 0,
+    'cpus': 0,
     'target': label_unknown,
     'binaries': [label_unknown, label_foreign],
     'functions': [label_unknown, label_foreign],
@@ -35,6 +36,19 @@ profile = {
 _fetched_pc_data = {}
 
 binaryMap = []
+
+
+def convertStringRange(x):
+    result = []
+    for part in x.split(','):
+        if '-' in part:
+            a, b = part.split('-')
+            a, b = int(a), int(b)
+            result.extend(range(a, b + 1))
+        else:
+            a = int(part)
+            result.append(a)
+    return result
 
 
 def isPcFromBinary(pc):
@@ -89,6 +103,9 @@ parser.add_argument("-v", "--volts", help="set pmu voltage")
 parser.add_argument("-s", "--search-path", help="add search path", action="append")
 parser.add_argument("-o", "--output", help="write postprocessed profile")
 parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile")
+parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
+#  not required, schedstat reports nanoseconds on current kernels
+#  parser.add_argument("-hz", "--hertz", type=int, default=250, help="set system hz to parse jiffies")
 parser.add_argument("-l", "--little-endian", action="store_true", help="parse profile using little endianess")
 parser.add_argument("-b", "--big-endian", action="store_true", help="parse profile using big endianess")
 
@@ -134,6 +151,9 @@ if (args.big_endian):
 
 binOffset = 0
 
+useCpus = list(set(convertStringRange(args.cpus)))
+profile['cpus'] = len(useCpus)
+
 try:
     (magic,) = struct.unpack_from(endianess + "I", binProfile, binOffset)
     binOffset += 4
@@ -147,7 +167,7 @@ if (magic != 1):
 
 
 try:
-    (wallTime, cpuTime, sampleCount, vmmapCount) = struct.unpack_from(endianess + 'QQQI', binProfile, binOffset)
+    (wallTimeUs, latencyTimeUs, sampleCount, vmmapCount) = struct.unpack_from(endianess + 'QQQI', binProfile, binOffset)
     binOffset += 28
 except Exception as e:
     print("Unexpected end of file!")
@@ -159,8 +179,8 @@ if (sampleCount == 0):
     sys.exit(1)
 
 profile['samples'] = sampleCount
-profile['samplingTimeUs'] = wallTime
-profile['latencyTimeUs'] = cpuTime
+profile['samplingTime'] = (wallTimeUs / 1000000.0)
+profile['latencyTime'] = (latencyTimeUs / 1000000.0)
 
 aggregatedSamples = {}
 
@@ -181,12 +201,12 @@ for i in range(sampleCount):
     sample = []
     for j in range(threadCount):
         try:
-            (tid, pc, cputime, ) = struct.unpack_from(endianess + "IQQ", binProfile, binOffset)
+            (tid, pc, cpuTimeNs, ) = struct.unpack_from(endianess + "IQQ", binProfile, binOffset)
             binOffset += 4 + 8 + 8
         except Exception as e:
             print("Unexpected end of file!")
             sys.exit(1)
-        sample.append([tid, pc, cputime])
+        sample.append([tid, pc, (cpuTimeNs / 1000000000.0)])
 
     rawSamples.append([current, sample])
 
@@ -246,7 +266,6 @@ for sample in rawSamples:
 
     processedSample = []
     sampleCpuTime = 0
-
     for thread in sample[1]:
         if not thread[0] in prevThreadCpuTimes:
             prevThreadCpuTimes[thread[0]] = thread[2]
