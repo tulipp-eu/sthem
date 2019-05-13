@@ -8,6 +8,7 @@ import pickle
 import plotly
 import plotly.graph_objs as go
 import numpy
+import re
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="postprocessed profile from intrvelf")
@@ -19,6 +20,19 @@ parser.add_argument("-o", "--output", help="html output file")
 parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open output file")
 
 args = parser.parse_args()
+
+
+# [srcbinary, srcfunction, srcdemangled, srcfile, srcline]
+def formatOutput(useProfile, indexes, displayKeys=[0, 2], delimiter=':', sanitizer=['_unknown', '_foreign', '_kernel'], includeTarget=False):
+    indexMap = ['binaries', 'functions_mangled', 'functions', 'srcfile']
+    outputMap = [(useProfile[indexMap[x]][indexes[x]]) if not x == 5 else str(indexes[x]) for x in displayKeys]
+    display = delimiter.join(outputMap)
+    for san in sanitizer:
+        display = display.replace(f"{san}{delimiter}{san}", f"{san}").strip(delimiter)
+    if not includeTarget:
+        display = re.sub(r"^" + re.escape(useProfile['target']), "", display).strip(delimiter)
+    return display
+
 
 if (not args.profile) or (not os.path.isfile(args.profile)):
     print("ERROR: profile not found")
@@ -80,7 +94,7 @@ times = numpy.arange(len(samples)) * avgSampleTime * args.interpolate + args.sta
 currents = samples[:, :1].flatten() * volts
 
 threads = []
-threadFunctions = []
+threadDisplay = []
 
 if not args.no_threads:
     print("Parsing threads... ", end="")
@@ -104,12 +118,13 @@ if not args.no_threads:
                 threadIndex = len(threads)
                 threadMap[threadSample[0]] = threadIndex
                 threads.append(list.copy(threadNone))
-                threadFunctions.append(list.copy(threadNone))
+                threadDisplay.append(list.copy(threadNone))
 
             cpuShare = min(threadSampleCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
 
             threads[threadIndex][i] = threadIndex + 1
-            threadFunctions[threadIndex][i] = profile['functions'][threadSample[3]] + f", {cpuShare:.2f}"
+
+            threadDisplay[threadIndex][i] = formatOutput(profile, [threadSample[2], threadSample[3], threadSample[3], threadSample[4], threadSample[5]])
     print("finished")
 
 threadAxisHeight = 0 if args.no_threads else 0.1 + (0.233 * min(1, len(threads) / 32))
@@ -198,7 +213,7 @@ if not args.no_threads:
                 name=f"Thread {i+1}",
                 x=times,
                 y=threads[i],
-                text=threadFunctions[i],
+                text=threadDisplay[i],
                 hoverinfo='text+x'
             ), 2, 1
         )

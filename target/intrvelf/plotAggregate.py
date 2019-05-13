@@ -7,7 +7,8 @@ import pickle
 import plotly
 import plotly.graph_objs as go
 import numpy
-
+import textwrap
+import re
 
 def convertStringRange(x):
     result = []
@@ -20,6 +21,18 @@ def convertStringRange(x):
             a = int(part)
             result.append(a)
     return result
+
+
+# [srcbinary, srcfunction, srcdemangled, srcfile, srcline]
+def formatOutput(useProfile, indexes, displayKeys=[0, 2], delimiter=':', sanitizer=['_unknown', '_foreign', '_kernel'], includeTarget=False):
+    indexMap = ['binaries', 'functions_mangled', 'functions', 'srcfile']
+    outputMap = [(useProfile[indexMap[x]][indexes[x]]) if not x == 5 else str(indexes[x]) for x in displayKeys]
+    display = delimiter.join(outputMap)
+    for san in sanitizer:
+        display = display.replace(f"{san}{delimiter}{san}", f"{san}").strip(delimiter)
+    if not includeTarget:
+        display = re.sub(r"^" + re.escape(useProfile['target']), "", display).strip(delimiter)
+    return display
 
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
@@ -41,24 +54,27 @@ useCpus = list(set(convertStringRange(args.cpus)))
 # [binary, function_mangled, function, file, line]
 aggregateKeys = [2]
 
-samples = 0  # profiles[0]['samples']
-samplingTime = 0  # profiles[0]['samplingTimeUs']
-latencyTime = 0  # profiles[0]['latencyTimeUs']
-binaries = []
-functions = []
-functions_mangled = []
-files = []
-volts = 0
-target = False
-mean = len(args.profiles)
+aggregatedProfile = {
+    'samples': 0,
+    'samplingTime': 0,
+    'latencyTime': 0,
+    'binaries': [],
+    'functions': [],
+    'functions_mangled': [],
+    'files': [],
+    'profile': {},
+    'volts': 0,
+    'target': False,
+    'mean': len(args.profiles)
+}
 
-meanFac = 1 / mean
+useVolts = False
+
+meanFac = 1 / aggregatedProfile['mean']
 
 
-avgLatencyUs = 0  # int(profiles['latencyTimeUs'] / profile['samples'])
-avgSampleTime = 0  # profile['samplingTimeUs'] / (profile['samples'] * 1000000)
-
-aggregatedProfile = {}
+avgLatencyUs = 0
+avgSampleTime = 0
 
 i = 1
 for fileProfile in args.profiles:
@@ -71,21 +87,21 @@ for fileProfile in args.profiles:
     else:
         profile = pickle.load(open(fileProfile, mode="rb"))
 
-    if not target:
-        target = profile['target']
-        volts = profile['volts']
+    if not aggregatedProfile['target']:
+        aggregatedProfile['target'] = profile['target']
+        aggregatedProfile['volts'] = profile['volts']
         useVolts = False if profile['volts'] == 0 else True
 
-    if (profile['volts'] != volts):
+    if (profile['volts'] != aggregatedProfile['volts']):
         print("ERROR: profile voltages don't match!")
 
-    latencyTime += profile['latencyTime'] * meanFac
-    samplingTime += profile['samplingTime'] * meanFac
-    samples += profile['samples'] * meanFac
+    aggregatedProfile['latencyTime'] += profile['latencyTime'] * meanFac
+    aggregatedProfile['samplingTime'] += profile['samplingTime'] * meanFac
+    aggregatedProfile['samples'] += profile['samples'] * meanFac
     avgSampleTime = profile['samplingTime'] / profile['samples']
 
     for sample in profile['profile']:
-        metric = sample[0] * (volts if useVolts else 1) * avgSampleTime
+        metric = sample[0] * (aggregatedProfile['volts'] if useVolts else 1) * avgSampleTime
         sampleCpuTime = sample[1]
         activeCores = min(len(sample[2]), len(useCpus))
 
@@ -101,57 +117,48 @@ for fileProfile in args.profiles:
             # Needs improvement
             cpuShare = min(threadSampleCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
 
-            if srcbinary not in binaries:
-                binaries.append(srcbinary)
-            if srcfunction not in functions_mangled:
-                functions_mangled.append(srcfunction)
-                functions.append(srcdemangled)
-            if srcfile not in files:
-                files.append(srcfile)
+            if srcbinary not in aggregatedProfile['binaries']:
+                aggregatedProfile['binaries'].append(srcbinary)
+            if srcfunction not in aggregatedProfile['functions_mangled']:
+                aggregatedProfile['functions_mangled'].append(srcfunction)
+                aggregatedProfile['functions'].append(srcdemangled)
+            if srcfile not in aggregatedProfile['files']:
+                aggregatedProfile['files'].append(srcfile)
 
             sampleInfo = [
-                binaries.index(srcbinary),
-                functions_mangled.index(srcfunction),
-                functions.index(srcdemangled),
-                files.index(srcfile),
-                srcline
-            ]
-            sampleInfoText = [
-                srcbinary,
-                srcfunction,
-                srcdemangled,
-                srcfile,
+                aggregatedProfile['binaries'].index(srcbinary),
+                aggregatedProfile['functions_mangled'].index(srcfunction),
+                aggregatedProfile['functions'].index(srcdemangled),
+                aggregatedProfile['files'].index(srcfile),
                 srcline
             ]
 
             aggregateIndex = ':'.join([str(sampleInfo[i]) for i in aggregateKeys])
-            aggregateString = ':'.join([str(sampleInfoText[i]) for i in aggregateKeys])
 
             sampleData = [
                 min(threadSampleCpuTime, avgSampleTime) * meanFac,
-                metric * cpuShare * meanFac,
-                aggregateString
+                metric * cpuShare * meanFac
             ]
 
-            if aggregateIndex in aggregatedProfile:
-                aggregatedProfile[aggregateIndex][0] += sampleData[0]
-                aggregatedProfile[aggregateIndex][1] += sampleData[1]
+            if aggregateIndex in aggregatedProfile['profile']:
+                aggregatedProfile['profile'][aggregateIndex][0] += sampleData[0]
+                aggregatedProfile['profile'][aggregateIndex][1] += sampleData[1]
             else:
-                aggregatedProfile[aggregateIndex] = sampleData
+                aggregatedProfile['profile'][aggregateIndex] = [sampleData[0], sampleData[1], textwrap.fill(formatOutput(aggregatedProfile, sampleInfo), 64).replace('\n', '<br />')]
 
     del profile
 
 print(f"Successfully aggregated {len(args.profiles)} profiles!")
 
-avgLatencyTime = latencyTime / samples
-avgSampleTime = samplingTime / samples
+avgLatencyTime = aggregatedProfile['latencyTime'] / aggregatedProfile['samples']
+avgSampleTime = aggregatedProfile['samplingTime'] / aggregatedProfile['samples']
 frequency = 1 / avgSampleTime
 
 # profile['aggregatedProfile'][addr] = [samples, current, binary, function, file, line]
 
 # aggmap[function] = [ current, time, function ]
 
-values = numpy.array(list(aggregatedProfile.values()), dtype=object)
+values = numpy.array(list(aggregatedProfile['profile'].values()), dtype=object)
 values = values[values[:, 1].argsort()]
 
 times = numpy.array(values[:, 0], dtype=float)
@@ -161,7 +168,6 @@ aggregation = values[:, 2]
 labelUnit = "J" if useVolts else "C"
 labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if not useVolts else f"{x:.4f} s, {y/x if x > 0 else 0:.2f} W, {y:.2f} {labelUnit}" for x, y in zip(times, metrics)]
 
-aggregationLength = numpy.max([len(x) for x in aggregation])
 
 fig = {
     "data": [go.Bar(
@@ -174,7 +180,7 @@ fig = {
     )],
     "layout": go.Layout(
         title=go.layout.Title(
-            text=f"{target}, {frequency:.2f} Hz, {samples:.2f} samples, {(avgLatencyTime * 1000000):.2f} us latency" + (f", mean of {mean} runs" if mean > 1 else ""),
+            text=f"{aggregatedProfile['target']}, {frequency:.2f} Hz, {aggregatedProfile['samples']:.2f} samples, {(avgLatencyTime * 1000000):.2f} us latency" + (f", mean of {aggregatedProfile['mean']} runs" if aggregatedProfile['mean'] > 1 else ""),
             xref='paper',
             x=0
         ),
@@ -195,7 +201,7 @@ fig = {
                 color='black'
             )
         ),
-        margin=go.layout.Margin(l=min(500, 6.2 * numpy.max([len(x) for x in functions])))
+        margin=go.layout.Margin(l=min(500, 6.2 * numpy.max([len(x) for x in aggregation])))
     )
 }
 

@@ -62,10 +62,10 @@ def fetchPCInfo(pc, binary):
     if pc in _fetched_pc_data:
         return _fetched_pc_data[pc]
 
-    elf = binary['binary']
+    srcbinary = binary['binary']
     lookupPc = pc if binary['static'] else pc - binary['start']
 
-    addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {elf} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
+    addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {binary['path']} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
     addr2line.check_returncode()
     result = addr2line.stdout.decode('utf-8').split("\n")
     srcfunction = result[1].replace('??', label_unknown)
@@ -78,8 +78,8 @@ def fetchPCInfo(pc, binary):
         cppfilt.check_returncode()
         srcdemangled = cppfilt.stdout.decode('utf-8').split("\n")[0]
 
-    if elf not in profile['binaries']:
-        profile['binaries'].append(elf)
+    if srcbinary not in profile['binaries']:
+        profile['binaries'].append(srcbinary)
     if srcfunction not in profile['functions_mangled']:
         profile['functions_mangled'].append(srcfunction)
         profile['functions'].append(srcdemangled)
@@ -87,7 +87,7 @@ def fetchPCInfo(pc, binary):
         profile['files'].append(srcfile)
 
     result = [
-        profile['binaries'].index(elf),
+        profile['binaries'].index(srcbinary),
         profile['functions_mangled'].index(srcfunction),
         profile['files'].index(srcfile),
         srcline
@@ -246,7 +246,8 @@ for map in vmmaps:
                 found = False
     if found:
         binaryMap.append({
-            'binary': path,
+            'binary': map[2],
+            'path': path,
             'static': static,
             'start': map[0],
             'size': map[1],
