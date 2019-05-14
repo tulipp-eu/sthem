@@ -23,7 +23,6 @@
 #include <QFileInfo>
 #include <QDataStream>
 #include <QProcess>
-
 #include "elfsupport.h"
 
 static char *readLine(char *s, int size, FILE *stream) {
@@ -43,110 +42,103 @@ static char *readLine(char *s, int size, FILE *stream) {
 
 
 void ElfSupport::setPc(uint64_t pc) {
-  if(prevPc != pc) {
-    prevPc = pc;
-
+  if (prevPc == pc) return;
     // check if pc exists in cache
-    auto it = addr2lineCache.find(pc);
-    if(it != addr2lineCache.end()) {
-      addr2line = (*it).second;
-      return;
-    }
+  auto it = addr2lineCache.find(pc);
+  if(it != addr2lineCache.end()) {
+    addr2line = (*it).second;
+    return;
+  }
 
-    // check if pc exists in elf files
-    for(auto elfFile : elfFiles) {
+  // check if pc exists in elf files
+  for(auto elfFile : elfFiles) {
+    if(!elfFile.trimmed().isEmpty()) {
       QString fileName = "";
       QString function = "Unknown";
       uint64_t lineNumber = 0;
+      char buf[1024];
+      FILE *fp;
+      std::stringstream pcStream;
+      std::string cmd;
 
-      if(!elfFile.trimmed().isEmpty()) {
-        char buf[1024];
-        FILE *fp;
-        std::stringstream pcStream;
-        std::string cmd;
+      Offset elfOffset = elfOffsets.value(QFileInfo(elfFile).fileName());
+      uint64_t offset = elfOffset.offset;
+      uint64_t end = offset + elfOffset.size;
 
-        Offset elfOffset = elfOffsets.value(QFileInfo(elfFile).fileName());
-        uint64_t offset = elfOffset.offset;
-        uint64_t end = offset + elfOffset.size;
+      if((pc < offset) || (pc > end)) continue;
 
-        if((pc < offset) || (pc > end)) continue;
-
-        if(isStatic(elfFile)) {
-          offset = 0;
-        }
-
-        // create command
-        pcStream << std::hex << (pc - offset);
-        cmd = "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
-
-        // run addr2line program
-        if((fp = popen(cmd.c_str(), "r")) == NULL) goto error;
-
-        // discard first output line
-        if(readLine(buf, 1024, fp) == NULL) goto error;
-
-        // get function name
-        if(readLine(buf, 1024, fp) == NULL) goto error;
-        function = QString::fromUtf8(buf).simplified();
-        if(function == "??") function = "Unknown";
-
-        // get filename and linenumber
-        if(readLine(buf, 1024, fp) == NULL) goto error;
-
-        {
-          QString qbuf = QString::fromUtf8(buf);
-          fileName = qbuf.left(qbuf.indexOf(':'));
-          lineNumber = qbuf.mid(qbuf.indexOf(':') + 1).toULongLong();
-        }
-
-        // close stream
-        if(pclose(fp)) goto error;
+      if(isStatic(elfFile)) {
+        offset = 0;
       }
 
-      addr2line = Addr2Line(fileName, elfFile, function, lineNumber);
-      addr2lineCache[pc] = addr2line;
+      // create command
+      pcStream << std::hex << (pc - offset);
+      cmd = std::string(qgetenv("CROSS_COMPILE").constData()) + "addr2line -C -f -a " + pcStream.str() + " -e " + elfFile.toUtf8().constData();
+      // run addr2line program
+      if((fp = popen(cmd.c_str(), "r")) == NULL) goto error;
 
-      if((function != "Unknown") || (lineNumber != 0)) return;
-    }
+      // discard first output line
+      if(readLine(buf, 1024, fp) == NULL) goto error;
 
-    // check if pc exists in kallsyms file
-    if(!symsFile.trimmed().isEmpty()) {
-      QFile file(symsFile);
-      if(file.open(QIODevice::ReadOnly)) {
+      // get function name
+      if(readLine(buf, 1024, fp) == NULL) goto error;
+      function = QString::fromUtf8(buf).simplified();
+      if(function == "??") function = "Unknown";
 
-        QString lastSymbol;
-        quint64 lastAddress = ~0;
+      // get filename and linenumber
+      if(readLine(buf, 1024, fp) == NULL) goto error;
 
-        while(!file.atEnd()) {
-          QString line = file.readLine();
+      {
+        QString qbuf = QString::fromUtf8(buf);
+        fileName = qbuf.left(qbuf.indexOf(':'));
+        lineNumber = qbuf.mid(qbuf.indexOf(':') + 1).toULongLong();
+      }
 
-          QStringList tokens = line.split(' ');
+        // close stream
+      if(pclose(fp)) goto error;
 
-          if(tokens.size() >= 3) {
-            quint64 address = tokens[0].toULongLong(nullptr, 16);
-            //char symbolType = tokens[1][0].toLatin1();
-            QString symbol = tokens[2].trimmed();
-
-            if(pc < address) {
-              if(lastAddress < pc) {
-                addr2line = Addr2Line("", "kallsyms", symbol, 0);
-                addr2lineCache[pc] = addr2line;
-              }
-              file.close();
-              return;
-            }
-
-            lastSymbol = symbol;
-            lastAddress = address;
-          }
-        }
-
-        file.close();
+      if((function != "Unknown") || (lineNumber != 0)) {
+        addr2line = Addr2Line(fileName, elfFile, function, lineNumber);
+        addr2lineCache[pc] = addr2line;
+        return;
       }
     }
   }
 
-  return;
+  // check if pc exists in kallsyms file
+  if(!symsFile.trimmed().isEmpty()) {
+    QFile file(symsFile);
+    if(file.open(QIODevice::ReadOnly)) {
+
+      QString lastSymbol;
+      quint64 lastAddress = ~0;
+
+      while(!file.atEnd()) {
+        QString line = file.readLine();
+
+        QStringList tokens = line.split(' ');
+
+        if(tokens.size() >= 3) {
+          quint64 address = tokens[0].toULongLong(nullptr, 16);
+          //char symbolType = tokens[1][0].toLatin1();
+          QString symbol = tokens[2].trimmed();
+
+          if(pc < address) {
+            file.close();
+            if(lastAddress < pc) {
+              addr2line = Addr2Line("", "kallsyms", symbol, 0);
+              addr2lineCache[pc] = addr2line;
+              return;
+            } else goto error;
+          }
+
+          lastSymbol = symbol;
+          lastAddress = address;
+        }
+      }
+      file.close();
+    }
+  }
 
  error:
   addr2line = Addr2Line("", "", "", 0);

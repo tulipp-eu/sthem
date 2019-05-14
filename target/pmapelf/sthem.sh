@@ -90,7 +90,7 @@ done
 echo ready!
 " || exit 1
     scp $TARGET":"$TARGET_DIR"/vmmap" ./vmmap || exit 1
-
+    cp vmmap offset || exit 1
 else
     echo "Unknown pass argument!" >&2
     exit 1
