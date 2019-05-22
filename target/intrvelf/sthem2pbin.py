@@ -38,7 +38,6 @@ _fetched_pc_data = {}
 binaryMap = []
 kallsyms = []
 
-
 def convertStringRange(x):
     result = []
     for part in x.split(','):
@@ -122,8 +121,12 @@ parser.add_argument("-v", "--vmmap", help="vmmap from profiling run")
 parser.add_argument("-ks", "--kallsyms", help="parse with kernel symbol file")
 parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
 parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile")
+parser.add_argument("-d", "--debug", action="store_true", help="output debug information")
 
 args = parser.parse_args()
+
+if args.debug:
+    _foreign_pc = []
 
 if (not args.power_sensor) or (args.power_sensor < 1) or (args.power_sensor > maxPowerSensors):
     print("ERROR: invalid power sensor defined!")
@@ -279,6 +282,11 @@ for sample in csvProfile:
         binary = isPcFromBinary(pc)
         if binary:
             pcInfo = fetchPCInfo(pc, binary)
+        elif args.debug:
+            if pc not in _foreign_pc:
+                _foreign_pc.append(pc)
+                print(f"DEBUG: foreign address 0x{pc:x}")
+
         cpuSample.extend(pcInfo)
         processedSample.append(cpuSample)
 

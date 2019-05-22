@@ -58,6 +58,9 @@ volts = 1 if (profile['volts'] == 0) else profile['volts']
 avgSampleLatency = profile['latencyTime'] / profile['samples']
 avgSampleTime = profile['samplingTime'] / profile['samples']
 freq = 1 / avgSampleTime
+volts = profile['volts']
+useVolts = False if volts == 0 else True
+cpus = profile['cpus']
 
 # profile['profile'] = [[current , smapleCpuTime [tid, threadCpuTime, binary, function, file, line]]]
 
@@ -66,6 +69,7 @@ samples = numpy.array(profile['profile'], dtype=object)
 # samples = numpy.array([[x[0], numpy.array(x[1][0])] for x in profile['fullProfile']], dtype=object)
 
 title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {int(avgSampleLatency * 1000000)} us latency"
+
 
 if (args.start):
     samples = samples[int(args.start / avgSampleTime) - 1:]
@@ -104,7 +108,7 @@ if not args.no_threads:
     for i in range(0, len(samples)):
         sampleCpuTime = 0
         # Determine possible active cores
-        activeCores = min(len(samples[i][2]), profile['cpus'])
+        activeCores = min(len(samples[i][2]), cpus)
 
         for threadSample in samples[i][2]:
             sampleCpuTime += threadSample[1]
@@ -126,6 +130,8 @@ if not args.no_threads:
 
             threadDisplay[threadIndex][i] = formatOutput(profile, [threadSample[2], threadSample[3], threadSample[3], threadSample[4], threadSample[5]])
     print("finished")
+
+del profile
 
 threadAxisHeight = 0 if args.no_threads else 0.1 + (0.233 * min(1, len(threads) / 32))
 
@@ -161,7 +167,7 @@ fig['layout']['xaxis'].update(
 
 fig['layout']['yaxis1'].update(
     title=go.layout.yaxis.Title(
-        text="Current in A" if profile['volts'] == 0 else "Power in W",
+        text="Current in A" if not useVolts else "Power in W",
         font=dict(
             family='Courier New, monospace',
             size=18,
@@ -175,12 +181,14 @@ print(f"Going to plot {len(samples)} samples from {times[0]}s to {times[-1]}s")
 
 fig.append_trace(
     go.Scatter(
-        name="A" if profile['volts'] == 0 else "W",
+        name="A" if not useVolts else "W",
         x=times,
         y=currents,
         line={'width': 1},
     ), 1, 1
 )
+
+del currents
 
 if not args.no_threads:
     ticknumbers = numpy.arange(len(threads) + 2)
@@ -218,6 +226,10 @@ if not args.no_threads:
             ), 2, 1
         )
         print("finished")
+
+
+del threads
+del threadDisplay
 
 file = "temp-plot.html" if not args.output else args.output
 print("Saving plot... ", end="")
