@@ -11,6 +11,7 @@ import textwrap
 import re
 import tabulate
 
+
 def convertStringRange(x):
     result = []
     for part in x.split(','):
@@ -170,8 +171,11 @@ times = numpy.array(values[:, 0], dtype=float)
 metrics = numpy.array(values[:, 1], dtype=float)
 aggregation = values[:, 2]
 
+totalEnergy = numpy.sum(metrics)
+
 labelUnit = "J" if useVolts else "C"
-labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if not useVolts else f"{x:.4f} s, {y/x if x > 0 else 0:.2f} W, {y:.2f} {labelUnit}" for x, y in zip(times, metrics)]
+labels = [f"{x:.4f} s, {y:.2f} {labelUnit}" if not useVolts else f"{x:.4f} s, {y/x if x > 0 else 0:.2f} W, {y*100/totalEnergy if totalEnergy > 0 else 0:.2f}%" for x, y in zip(times, metrics)]
+
 
 if (args.output):
     paggregation = [textwrap.fill(x, 64).replace('\n', '<br />') for x in aggregation]
@@ -186,7 +190,7 @@ if (args.output):
         )],
         "layout": go.Layout(
             title=go.layout.Title(
-                text=f"{aggregatedProfile['target']}, {frequency:.2f} Hz, {aggregatedProfile['samples']:.2f} samples, {(avgLatencyTime * 1000000):.2f} us latency, {numpy.sum(metrics):.2f} {labelUnit}" + (f", mean of {aggregatedProfile['mean']} runs" if aggregatedProfile['mean'] > 1 else ""),
+                text=f"{aggregatedProfile['target']}, {frequency:.2f} Hz, {aggregatedProfile['samples']:.2f} samples, {(avgLatencyTime * 1000000):.2f} us latency, {totalEnergy:.2f} {labelUnit}" + (f", mean of {aggregatedProfile['mean']} runs" if aggregatedProfile['mean'] > 1 else ""),
                 xref='paper',
                 x=0
             ),

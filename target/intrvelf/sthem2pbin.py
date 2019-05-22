@@ -38,6 +38,7 @@ _fetched_pc_data = {}
 binaryMap = []
 kallsyms = []
 
+
 def convertStringRange(x):
     result = []
     for part in x.split(','):
@@ -89,7 +90,7 @@ def fetchPCInfo(pc, binary):
             srcline = int(fileAndLine[1])
 
         if (srcfunction != label_unknown):
-            cppfilt = subprocess.run(f"{cross_compile}c++filt -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
+            cppfilt = subprocess.run(f"{cross_compile}c++filt -i '{srcfunction}'", shell=True, stdout=subprocess.PIPE)
             cppfilt.check_returncode()
             srcdemangled = cppfilt.stdout.decode('utf-8').split("\n")[0]
 
@@ -148,7 +149,7 @@ if (not args.vmmap) or (not os.path.isfile(args.vmmap)):
     parser.print_help()
     sys.exit(1)
 
-if (not args.kallsyms) or (not os.path.isfile(args.kallsyms)):
+if (args.kallsyms) and (not os.path.isfile(args.kallsyms)):
     print("ERROR: kallsyms not found!")
     parser.print_help()
     sys.exit(1)
@@ -271,7 +272,7 @@ for sample in csvProfile:
     for cpu in useCpus:
         pc = int(sample[maxPowerSensors + cpu + 1])
 
-        cpuSample = [cpu, avgSampleTime / len(useCpus)]
+        cpuSample = [cpu, avgSampleTime]
         # binary, function , file, line
         pcInfo = [
             profile['binaries'].index(label_foreign),
