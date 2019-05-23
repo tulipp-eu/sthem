@@ -4,98 +4,25 @@ import argparse
 import os
 import sys
 import struct
-import subprocess
 import pickle
 import bz2
-import re
+import profileLib
 
-cross_compile = "" if 'CROSS_COMPILE' not in os.environ else os.environ['CROSS_COMPILE']
-
-if cross_compile != "":
-    print(f"Using cross compilation prefix '{cross_compile}'")
-
-label_unknown = '_unknown'
-label_foreign = '_foreign'
-
-aggregateKeys = [1]
+_profileVersion = "0.1"
 
 profile = {
+    'version': _profileVersion,
     'samples': 0,
     'samplingTime': 0,
     'latencyTime': 0,
     'volts': 0,
     'cpus': 0,
-    'target': label_unknown,
-    'binaries': [label_unknown, label_foreign],
-    'functions': [label_unknown, label_foreign],
-    'functions_mangled': [label_unknown, label_foreign],
-    'files': [label_unknown, label_foreign],
+    'target': "",
+    'binaries': [],
+    'functions': [],
+    'files': [],
     'profile': [],
 }
-
-_fetched_pc_data = {}
-
-binaryMap = []
-
-
-def convertStringRange(x):
-    result = []
-    for part in x.split(','):
-        if '-' in part:
-            a, b = part.split('-')
-            a, b = int(a), int(b)
-            result.extend(range(a, b + 1))
-        else:
-            a = int(part)
-            result.append(a)
-    return result
-
-
-def isPcFromBinary(pc):
-    for binary in binaryMap:
-        if (pc >= binary['start'] and pc <= binary['end']):
-            return binary
-    return False
-
-
-def fetchPCInfo(pc, binary):
-    if pc in _fetched_pc_data:
-        return _fetched_pc_data[pc]
-
-    srcbinary = binary['binary']
-    lookupPc = pc if binary['static'] else pc - binary['start']
-
-    addr2line = subprocess.run(f"{cross_compile}addr2line -f -s -e {binary['path']} -a {lookupPc:x}", shell=True, stdout=subprocess.PIPE)
-    addr2line.check_returncode()
-    result = addr2line.stdout.decode('utf-8').split("\n")
-    srcfunction = result[1].replace('??', label_unknown)
-    srcfile = result[2].split(':')[0].replace('??', label_unknown)
-    srcline = int(result[2].split(':')[1].split(' ')[0].replace('?', '0'))
-    srcdemangled = label_unknown
-
-    if (srcfunction != label_unknown):
-        cppfilt = subprocess.run(f"{cross_compile}c++filt -i {srcfunction}", shell=True, stdout=subprocess.PIPE)
-        cppfilt.check_returncode()
-        srcdemangled = cppfilt.stdout.decode('utf-8').split("\n")[0]
-
-    if srcbinary not in profile['binaries']:
-        profile['binaries'].append(srcbinary)
-    if srcfunction not in profile['functions_mangled']:
-        profile['functions_mangled'].append(srcfunction)
-        profile['functions'].append(srcdemangled)
-    if srcfile not in profile['files']:
-        profile['files'].append(srcfile)
-
-    result = [
-        profile['binaries'].index(srcbinary),
-        profile['functions_mangled'].index(srcfunction),
-        profile['files'].index(srcfile),
-        srcline
-    ]
-
-    _fetched_pc_data[pc] = result
-    return result
-
 
 parser = argparse.ArgumentParser(description="Parse profiles from intrvelf sampler.")
 parser.add_argument("profile", help="profile from intrvelf")
@@ -104,8 +31,6 @@ parser.add_argument("-s", "--search-path", help="add search path", action="appen
 parser.add_argument("-o", "--output", help="write postprocessed profile")
 parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile")
 parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
-#  not required, schedstat reports nanoseconds on current kernels
-#  parser.add_argument("-hz", "--hertz", type=int, default=250, help="set system hz to parse jiffies")
 parser.add_argument("-l", "--little-endian", action="store_true", help="parse profile using little endianess")
 parser.add_argument("-b", "--big-endian", action="store_true", help="parse profile using big endianess")
 
@@ -121,22 +46,17 @@ if (not args.profile) or (not os.path.isfile(args.profile)):
     parser.print_help()
     sys.exit(1)
 
+if args.bzip2 and not args.output.endswith(".bz2"):
+    args.output += ".bz2"
+
 if (args.volts):
     profile['volts'] = float(args.volts)
 
 if (not args.search_path):
     args.search_path = []
-
 args.search_path.append(os.getcwd())
 
 binProfile = open(args.profile, mode='rb').read()
-
-if (args.bzip2):
-    if not args.output.endswith(".bz2"):
-        args.output += ".bz2"
-    outProfile = bz2.BZ2File(args.output, mode='wb')
-else:
-    outProfile = open(args.output, mode="wb")
 
 forced = False
 endianess = "="
@@ -151,7 +71,7 @@ if (args.big_endian):
 
 binOffset = 0
 
-useCpus = list(set(convertStringRange(args.cpus)))
+useCpus = list(set(profileLib.parseRange(args.cpus)))
 profile['cpus'] = len(useCpus)
 
 try:
@@ -182,12 +102,10 @@ profile['samples'] = sampleCount
 profile['samplingTime'] = (wallTimeUs / 1000000.0)
 profile['latencyTime'] = (latencyTimeUs / 1000000.0)
 
-aggregatedSamples = {}
-
 rawSamples = []
 
 for i in range(sampleCount):
-    if (i % 100 == 0):
+    if (i % 1000 == 0):
         progress = int((i + 1) * 100 / sampleCount)
         print(f"Reading raw samples... {progress}%\r", end="")
 
@@ -211,7 +129,6 @@ for i in range(sampleCount):
     rawSamples.append([current, sample])
 
 print("Reading raw samples... finished!")
-
 vmmaps = []
 for i in range(vmmapCount):
     try:
@@ -222,45 +139,24 @@ for i in range(vmmapCount):
         sys.exit(1)
     vmmaps.append([addr, size, label.decode('utf-8').rstrip('\0')])
 
-print("Reading vm maps... finished!")
+print("Reading raw vm maps... finished!")
 
+del binProfile
 
-profile['target'] = vmmaps[0][2]
+vmmapString = '\n'.join([f"{x[0]:x} {x[1]:x} {x[2]}" for x in vmmaps])
 
-binaryMap = []
+sampleParser = profileLib.sampleParser()
+sampleParser.addSearchPath(args.search_path)
+sampleParser.loadVMMap(fromBuffer=vmmapString)
+del vmmaps
+del vmmapString
 
-for map in vmmaps:
-    found = False
-    path = ""
-    static = False
-    for searchPath in args.search_path:
-        path = f"{searchPath}/{map[2]}"
-        if (os.path.isfile(path)):
-            readelf = subprocess.run(f"readelf -h {path}", shell=True, stdout=subprocess.PIPE)
-            try:
-                readelf.check_returncode()
-                static = True if re.search("Type:[ ]+EXEC", readelf.stdout.decode('utf-8'), re.M) else False
-                found = True
-                break
-            except Exception as e:
-                found = False
-    if found:
-        binaryMap.append({
-            'binary': map[2],
-            'path': path,
-            'static': static,
-            'start': map[0],
-            'size': map[1],
-            'end': map[0] + map[1]
-        })
-    else:
-        print(f"Could not find {map[2]}!")
-        sys.exit(1)
+profile['target'] = sampleParser.binaries[0]['binary']
 
 i = 0
 prevThreadCpuTimes = {}
 for sample in rawSamples:
-    if (i % 100 == 0):
+    if (i % 1000 == 0):
         progress = int((i + 1) * 100 / sampleCount)
         print(f"Post processing... {progress}%\r", end="")
     i += 1
@@ -275,29 +171,25 @@ for sample in rawSamples:
         prevThreadCpuTimes[thread[0]] = thread[2]
         sampleCpuTime += threadCpuTime
 
-        pcInfo = [
-            profile['binaries'].index(label_foreign),
-            profile['functions_mangled'].index(label_foreign),
-            profile['files'].index(label_foreign),
-            0
-        ]
+        processedSample.append([thread[0], threadCpuTime, sampleParser.parseFromPC(thread[1])])
 
-        binary = isPcFromBinary(thread[1])
-        if binary:
-            pcInfo = fetchPCInfo(thread[1], binary)
-
-        threadSample = [thread[0], threadCpuTime]
-        threadSample.extend(pcInfo)
-        processedSample.append(threadSample)
-
-    # [ energy, sampleCpuTime, [ threadId, cpuTime, binaryIndex, functionIndex, fileIndex, lineNumber ] ]
     profile['profile'].append([sample[0], sampleCpuTime, processedSample])
 
+profile['binaries'] = sampleParser.getBinaryMap()
+profile['functions'] = sampleParser.getFunctionMap()
+profile['files'] = sampleParser.getFileMap()
 
 print("Post processing... finished!")
 
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()
+if (args.bzip2):
+    if not args.output.endswith(".bz2"):
+        args.output += ".bz2"
+    outProfile = bz2.BZ2File(args.output, mode='wb')
+else:
+    outProfile = open(args.output, mode="wb")
+
 pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL)
 outProfile.close()
 print("finished")

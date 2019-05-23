@@ -8,37 +8,15 @@ import plotly
 import plotly.graph_objs as go
 import numpy
 import textwrap
-import re
 import tabulate
 
+import profileLib
 
-def convertStringRange(x):
-    result = []
-    for part in x.split(','):
-        if '-' in part:
-            a, b = part.split('-')
-            a, b = int(a), int(b)
-            result.extend(range(a, b + 1))
-        else:
-            a = int(part)
-            result.append(a)
-    return result
-
-
-# [srcbinary, srcfunction, srcdemangled, srcfile, srcline]
-def formatOutput(useProfile, indexes, displayKeys=[0, 2], delimiter=':', sanitizer=['_unknown', '_foreign', '_kernel'], includeTarget=False):
-    indexMap = ['binaries', 'functions_mangled', 'functions', 'srcfile']
-    outputMap = [(useProfile[indexMap[x]][indexes[x]]) if not x == 5 else str(indexes[x]) for x in displayKeys]
-    display = delimiter.join(outputMap)
-    for san in sanitizer:
-        display = display.replace(f"{san}{delimiter}{san}", f"{san}").strip(delimiter)
-    if not includeTarget:
-        display = re.sub(r"^" + re.escape(useProfile['target']), "", display).strip(delimiter)
-    return display
-
+_profileVersion = "0.1"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profiles", help="postprocessed profiles from intrvelf", nargs="+")
+parser.add_argument("-a", "--aggregate-keys", help="list of aggregation and display keys", default="1,3")
 parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
 parser.add_argument("-t", "--table", help="output csv table")
 parser.add_argument("-o", "--output", help="html output file")
@@ -56,19 +34,17 @@ if (not args.profiles) or (len(args.profiles) <= 0):
     parser.print_help()
     sys.exit(1)
 
-useCpus = list(set(convertStringRange(args.cpus)))
+useCpus = list(set(profileLib.parseRange(args.cpus)))
+aggregateKeys = profileLib.parseRange(args.aggregate_keys)
+
 
 # [binary, function_mangled, function, file, line]
-aggregateKeys = [2]
 
 aggregatedProfile = {
+    'version': _profileVersion,
     'samples': 0,
     'samplingTime': 0,
     'latencyTime': 0,
-    'binaries': [],
-    'functions': [],
-    'functions_mangled': [],
-    'files': [],
     'profile': {},
     'volts': 0,
     'target': False,
@@ -76,12 +52,10 @@ aggregatedProfile = {
 }
 
 useVolts = False
-
 meanFac = 1 / aggregatedProfile['mean']
-
-
 avgLatencyUs = 0
 avgSampleTime = 0
+# debugEnergy = 0
 
 i = 1
 for fileProfile in args.profiles:
@@ -94,6 +68,9 @@ for fileProfile in args.profiles:
     else:
         profile = pickle.load(open(fileProfile, mode="rb"))
 
+    if 'version' not in profile or profile['version'] != _profileVersion:
+        raise Exception(f"Incompatible profile version (required: {_profileVersion})")
+
     if not aggregatedProfile['target']:
         aggregatedProfile['target'] = profile['target']
         aggregatedProfile['volts'] = profile['volts']
@@ -102,59 +79,58 @@ for fileProfile in args.profiles:
     if (profile['volts'] != aggregatedProfile['volts']):
         print("ERROR: profile voltages don't match!")
 
+    sampleFormatter = profileLib.sampleFormatter(profile['binaries'], profile['functions'], profile['files'])
+
     aggregatedProfile['latencyTime'] += profile['latencyTime'] * meanFac
     aggregatedProfile['samplingTime'] += profile['samplingTime'] * meanFac
     aggregatedProfile['samples'] += profile['samples'] * meanFac
     avgSampleTime = profile['samplingTime'] / profile['samples']
 
     for sample in profile['profile']:
+        # debugEnergy += sample[0] * (aggregatedProfile['volts'] if useVolts else 1) * avgSampleTime * meanFac
+
         metric = sample[0] * (aggregatedProfile['volts'] if useVolts else 1) * avgSampleTime
-        sampleCpuTime = sample[1]
+
         activeCores = min(len(sample[2]), len(useCpus))
 
         for thread in sample[2]:
             threadId = thread[0]
-            threadSampleCpuTime = thread[1]
-            srcbinary = profile['binaries'][thread[2]]
-            srcfunction = profile['functions_mangled'][thread[3]]
-            srcdemangled = profile['functions'][thread[3]]
-            srcfile = profile['files'][thread[4]]
-            srcline = thread[5]
+            threadCpuTime = thread[1]
+            sample = sampleFormatter.getSample(thread[2])
 
             # Needs improvement
-            cpuShare = min(threadSampleCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
+            cpuShare = min(threadCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
 
-            if srcbinary not in aggregatedProfile['binaries']:
-                aggregatedProfile['binaries'].append(srcbinary)
-            if srcfunction not in aggregatedProfile['functions_mangled']:
-                aggregatedProfile['functions_mangled'].append(srcfunction)
-                aggregatedProfile['functions'].append(srcdemangled)
-            if srcfile not in aggregatedProfile['files']:
-                aggregatedProfile['files'].append(srcfile)
+            aggregateIndex = sampleFormatter.formatSample(
+                sample,
+                displayKeys=aggregateKeys,
+                delimiter=':',
+                doubleSanitizer=False,
+                lStringStrip=False,
+                rStringStrip=False
+            )
 
-            sampleInfo = [
-                aggregatedProfile['binaries'].index(srcbinary),
-                aggregatedProfile['functions_mangled'].index(srcfunction),
-                aggregatedProfile['functions'].index(srcdemangled),
-                aggregatedProfile['files'].index(srcfile),
-                srcline
-            ]
-
-            aggregateIndex = ':'.join([str(sampleInfo[i]) for i in aggregateKeys])
-
-            sampleData = [
-                min(threadSampleCpuTime, avgSampleTime) * meanFac,
+            aggregateData = [
+                min(threadCpuTime, avgSampleTime) * meanFac,
                 metric * cpuShare * meanFac
             ]
 
             if aggregateIndex in aggregatedProfile['profile']:
-                aggregatedProfile['profile'][aggregateIndex][0] += sampleData[0]
-                aggregatedProfile['profile'][aggregateIndex][1] += sampleData[1]
+                aggregatedProfile['profile'][aggregateIndex][0] += aggregateData[0]
+                aggregatedProfile['profile'][aggregateIndex][1] += aggregateData[1]
             else:
-                aggregatedProfile['profile'][aggregateIndex] = [sampleData[0], sampleData[1], formatOutput(aggregatedProfile, sampleInfo)]
+                aggregatedProfile['profile'][aggregateIndex] = [
+                    aggregateData[0],
+                    aggregateData[1],
+                    sampleFormatter.formatSample(
+                        sample,
+                        displayKeys=aggregateKeys,
+                        lStringStrip=aggregatedProfile['target']
+                    )
+                ]
 
+    del sampleFormatter
     del profile
-
 
 avgLatencyTime = aggregatedProfile['latencyTime'] / aggregatedProfile['samples']
 avgSampleTime = aggregatedProfile['samplingTime'] / aggregatedProfile['samples']
@@ -237,3 +213,4 @@ if (args.table):
 
 if (not args.quiet):
     print(tabulate.tabulate(zip(aggregation, times, something, metrics), headers=['Function', 'Time [s]', 'Watt [W]' if useVolts else 'Current [A]', 'Energy [J]' if useVolts else 'Charge [C]']))
+    # print(f"DEBUG: {debugEnergy:.2f} J")

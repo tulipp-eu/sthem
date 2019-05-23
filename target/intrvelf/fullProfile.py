@@ -8,7 +8,9 @@ import pickle
 import plotly
 import plotly.graph_objs as go
 import numpy
-import re
+import profileLib
+
+_profileVersion = "0.1"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="postprocessed profile from intrvelf")
@@ -20,19 +22,6 @@ parser.add_argument("-o", "--output", help="html output file")
 parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open output file")
 
 args = parser.parse_args()
-
-
-# [srcbinary, srcfunction, srcdemangled, srcfile, srcline]
-def formatOutput(useProfile, indexes, displayKeys=[0, 2], delimiter=':', sanitizer=['_unknown', '_foreign', '_kernel'], includeTarget=False):
-    indexMap = ['binaries', 'functions_mangled', 'functions', 'srcfile']
-    outputMap = [(useProfile[indexMap[x]][indexes[x]]) if not x == 5 else str(indexes[x]) for x in displayKeys]
-    display = delimiter.join(outputMap)
-    for san in sanitizer:
-        display = display.replace(f"{san}{delimiter}{san}", f"{san}").strip(delimiter)
-    if not includeTarget:
-        display = re.sub(r"^" + re.escape(useProfile['target']), "", display).strip(delimiter)
-    return display
-
 
 if (not args.profile) or (not os.path.isfile(args.profile)):
     print("ERROR: profile not found")
@@ -49,26 +38,19 @@ else:
 
 print("finished")
 
-if not profile['profile']:
-    print("Profile does not contain full samples!")
-    sys.exit(1)
 
-volts = 1 if (profile['volts'] == 0) else profile['volts']
+if 'version' not in profile or profile['version'] != _profileVersion:
+    raise Exception(f"Incompatible profile version (required: {_profileVersion})")
+
 
 avgSampleLatency = profile['latencyTime'] / profile['samples']
 avgSampleTime = profile['samplingTime'] / profile['samples']
 freq = 1 / avgSampleTime
-volts = profile['volts']
-useVolts = False if volts == 0 else True
+useVolts = False if (profile['volts'] == 0) else True
+volts = profile['volts'] if useVolts else 1
 cpus = profile['cpus']
 
-# profile['profile'] = [[current , smapleCpuTime [tid, threadCpuTime, binary, function, file, line]]]
-
-
 samples = numpy.array(profile['profile'], dtype=object)
-# samples = numpy.array([[x[0], numpy.array(x[1][0])] for x in profile['fullProfile']], dtype=object)
-
-title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {int(avgSampleLatency * 1000000)} us latency"
 
 
 if (args.start):
@@ -84,7 +66,6 @@ if (args.end):
 if (args.interpolate):
     print("Interpolating... ", end="")
     sys.stdout.flush()
-    title += f", {args.interpolate} samples interpolated"
     if (len(samples) % args.interpolate != 0):
         samples = numpy.delete(samples, numpy.s_[-(len(samples) % args.interpolate):], axis=0)
     samples = samples.reshape(-1, args.interpolate, 3)
@@ -100,18 +81,16 @@ currents = samples[:, :1].flatten() * volts
 threads = []
 threadDisplay = []
 
+sampleFormatter = profileLib.sampleFormatter(profile['binaries'], profile['functions'], profile['files'])
+
 if not args.no_threads:
     print("Parsing threads... ", end="")
     sys.stdout.flush()
     threadNone = [None] * len(samples)
     threadMap = {}
     for i in range(0, len(samples)):
-        sampleCpuTime = 0
         # Determine possible active cores
         activeCores = min(len(samples[i][2]), cpus)
-
-        for threadSample in samples[i][2]:
-            sampleCpuTime += threadSample[1]
 
         for threadSample in samples[i][2]:
             threadSampleCpuTime = threadSample[1]
@@ -127,13 +106,16 @@ if not args.no_threads:
             cpuShare = min(threadSampleCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
 
             threads[threadIndex][i] = threadIndex + 1
-
-            threadDisplay[threadIndex][i] = formatOutput(profile, [threadSample[2], threadSample[3], threadSample[3], threadSample[4], threadSample[5]])
+            threadDisplay[threadIndex][i] = sampleFormatter.formatData(threadSample[2], lStringStrip=profile['target']) + f", {cpuShare:.2f}"
     print("finished")
 
-del profile
 
+title = f"{profile['target']}, {freq:.2f} Hz, {profile['samples']} samples, {int(avgSampleLatency * 1000000)} us latency"
+if args.interpolate > 1:
+    title += f", {args.interpolate} samples interpolated"
 threadAxisHeight = 0 if args.no_threads else 0.1 + (0.233 * min(1, len(threads) / 32))
+
+del profile
 
 fig = plotly.tools.make_subplots(
     rows=1 if args.no_threads else 2,
