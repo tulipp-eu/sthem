@@ -29,7 +29,6 @@ parser.add_argument("profile", help="profile from intrvelf")
 parser.add_argument("-v", "--volts", help="set pmu voltage")
 parser.add_argument("-s", "--search-path", help="add search path", action="append")
 parser.add_argument("-o", "--output", help="write postprocessed profile")
-parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile")
 parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
 parser.add_argument("-l", "--little-endian", action="store_true", help="parse profile using little endianess")
 parser.add_argument("-b", "--big-endian", action="store_true", help="parse profile using big endianess")
@@ -45,9 +44,6 @@ if (not args.profile) or (not os.path.isfile(args.profile)):
     print("ERROR: profile not found!")
     parser.print_help()
     sys.exit(1)
-
-if args.bzip2 and not args.output.endswith(".bz2"):
-    args.output += ".bz2"
 
 if (args.volts):
     profile['volts'] = float(args.volts)
@@ -144,7 +140,7 @@ print("Reading raw vm maps... finished!")
 del binProfile
 
 vmmapString = '\n'.join([f"{x[0]:x} {x[1]:x} {x[2]}" for x in vmmaps])
-
+print(vmmapString)
 sampleParser = profileLib.sampleParser()
 sampleParser.addSearchPath(args.search_path)
 sampleParser.loadVMMap(fromBuffer=vmmapString)
@@ -183,13 +179,10 @@ print("Post processing... finished!")
 
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()
-if (args.bzip2):
-    if not args.output.endswith(".bz2"):
-        args.output += ".bz2"
+if args.output.endswith(".bz2"):
     outProfile = bz2.BZ2File(args.output, mode='wb')
 else:
     outProfile = open(args.output, mode="wb")
-
 pickle.dump(profile, outProfile, pickle.HIGHEST_PROTOCOL)
 outProfile.close()
 print("finished")

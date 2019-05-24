@@ -18,10 +18,14 @@ parser.add_argument("-s", "--start", type=float, help="plot start time (seconds)
 parser.add_argument("-e", "--end", type=float, help="plot end time (seconds)")
 parser.add_argument("-n", "--no-threads", action="store_true", help="interpolate samples")
 parser.add_argument("-i", "--interpolate", type=int, help="interpolate samples")
-parser.add_argument("-o", "--output", help="html output file")
-parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open output file")
+parser.add_argument("-p", "--plot", help="plot output html file")
+parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open plot")
 
 args = parser.parse_args()
+
+if (not args.plot):
+    parser.print_help()
+    sys.exit(0)
 
 if (not args.profile) or (not os.path.isfile(args.profile)):
     print("ERROR: profile not found")
@@ -106,7 +110,7 @@ if not args.no_threads:
             cpuShare = min(threadSampleCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
 
             threads[threadIndex][i] = threadIndex + 1
-            threadDisplay[threadIndex][i] = sampleFormatter.formatData(threadSample[2], lStringStrip=profile['target']) + f", {cpuShare:.2f}"
+            threadDisplay[threadIndex][i] = sampleFormatter.sanitizeOutput(sampleFormatter.formatData(threadSample[2]), lStringStrip=profile['target']) + f", {cpuShare:.2f}"
     print("finished")
 
 
@@ -213,9 +217,6 @@ if not args.no_threads:
 del threads
 del threadDisplay
 
-file = "temp-plot.html" if not args.output else args.output
-print("Saving plot... ", end="")
 sys.stdout.flush()
-plotly.offline.plot(fig, filename=file, auto_open=not args.quiet)
-print("finished")
-print(f"Plot saved to {file}")
+plotly.offline.plot(fig, filename=args.plot, auto_open=not args.quiet)
+print(f"Plot saved to {args.plot}")

@@ -34,7 +34,6 @@ parser.add_argument("-o", "--output", help="output profile")
 parser.add_argument("-v", "--vmmap", help="vmmap from profiling run")
 parser.add_argument("-ks", "--kallsyms", help="parse with kernel symbol file")
 parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
-parser.add_argument("-z", "--bzip2", action="store_true", help="compress postprocessed profile")
 
 args = parser.parse_args()
 
@@ -63,9 +62,6 @@ if (args.kallsyms) and (not os.path.isfile(args.kallsyms)):
     parser.print_help()
     sys.exit(1)
 
-if (args.bzip2) and not args.output.endswith(".bz2"):
-    args.output += ".bz2"
-
 if (not args.search_path):
     args.search_path = []
 args.search_path.append(os.getcwd())
@@ -73,7 +69,7 @@ args.search_path.append(os.getcwd())
 useCpus = list(set(profileLib.parseRange(args.cpus)))
 profile['cpus'] = len(useCpus)
 
-sampleParser = profileLib.sampleParser()
+sampleParser = profileLib.sampleParser(pcHeuristic=True)
 
 sampleParser.addSearchPath(args.search_path)
 
@@ -129,7 +125,6 @@ print("Post processing... finished!")
 
 print(f"Writing {args.output}... ", end="")
 sys.stdout.flush()
-
 if args.output.endswith(".bz2"):
     outProfile = bz2.BZ2File(args.output, mode='wb')
 else:

@@ -34,8 +34,9 @@ class sampleParser:
     searchPaths = []
     _fetched_pc_data = {}
     _cross_compile = ""
+    _pc_heuristic = False
 
-    def __init__(self, labelUnknown=LABEL_UNKNOWN, labelForeign=LABEL_FOREIGN, labelKernel=LABEL_KERNEL, useDemangling=True):
+    def __init__(self, labelUnknown=LABEL_UNKNOWN, labelForeign=LABEL_FOREIGN, labelKernel=LABEL_KERNEL, useDemangling=True, pcHeuristic=False):
         self.binaryMap = [labelUnknown, labelForeign]
         self.functionMap = [[labelUnknown, labelUnknown], [labelForeign, labelForeign]]
         self._functionMap = [x[0] for x in self.functionMap]
@@ -98,6 +99,17 @@ class sampleParser:
                         'size': size,
                         'end': addr + size
                     })
+                    if self.pcHeuristic and not static:
+                        naddr = False
+                        if addr >> 32 == 0x55:
+                            naddr = (0x7f << 32) | (addr & 0xffffffff)
+                        elif addr >> 32 == 0x7f:
+                            naddr = (0x55 << 32) | (addr & 0xffffffff)
+                        if naddr is not False:
+                            self.binaries.append({
+                                'binary': 'heuristic_' + label, 'path': path, 'kernel': False, 'static': static,
+                                'start': naddr, 'size': size, 'end': naddr + size
+                            })
                 else:
                     raise Exception(f"Could not find {label}")
 
@@ -258,17 +270,18 @@ class sampleFormatter():
         ]
 
     def formatData(self, data, displayKeys=[1, 3], delimiter=":", doubleSanitizer=[LABEL_FOREIGN, LABEL_UNKNOWN, LABEL_KERNEL], lStringStrip=False, rStringStrip=False):
-        return self.formatSample(
-            self.getSample(data),
-            displayKeys,
+        return self.sanitizeOutput(
+            self.formatSample(self.getSample(data), displayKeys, delimiter),
             delimiter,
             doubleSanitizer,
             lStringStrip,
             rStringStrip
         )
 
-    def formatSample(self, sample, displayKeys=[1, 3], delimiter=":", doubleSanitizer=[LABEL_FOREIGN, LABEL_UNKNOWN, LABEL_KERNEL], lStringStrip=False, rStringStrip=False):
-        output = delimiter.join([f"0x{sample[x]:x}" if x == 0 else str(sample[x]) for x in displayKeys])
+    def formatSample(self, sample, displayKeys=[1, 3], delimiter=":"):
+        return delimiter.join([f"0x{sample[x]:x}" if x == 0 else str(sample[x]) for x in displayKeys])
+
+    def sanitizeOutput(self, output, delimiter=":", doubleSanitizer=[LABEL_FOREIGN, LABEL_UNKNOWN, LABEL_KERNEL], lStringStrip=False, rStringStrip=False):
         if doubleSanitizer is not False:
             if not isinstance(doubleSanitizer, list):
                 doubleSanitizer = [doubleSanitizer]
