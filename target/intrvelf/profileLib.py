@@ -48,6 +48,7 @@ class sampleParser:
         self.searchPaths = []
         self._fetched_pc_data = {}
         self._cross_compile = "" if 'CROSS_COMPILE' not in os.environ else os.environ['CROSS_COMPILE']
+        self._pc_heuristic = pcHeuristic
 
     def addSearchPath(self, path):
         if not isinstance(path, list):
@@ -99,7 +100,7 @@ class sampleParser:
                         'size': size,
                         'end': addr + size
                     })
-                    if self.pcHeuristic and not static:
+                    if self._pc_heuristic and not static:
                         naddr = False
                         if addr >> 32 == 0x55:
                             naddr = (0x7f << 32) | (addr & 0xffffffff)
