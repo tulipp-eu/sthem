@@ -69,7 +69,7 @@ args.search_path.append(os.getcwd())
 useCpus = list(set(profileLib.parseRange(args.cpus)))
 profile['cpus'] = len(useCpus)
 
-sampleParser = profileLib.sampleParser(pcHeuristic=True)
+sampleParser = profileLib.sampleParser()
 
 sampleParser.addSearchPath(args.search_path)
 
@@ -97,9 +97,14 @@ profile['target'] = sampleParser.binaries[0]['binary']
 if (args.kallsyms):
     sampleParser.loadKallsyms(args.kallsyms)
 
+
+sampleParser.enableSkewedPCAdjustment()
+
 profile['samples'] = len(csvProfile)
 profile['samplingTime'] = float(csvProfile[-1][0])
 avgSampleTime = float(csvProfile[-1][0]) / profile['samples']
+
+
 
 i = 0
 csvProfile.pop(0)

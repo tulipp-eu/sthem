@@ -34,7 +34,6 @@ class sampleParser:
     searchPaths = []
     _fetched_pc_data = {}
     _cross_compile = ""
-    _pc_heuristic = False
 
     def __init__(self, labelUnknown=LABEL_UNKNOWN, labelForeign=LABEL_FOREIGN, labelKernel=LABEL_KERNEL, useDemangling=True, pcHeuristic=False):
         self.binaryMap = [labelUnknown, labelForeign]
@@ -95,22 +94,12 @@ class sampleParser:
                         'binary': label,
                         'path': path,
                         'kernel': False,
+                        'skewed': False,
                         'static': static,
                         'start': addr,
                         'size': size,
                         'end': addr + size
                     })
-                    if self._pc_heuristic and not static:
-                        naddr = False
-                        if addr >> 32 == 0x55:
-                            naddr = (0x7f << 32) | (addr & 0xffffffff)
-                        elif addr >> 32 == 0x7f:
-                            naddr = (0x55 << 32) | (addr & 0xffffffff)
-                        if naddr is not False:
-                            self.binaries.append({
-                                'binary': label, 'path': path, 'kernel': False, 'static': static,
-                                'start': naddr, 'size': size, 'end': naddr + size
-                            })
                 else:
                     raise Exception(f"Could not find {label}")
 
@@ -138,12 +127,31 @@ class sampleParser:
             'path': '_kernel',
             'kernel': True,
             'static': True,
+            'skewed': False,
             'start': self.kallsyms[0][0],
             'size': self.kallsyms[-1][0] - self.kallsyms[0][0],
             'end': self.kallsyms[-1][0]
         })
 
         self.kallsyms.reverse()
+
+    def enableSkewedPCAdjustment(self):
+        fakeHighBits = [0x55, 0x7f, 0xffffff80]
+
+        for binary in self.binaries:
+            if binary['skewed'] is False:
+                nbinary = binary.copy()
+                nbinary['skewed'] = True
+                laddr = binary['start'] & 0xffffffff
+                haddr = binary['start'] >> 32
+                for fakeHigh in fakeHighBits:
+                    if haddr != fakeHigh:
+                        nbinary['start'] = (fakeHigh << 32) | laddr
+                        nbinary['end'] = nbinary['start'] + nbinary['size']
+                        self.binaries.append(nbinary.copy())
+
+    def disableSkewedPCAdjustment(self):
+        self.binaries = [x for x in self.binaries if not x['skewed']]
 
     def isPCKnown(self, pc):
         if self.getBinaryFromPC(pc) is False:
