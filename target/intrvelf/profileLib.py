@@ -108,7 +108,7 @@ class sampleParser:
                             naddr = (0x55 << 32) | (addr & 0xffffffff)
                         if naddr is not False:
                             self.binaries.append({
-                                'binary': 'heuristic_' + label, 'path': path, 'kernel': False, 'static': static,
+                                'binary': label, 'path': path, 'kernel': False, 'static': static,
                                 'start': naddr, 'size': size, 'end': naddr + size
                             })
                 else:
