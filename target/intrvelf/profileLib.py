@@ -122,22 +122,24 @@ class sampleParser:
         if len(self.kallsyms) <= 0:
             return
 
+        kstart = self.kallsyms[0][0]
+
         self.binaries.append({
             'binary': '_kernel',
             'path': '_kernel',
             'kernel': True,
-            'static': True,
+            'static': False,
             'skewed': False,
-            'start': self.kallsyms[0][0],
-            'size': self.kallsyms[-1][0] - self.kallsyms[0][0],
+            'start': kstart,
+            'size': self.kallsyms[-1][0] - kstart,
             'end': self.kallsyms[-1][0]
         })
 
+        self.kallsyms = [[x - kstart, y] for (x, y) in self.kallsyms]
         self.kallsyms.reverse()
 
     def enableSkewedPCAdjustment(self):
         fakeHighBits = [0x55, 0x7f, 0xffffff80]
-
         for binary in self.binaries:
             if binary['skewed'] is False:
                 nbinary = binary.copy()
