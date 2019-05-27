@@ -10,10 +10,12 @@ import numpy
 import textwrap
 import tabulate
 import copy
+import math
 
 
+# x - baseline, y - compare, z - total of baseline
 def difference(x, y, z):
-    return x - y
+    return y - x
 
 
 def absoluteDifference(x, y, z):
@@ -32,14 +34,28 @@ def weightedError(x, y, z):
     return error(x, y, z) * (x / z)
 
 
-def weightedAbsoluteError(x, y, z):
+def absoluteWeightedError(x, y, z):
     return abs(weightedError(x, y, z))
+
+
+# x - error value array
+def aggregateTotalError(x):
+    return sum(x)
+
+
+def aggregateMeanError(x):
+    return sum(x) / len(x)
+
+
+def aggregateRootMeanSquaredError(x):
+    return math.sqrt(sum([math.pow(t, 2) for t in x]) / len(x))
 
 
 _aggregatedProfileVersion = "a0.2"
 
+# [ parameter, description, error function,  ]
 errorFunctions = numpy.array([
-    ['weighted_absolute_error', 'Weighted Absolute Error', weightedAbsoluteError],
+    ['absolute_weighted_error', 'Absolute Weighted Error', absoluteWeightedError],
     ['difference', 'Difference', difference],
     ['absolute_difference', 'Absolute Difference', absoluteDifference],
     ['error', 'Error', error],
@@ -47,11 +63,22 @@ errorFunctions = numpy.array([
     ['weighted_error', 'Weighted Error', weightedError],
 ], dtype=object)
 
+aggregateErrorFunctions = numpy.array([
+    ['none', 'None', False],
+    ['total', 'Total Error', aggregateTotalError],
+    ['mean', 'Mean Error', aggregateMeanError],
+    ['rmse', 'Root Mean Squared Error', aggregateRootMeanSquaredError]
+])
+
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="baseline aggregated profile")
 parser.add_argument("profiles", help="aggregated profiles to compare", nargs="+")
 parser.add_argument("-e", "--error", help="error function (default: %(default)s)", default=errorFunctions[0][0], choices=errorFunctions[:, 0])
+parser.add_argument("-a", "--aggregate", help="aggregate erros (default: %(default)s)", default=aggregateErrorFunctions[0][0], choices=aggregateErrorFunctions[:, 0])
 parser.add_argument("-l", "--limit", help="error threshold to include", type=float, default=0)
+parser.add_argument('-n', '--name', action='append', help='name the provided profiles', default=[])
+
+
 parser.add_argument("-t", "--table", help="output csv table")
 parser.add_argument("-p", "--plot", help="plotly html file")
 parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open plot file", default=False)
@@ -92,7 +119,9 @@ chart = {'name': '', 'keys': {}}
 errorCharts = [copy.deepcopy(chart) for x in args.profiles]
 
 errorFunctionIndex = numpy.where(errorFunctions == args.error)[0][0]
-errorFunction = (errorFunctions[errorFunctionIndex][2])
+errorFunction = errorFunctions[errorFunctionIndex][2]
+aggregateErrorFunctionIndex = numpy.where(aggregateErrorFunctions == args.aggregate)[0][0]
+aggregateErrorFunction = aggregateErrorFunctions[aggregateErrorFunctionIndex][2]
 
 i = 1
 for index, path in enumerate(args.profiles):
@@ -107,29 +136,50 @@ for index, path in enumerate(args.profiles):
     if 'version' not in profile or profile['version'] != _aggregatedProfileVersion:
         raise Exception(f"Incompatible profile version (required: {_aggregatedProfileVersion})")
 
-    errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {profile['latencyTime'] * 1000000 / profile['samples']:.2f} us"
+    if len(args.name) > index:
+        errorCharts[index]['name'] = args.name[index]
+    else:
+        errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {profile['latencyTime'] * 1000000 / profile['samples']:.2f} us"
 
     # profile['profile] = [[time, energy, label]]
     for key in profile['profile']:
         if key in baselineProfile['profile']:
             for chart in errorCharts:
                 if key not in chart['keys']:
-                    chart['keys'][key] = [0.0, baselineProfile['profile'][key][2]]
-            errorCharts[index]['keys'][key][0] = errorFunction(baselineProfile['profile'][key][1], profile['profile'][key][1], totalEnergy)
+                    chart['keys'][key] = [
+                        baselineProfile['profile'][key][2],  # label
+                        baselineProfile['profile'][key][0],  # time
+                        baselineProfile['profile'][key][1],  # energy
+                        0.0,  # time error
+                        0.0,  # energy error
+                    ]
+            errorCharts[index]['keys'][key][3] = errorFunction(baselineProfile['profile'][key][0], profile['profile'][key][0], totalTime)
+            errorCharts[index]['keys'][key][4] = errorFunction(baselineProfile['profile'][key][1], profile['profile'][key][1], totalEnergy)
 
     del profile
 
 # names = [ key, name1, name2, name3, name4 ]
-# values = [ key, error1, error2, error3, error4 ]
-names = [chart['name'] for chart in errorCharts]
+# values = [ key, error1, error2, error3, error4 ]a
+#
 
 values = []
-for key in errorCharts[0]['keys']:
-    errors = [charts['keys'][key][0] for charts in errorCharts]
-    if args.limit == 0 or max(map(abs,errors)) >= args.limit:
-        entry = [errorCharts[0]['keys'][key][1]]
-        entry.extend(errors)
-        values.append(entry)
+names = []
+
+if aggregateErrorFunction is not False:
+    for chart in errorCharts:
+        temp = numpy.array(list(chart['keys'].values()), dtype=object)
+        values.append([chart['name'], aggregateErrorFunction(temp[:, 4])])
+    names = [aggregateErrorFunctions[aggregateErrorFunctionIndex][1]]
+else:
+    names = [chart['name'] for chart in errorCharts]
+    for key in errorCharts[0]['keys']:
+        errors = [charts['keys'][key][4] for charts in errorCharts]
+
+        if args.limit == 0 or max(map(abs, errors)) >= args.limit:
+            entry = [errorCharts[0]['keys'][key][0]]
+            entry.extend(errors)
+            values.append(entry)
+
 
 values = numpy.array(values, dtype=object)
 values = values[values[:, 1].argsort()]
@@ -186,9 +236,13 @@ if (args.plot):
 
 
 if (args.table or not args.quiet):
-    values = values[::-1]
-    # aggregationLabel = numpy.insert(aggregationLabel[::-1], 0, "_total")
-    # times = numpy.insert(times[::-1], 0, totalTime)
+    if aggregateErrorFunction is False:
+        total = ['_total']
+        for i in range(1, len(values[0])):
+            total.append(numpy.sum(values[:, (i)]))
+        values = numpy.concatenate(([total], values[::-1]), axis=0)
+    else:
+        values = values[::-1]
     # metrics = numpy.insert(metrics[::-1], 0, totalMetric)
     # something = numpy.insert(something[::-1], 0, totalSomething)
 
@@ -206,4 +260,6 @@ if (args.table):
 if (not args.quiet):
     headers = ['Key']
     headers.extend(names)
+
+    values[:, 0] = [textwrap.fill(x, 64) for x in values[:, 0]]
     print(tabulate.tabulate(values, headers=headers, floatfmt=".16f"))
