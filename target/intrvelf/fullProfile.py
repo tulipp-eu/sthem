@@ -10,7 +10,7 @@ import plotly.graph_objs as go
 import numpy
 import profileLib
 
-_profileVersion = "0.1"
+_profileVersion = "0.2"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="postprocessed profile from intrvelf")
@@ -50,8 +50,7 @@ if 'version' not in profile or profile['version'] != _profileVersion:
 avgSampleLatency = profile['latencyTime'] / profile['samples']
 avgSampleTime = profile['samplingTime'] / profile['samples']
 freq = 1 / avgSampleTime
-useVolts = False if (profile['volts'] == 0) else True
-volts = profile['volts'] if useVolts else 1
+volts = profile['volts']
 cpus = profile['cpus']
 
 samples = numpy.array(profile['profile'], dtype=object)
@@ -153,7 +152,7 @@ fig['layout']['xaxis'].update(
 
 fig['layout']['yaxis1'].update(
     title=go.layout.yaxis.Title(
-        text="Current in A" if not useVolts else "Power in W",
+        text="Power in W",
         font=dict(
             family='Courier New, monospace',
             size=18,
@@ -167,7 +166,7 @@ print(f"Going to plot {len(samples)} samples from {times[0]}s to {times[-1]}s")
 
 fig.append_trace(
     go.Scatter(
-        name="A" if not useVolts else "W",
+        name="W",
         x=times,
         y=currents,
         line={'width': 1},

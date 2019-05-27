@@ -139,6 +139,7 @@ class sampleParser:
         self.kallsyms.reverse()
 
     def enableSkewedPCAdjustment(self):
+        raise Exception("Don't use this!")
         fakeHighBits = [0x55, 0x7f, 0xffffff80]
         for binary in self.binaries:
             if binary['skewed'] is False:

@@ -12,8 +12,8 @@ import tabulate
 
 import profileLib
 
-_profileVersion = "0.1"
-_aggregatedProfileVersion = "a0.1"
+_profileVersion = "0.2"
+_aggregatedProfileVersion = "a0.2"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profiles", help="postprocessed profiles from intrvelf", nargs="+")
@@ -61,14 +61,13 @@ aggregatedProfile = {
     'aggreagted': True
 }
 
-useVolts = False
 meanFac = 1 / aggregatedProfile['mean']
 avgLatencyUs = 0
 avgSampleTime = 0
 
 i = 1
 for fileProfile in args.profiles:
-    print(f"Aggreagte profile {i}/{len(args.profiles)}...\r", end="")
+    print(f"Aggregate profile {i}/{len(args.profiles)}...\r", end="")
     i += 1
 
     profile = {}
@@ -83,7 +82,6 @@ for fileProfile in args.profiles:
     if not aggregatedProfile['target']:
         aggregatedProfile['target'] = profile['target']
         aggregatedProfile['volts'] = profile['volts']
-        useVolts = False if profile['volts'] == 0 else True
 
     if (profile['volts'] != aggregatedProfile['volts']):
         print("ERROR: profile voltages don't match!")
@@ -96,7 +94,7 @@ for fileProfile in args.profiles:
     avgSampleTime = profile['samplingTime'] / profile['samples']
 
     for sample in profile['profile']:
-        metric = sample[0] * (aggregatedProfile['volts'] if useVolts else 1) * avgSampleTime
+        metric = sample[0] * aggregatedProfile['volts'] * avgSampleTime
 
         activeCores = min(len(sample[2]), len(useCpus))
 
@@ -136,37 +134,36 @@ values = numpy.array(list(aggregatedProfile['profile'].values()), dtype=object)
 values = values[values[:, 1].argsort()]
 
 times = numpy.array(values[:, 0], dtype=float)
-metrics = numpy.array(values[:, 1], dtype=float)
-something = numpy.array([(x / y) if y > 0 else 0 for x, y in zip(metrics, times)])
+energies = numpy.array(values[:, 1], dtype=float)
+powers = numpy.array([(x / y) if y > 0 else 0 for x, y in zip(energies, times)])
 aggregationLabel = values[:, 2]
 
 totalTime = numpy.sum(times)
-totalMetric = numpy.sum(metrics)
-totalSomething = totalMetric / totalTime if totalTime > 0 else 0
+totalEnergy = numpy.sum(energies)
+totalPower = totalEnergy / totalTime if totalTime > 0 else 0
 
 if args.limit is not 0:
     accumulate = 0.0
-    accumulateLimit = totalMetric * args.limit
-    for index, value in enumerate(metrics[::-1]):
+    accumulateLimit = totalEnergy * args.limit
+    for index, value in enumerate(energies[::-1]):
         accumulate += value
         if (accumulate >= accumulateLimit):
-            cutOff = len(metrics) - (index + 1)
-            print(f"Limit output to {index+1}/{len(metrics)} values...")
+            cutOff = len(energies) - (index + 1)
+            print(f"Limit output to {index+1}/{len(energies)} values...")
             times = times[cutOff:]
-            metrics = metrics[cutOff:]
-            something = something[cutOff:]
+            energies = energies[cutOff:]
+            powers = powers[cutOff:]
             aggregationLabel = aggregationLabel[cutOff:]
             break
 
-labelUnit = "J" if useVolts else "C"
-labels = [f"{x:.4f} s, " + (f"{s:.2f} A" if not useVolts else f"{s:.2f} W") + f", {y*100/totalMetric if totalMetric > 0 else 0:.2f}%" for x, s, y in zip(times, something, metrics)]
+labels = [f"{x:.4f} s, {s:.2f} W" + f", {y * 100 / totalEnergy if totalEnergy > 0 else 0:.2f}%" for x, s, y in zip(times, powers, energies)]
 
 
 if (args.plot):
     pAggregationLabel = [textwrap.fill(x, 64).replace('\n', '<br />') for x in aggregationLabel]
     fig = {
         "data": [go.Bar(
-            x=metrics,
+            x=energies,
             y=pAggregationLabel,
             text=labels,
             textposition='auto',
@@ -175,13 +172,13 @@ if (args.plot):
         )],
         "layout": go.Layout(
             title=go.layout.Title(
-                text=f"{aggregatedProfile['target']}, {frequency:.2f} Hz, {aggregatedProfile['samples']:.2f} samples, {(avgLatencyTime * 1000000):.2f} us latency, {totalMetric:.2f} {labelUnit}" + (f", mean of {aggregatedProfile['mean']} runs" if aggregatedProfile['mean'] > 1 else ""),
+                text=f"{aggregatedProfile['target']}, {frequency:.2f} Hz, {aggregatedProfile['samples']:.2f} samples, {(avgLatencyTime * 1000000):.2f} us latency, {totalEnergy:.2f} J" + (f", mean of {aggregatedProfile['mean']} runs" if aggregatedProfile['mean'] > 1 else ""),
                 xref='paper',
                 x=0
             ),
             xaxis=go.layout.XAxis(
                 title=go.layout.xaxis.Title(
-                    text="Energy in J" if useVolts else "Charge in C",
+                    text="Energy in J",
                     font=dict(
                         family='Courier New, monospace',
                         size=18,
@@ -201,15 +198,15 @@ if (args.plot):
     }
 
     plotly.offline.plot(fig, filename=args.plot, auto_open=not args.quiet)
-    print(f"Plot saved to {args.output}")
+    print(f"Plot saved to {args.plot}")
     del pAggregationLabel
     del fig
 
 if (args.table or not args.quiet):
     aggregationLabel = numpy.insert(aggregationLabel[::-1], 0, "_total")
     times = numpy.insert(times[::-1], 0, totalTime)
-    metrics = numpy.insert(metrics[::-1], 0, totalMetric)
-    something = numpy.insert(something[::-1], 0, totalSomething)
+    energies = numpy.insert(energies[::-1], 0, totalEnergy)
+    powers = numpy.insert(powers[::-1], 0, totalPower)
 
 
 if (args.table):
@@ -217,8 +214,8 @@ if (args.table):
         table = bz2.BZ2File.open(args.table, "w")
     else:
         table = open(args.table, "w")
-    table.write(f"function;time;{'watt' if useVolts else 'current'};{'energy' if useVolts else 'charge'}\n")
-    for f, t, s, m in zip(aggregationLabel, times, something, metrics):
+    table.write("function;time;power;energy\n")
+    for f, t, s, m in zip(aggregationLabel, times, powers, energies):
         table.write(f"{f};{t};{s};{m}\n")
     table.close()
     print(f"CSV saved to {args.table}")
@@ -233,4 +230,4 @@ if (args.output):
 
 
 if (not args.quiet):
-    print(tabulate.tabulate(zip(aggregationLabel, times, something, metrics), headers=['Function', 'Time [s]', 'Watt [W]' if useVolts else 'Current [A]', 'Energy [J]' if useVolts else 'Charge [C]']))
+    print(tabulate.tabulate(zip(aggregationLabel, times, powers, energies), headers=['Function', 'Time [s]', 'Power [W]', 'Energy [J]']))

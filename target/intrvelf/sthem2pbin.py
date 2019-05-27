@@ -8,7 +8,7 @@ import bz2
 import csv
 import profileLib
 
-_profileVersion = "0.1"
+_profileVersion = "0.2"
 
 maxPowerSensors = 7
 
@@ -97,8 +97,8 @@ profile['target'] = sampleParser.binaries[0]['binary']
 if (args.kallsyms):
     sampleParser.loadKallsyms(args.kallsyms)
 
-
-sampleParser.enableSkewedPCAdjustment()
+print("Not using skewed pc adjustment!")
+# sampleParser.enableSkewedPCAdjustment()
 
 profile['samples'] = len(csvProfile)
 profile['samplingTime'] = float(csvProfile[-1][0])

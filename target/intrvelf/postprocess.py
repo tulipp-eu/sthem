@@ -8,7 +8,7 @@ import pickle
 import bz2
 import profileLib
 
-_profileVersion = "0.1"
+_profileVersion = "0.2"
 
 profile = {
     'version': _profileVersion,
@@ -26,7 +26,7 @@ profile = {
 
 parser = argparse.ArgumentParser(description="Parse profiles from intrvelf sampler.")
 parser.add_argument("profile", help="profile from intrvelf")
-parser.add_argument("-v", "--volts", help="set pmu voltage")
+parser.add_argument("-v", "--volts", help="set pmu voltage", type=float)
 parser.add_argument("-s", "--search-path", help="add search path", action="append")
 parser.add_argument("-o", "--output", help="write postprocessed profile")
 parser.add_argument("-c", "--cpus", help="list of active cpu cores", default="0-3")
@@ -40,17 +40,22 @@ if (not args.output):
     parser.print_help()
     sys.exit(1)
 
+if (not args.volts) or (args.volts == 0):
+    print("ERROR: invalid supply voltage")
+    parser.print_help()
+    sys.exit(1)
+
 if (not args.profile) or (not os.path.isfile(args.profile)):
     print("ERROR: profile not found!")
     parser.print_help()
     sys.exit(1)
 
-if (args.volts):
-    profile['volts'] = float(args.volts)
-
 if (not args.search_path):
     args.search_path = []
+
 args.search_path.append(os.getcwd())
+
+profile['volts'] = args.volts
 
 binProfile = open(args.profile, mode='rb').read()
 

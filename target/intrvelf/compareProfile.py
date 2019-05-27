@@ -35,7 +35,7 @@ def weightedAbsoluteError(x, y, z):
     return abs(weightedError(x, y, z))
 
 
-_aggregatedProfileVersion = "a0.1"
+_aggregatedProfileVersion = "a0.2"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="baseline aggregated profile")
@@ -77,34 +77,35 @@ for key in baselineProfile['profile']:
     totalTime += baselineProfile['profile'][key][0]
     totalMetric += baselineProfile['profile'][key][1]
 
-errorCharts = {}
+errorCharts = [{'name': '', 'keys': {}}] * len(args.profiles)
+
 errorFunction = weightedAbsoluteError
 
 i = 1
-for fileProfile in args.profiles:
+for index, path in enumerate(args.profiles):
     print(f"Aggreagte profile {i}/{len(args.profiles)}...\r", end="")
     i += 1
 
-    profile = {}
-    if fileProfile.endswith(".bz2"):
-        profile = pickle.load(bz2.BZ2File(fileProfile, mode="rb"))
+    if path.endswith(".bz2"):
+        profile = pickle.load(bz2.BZ2File(path, mode="rb"))
     else:
-        profile = pickle.load(open(fileProfile, mode="rb"))
+        profile = pickle.load(open(path, mode="rb"))
 
     if 'version' not in profile or profile['version'] != _aggregatedProfileVersion:
         raise Exception(f"Incompatible profile version (required: {_aggregatedProfileVersion})")
 
-    errorCharts[fileProfile] = {}
+    errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {profile['latencyTime']/profile['samples']:.2f}"
 
-    # profile['profile] = [[time, metric, label]]
-    for key in baselineProfile['profile']:
-        if key in profile['profile']:
-            errorVal = errorFunction(baselineProfile['profile'][key][1], profile['profile'][key][1], totalMetric)
-            if (args.limit == 0 or abs(errorVal) >= args.limit):
-                errorCharts[fileProfile][key] = [
-                    errorVal,
-                    baselineProfile['profile'][key][2]
-                ]
+    # profile['profile] = [[time, energy, label]]
+    for key in profile['profile']:
+        if key in baselineProfile['profile']:
+            for chart in errorCharts:
+                if key not in chart['keys']:
+                    chart['keys'][key] = [
+                        0.0,
+                        baselineProfile['profile'][key][2]
+                    ]
+            errorCharts[index]['keys'][key][0] = errorFunction(baselineProfile['profile'][key][1], profile['profile'][key][1], totalMetric)
 
     del profile
 
@@ -112,7 +113,7 @@ if (args.plot):
     fig = {'data': []}
     maxLen = 0
     for chart in errorCharts:
-        values = numpy.array(list(errorCharts[chart].values()), dtype=object)
+        values = numpy.array(list(chart['keys'].values()), dtype=object)
         if (len(values) == 0):
             continue
         values = values[values[:, 0].argsort()]
@@ -123,7 +124,7 @@ if (args.plot):
             go.Bar(
                 y=pAggregationLabel,
                 x=metrics,
-                name=chart,
+                name=chart['name'],
                 textposition='auto',
                 orientation='h',
                 hoverinfo='x+y'
