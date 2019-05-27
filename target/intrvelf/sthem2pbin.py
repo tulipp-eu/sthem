@@ -97,7 +97,7 @@ profile['target'] = sampleParser.binaries[0]['binary']
 if (args.kallsyms):
     sampleParser.loadKallsyms(args.kallsyms)
 
-print("Not using skewed pc adjustment!")
+# print("Not using skewed pc adjustment!")
 # sampleParser.enableSkewedPCAdjustment()
 
 profile['samples'] = len(csvProfile)

@@ -145,7 +145,6 @@ print("Reading raw vm maps... finished!")
 del binProfile
 
 vmmapString = '\n'.join([f"{x[0]:x} {x[1]:x} {x[2]}" for x in vmmaps])
-print(vmmapString)
 sampleParser = profileLib.sampleParser()
 sampleParser.addSearchPath(args.search_path)
 sampleParser.loadVMMap(fromBuffer=vmmapString)
