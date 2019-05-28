@@ -64,7 +64,7 @@ def aggregateRootMeanSquaredError(baselines, values, totalBaseline, totalValue):
 
 
 def aggregateWeightedRootMeanSquaredError(baselines, values, totalBaseline, totalValue):
-    return math.sqrt(sum([math.pow(error(baseline, value, totalBaseline, totalValue), 2) * (baseline / totalBaseline) if total != 0 else 0 for baseline, value in zip(baselines, values)]))
+    return math.sqrt(sum([math.pow(error(baseline, value, totalBaseline, totalValue), 2) * (baseline / totalBaseline) if totalBaseline != 0 else 0 for baseline, value in zip(baselines, values)]))
 #    return math.sqrt(sum([math.pow(a - b, 2) for t in values]) / len(values))
 
 
