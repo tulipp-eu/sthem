@@ -55,6 +55,16 @@ def aggregateTotal(baselines, values, totalBaseline, totalValue):
 
 
 # values are already processed by errorFunction
+def aggregateMin(baselines, values, totalBaseline, totalValue):
+    return min(values)
+
+
+# values are already processed by errorFunction
+def aggregateMax(baselines, values, totalBaseline, totalValue):
+    return max(values)
+
+
+# values are already processed by errorFunction
 def aggregateMean(baselines, values, totalBaseline, totalValue):
     return sum(values) / len(values)
 
@@ -85,6 +95,8 @@ errorFunctions = numpy.array([
 
 aggregateFunctions = numpy.array([
     ['total', 'Total', aggregateTotal, True],
+    ['min', 'Minimum', aggregateMin, True],
+    ['max', 'Maximum', aggregateMax, True],
     ['mean', 'Mean', aggregateMean, True],
     ['rmse', 'Root Mean Squared Error', aggregateRootMeanSquaredError, False],
     ['wrmse', 'Weighted Root Mean Squared Error', aggregateWeightedRootMeanSquaredError, False]
