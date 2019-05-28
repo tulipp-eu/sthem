@@ -13,54 +13,58 @@ import copy
 import math
 
 
-def error(baseline, value, total):
+def error(baseline, value, totalBaseline, totalValue):
     return value - baseline
 
 
-def weightedError(baseline, value, total):
-    return error(baseline, value, total) * (baseline / total) if baseline != 0 else 0
+def weightedError(baseline, value, totalBaseline, totalValue):
+    return error(baseline, value, totalBaseline, totalValue) * (baseline / totalBaseline) if totalBaseline != 0 else 0
 
 
-def absoluteWeightedError(baseline, value, total):
-    return abs(weightedError(baseline, value, total))
+def absoluteWeightedError(baseline, value, totalBaseline, totalValue):
+    return abs(weightedError(baseline, value, totalBaseline, totalValue))
 
 
-def absoluteError(baseline, value, total):
-    return abs(error(baseline, value, total))
+def absoluteError(baseline, value, totalBaseline, totalValue):
+    return abs(error(baseline, value, totalBaseline, totalValue))
 
 
-def percentage(baseline, value, total):
-    return error(baseline, value, total) / baseline if baseline != 0 else 0
+def percentage(baseline, value, totalBaseline, totalValue):
+    return error(baseline, value, totalBaseline, totalValue) / baseline if baseline != 0 else 0
 
 
-def absolutePercentage(baseline, value, total):
-    return abs(percentage(baseline, value, total))
+def percentageOfTotal(baseline, value, totalBaseline, totalValue):
+    return value / totalValue if totalValue != 0 else 0
 
 
-def weightedPercentage(baseline, value, total):
-    return percentage(baseline, value, total) * (baseline / total) if total != 0 else 0
+def absolutePercentage(baseline, value, totalBaseline, totalValue):
+    return abs(percentage(baseline, value, totalBaseline, totalValue))
 
 
-def absoluteWeightedPercentage(baseline, value, total):
-    return abs(weightedPercentage(baseline, value, total))
+def weightedPercentage(baseline, value, totalBaseline, totalValue):
+    return percentage(baseline, value, totalBaseline, totalValue) * (baseline / totalBaseline) if totalBaseline != 0 else 0
+
+
+def absoluteWeightedPercentage(baseline, value, totalBaseline, totalValue):
+    return abs(weightedPercentage(baseline, value, totalBaseline, totalValue))
 
 
 # values are already processed by errorFunction
-def aggregateTotal(baselines, values, total):
+def aggregateTotal(baselines, values, totalBaseline, totalValue):
     return sum(values)
 
 
 # values are already processed by errorFunction
-def aggregateMean(baselines, values, total):
+def aggregateMean(baselines, values, totalBaseline, totalValue):
     return sum(values) / len(values)
 
 
-def aggregateRootMeanSquaredError(baselines, values, total):
-    return math.sqrt(sum([math.pow(error(baseline, value, total), 2) for baseline, value in zip(baselines, values)]) / len(values))
+def aggregateRootMeanSquaredError(baselines, values, totalBaseline, totalValue):
+    return math.sqrt(sum([math.pow(error(baseline, value, totalBaseline, totalValue), 2) for baseline, value in zip(baselines, values)]) / len(values))
 
 
-def aggregateWeightedRootMeanSquaredError(baselines, values, total):
-    return math.sqrt(sum([math.pow(error(baseline, value, total), 2) * (baseline / total) if total != 0 else 0 for baseline, value in zip(baselines, values)]))
+def aggregateWeightedRootMeanSquaredError(baselines, values, totalBaseline, totalValue):
+    return math.sqrt(sum([math.pow(error(baseline, value, totalBaseline, totalValue), 2) * (baseline / totalBaseline) if total != 0 else 0 for baseline, value in zip(baselines, values)]))
 #    return math.sqrt(sum([math.pow(a - b, 2) for t in values]) / len(values))
 
 
@@ -74,6 +78,7 @@ errorFunctions = numpy.array([
     ['weighted_error', 'Weighted Error', weightedError],
     ['absolute_weighted_error', 'Absolute Weighted Error', absoluteWeightedError],
     ['percentage', 'Percentage', percentage],
+    ['percentage_of_total', 'Percentage Of Total', percentageOfTotal],
     ['absolute_percentage', 'Absolute Percentage', absolutePercentage],
     ['weighted_percentage', 'Weighted Percentage', weightedPercentage],
 ], dtype=object)
@@ -108,9 +113,9 @@ if (args.use_time and args.use_energy):
     parser.print_help()
     sys.exit(0)
 
-compareOffset = 0
+compareOffset = 1
 if args.use_time:
-    compareOffset = 1
+    compareOffset = 0
 
 if (args.limit is not 0 and (args.limit < 0)):
     print("ERROR: limit is out of range")
@@ -159,8 +164,9 @@ if args.error is not False:
     chosenErrorFunction = errorFunctions[numpy.where(errorFunctions == args.error)[0][0]]
     errorFunction = chosenErrorFunction[2]
 
-chart = {'name': '', 'keys': {}}
+chart = {'name': '', 'fullTotals': [0.0, 0.0], 'totals': [0.0, 0.0], 'keys': {}}
 errorCharts = [copy.deepcopy(chart) for x in args.profiles]
+
 
 i = 1
 for index, path in enumerate(args.profiles):
@@ -196,11 +202,23 @@ for index, path in enumerate(args.profiles):
                     ]
             errorCharts[index]['keys'][key][3] = profile['profile'][key][0]
             errorCharts[index]['keys'][key][4] = profile['profile'][key][1]
-            if errorFunction is not False:
-                errorCharts[index]['keys'][key][5] = errorFunction(baselineProfile['profile'][key][0], profile['profile'][key][0], totals[0])
-                errorCharts[index]['keys'][key][6] = errorFunction(baselineProfile['profile'][key][1], profile['profile'][key][1], totals[1])
+            errorCharts[index]['totals'][0] += profile['profile'][key][0]
+            errorCharts[index]['totals'][1] += profile['profile'][key][1]
+        errorCharts[index]['fullTotals'][0] += profile['profile'][key][0]
+        errorCharts[index]['fullTotals'][1] += profile['profile'][key][1]
 
     del profile
+
+if totals is False:
+    values = numpy.array(list(errorCharts[0]['keys'].values()), dtype=object)
+    totals = [numpy.sum(values[:, 1]), numpy.sum(values[:, 2])]
+
+if errorFunction is not False:
+    for key in errorCharts[0]['keys']:
+        for chart in errorCharts:
+            chart['keys'][key][5] = errorFunction(chart['keys'][key][1], chart['keys'][key][3], totals[0], chart['totals'][0])
+            chart['keys'][key][6] = errorFunction(chart['keys'][key][2], chart['keys'][key][4], totals[1], chart['totals'][1])
+
 
 # names = [ key, name1, name2, name3, name4 ]
 # values = [ key, error1, error2, error3, error4 ]a
@@ -231,7 +249,8 @@ if aggregateFunction is not False:
         errors = numpy.append(errors, aggregateFunction(
             chartValues[:, (1 + compareOffset)],
             chartValues[:, ((3 if errorFunction is False else 5) + compareOffset)],
-            totals[0 + compareOffset]
+            totals[0 + compareOffset],
+            chart['totals'][0 + compareOffset]
         ))
     rows = numpy.append(rows, errors.reshape(-1, 1), axis=1)
     if errorFunction:
@@ -296,10 +315,13 @@ if (args.plot):
 
 if (args.table or not args.quiet):
     if aggregateFunction is False:
+        coverage = ['_coverage']
+        coverage.extend([chart['totals'][0 + compareOffset] / chart['fullTotals'][0 + compareOffset] if chart['fullTotals'][0 + compareOffset] != 0 else 0 for chart in errorCharts])
         total = ['_total']
         for i in range(1, len(rows[0])):
             total.append(numpy.sum(rows[:, (i)]))
         rows = numpy.concatenate(([total], rows[::-1]), axis=0)
+        rows = numpy.concatenate(([coverage], rows), axis=0)
     else:
         rows = rows[::-1]
 
