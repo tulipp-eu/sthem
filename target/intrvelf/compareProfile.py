@@ -153,10 +153,10 @@ if 'version' not in baselineProfile or baselineProfile['version'] != _aggregated
     raise Exception(f"Incompatible profile version (required: {_aggregatedProfileVersion})")
 
 
-totals = [0, 0]
-for key in baselineProfile['profile']:
-    totals[0] += baselineProfile['profile'][key][0]
-    totals[1] += baselineProfile['profile'][key][1]
+totals = False  # [0, 0]
+# for key in baselineProfile['profile']:
+#     totals[0] += baselineProfile['profile'][key][0]
+#    totals[1] += baselineProfile['profile'][key][1]
 
 errorFunction = False
 aggregateFunction = False
