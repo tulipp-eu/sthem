@@ -8,7 +8,7 @@ import bz2
 import csv
 import profileLib
 
-_profileVersion = "0.2"
+_profileVersion = "0.3"
 
 maxPowerSensors = 7
 
@@ -120,7 +120,9 @@ for sample in csvProfile:
         pc = int(sample[maxPowerSensors + cpu + 1])
         processedSample.append([cpu, avgSampleTime, sampleParser.parseFromPC(pc)])
 
-    profile['profile'].append([power, avgSampleTime, processedSample])
+    profile['profile'].append([power, (avgSampleTime * len(useCpus)), processedSample])
+
+del csvProfile
 
 profile['binaries'] = sampleParser.getBinaryMap()
 profile['functions'] = sampleParser.getFunctionMap()

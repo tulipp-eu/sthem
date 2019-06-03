@@ -8,7 +8,7 @@ import pickle
 import bz2
 import profileLib
 
-_profileVersion = "0.2"
+_profileVersion = "0.3"
 
 profile = {
     'version': _profileVersion,
@@ -163,6 +163,8 @@ for sample in rawSamples:
 
     processedSample = []
     sampleCpuTime = 0
+
+    power = sample[0] * profile['volts']
     for thread in sample[1]:
         if not thread[0] in prevThreadCpuTimes:
             prevThreadCpuTimes[thread[0]] = thread[2]
@@ -173,7 +175,7 @@ for sample in rawSamples:
 
         processedSample.append([thread[0], threadCpuTime, sampleParser.parseFromPC(thread[1])])
 
-    profile['profile'].append([sample[0], sampleCpuTime, processedSample])
+    profile['profile'].append([power, sampleCpuTime, processedSample])
 
 profile['binaries'] = sampleParser.getBinaryMap()
 profile['functions'] = sampleParser.getFunctionMap()

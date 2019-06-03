@@ -12,8 +12,8 @@ import tabulate
 
 import profileLib
 
-_profileVersion = "0.2"
-_aggregatedProfileVersion = "a0.2"
+_profileVersion = "0.3"
+_aggregatedProfileVersion = "a0.3"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profiles", help="postprocessed profiles from intrvelf", nargs="+")
@@ -93,50 +93,62 @@ for fileProfile in args.profiles:
     aggregatedProfile['samples'] += profile['samples'] * meanFac
     avgSampleTime = profile['samplingTime'] / profile['samples']
 
+    subAggregate = {}
     for sample in profile['profile']:
-        metric = sample[0] * aggregatedProfile['volts'] * avgSampleTime
-
         activeCores = min(len(sample[2]), len(useCpus))
 
         for thread in sample[2]:
             threadId = thread[0]
             threadCpuTime = thread[1]
-            sample = sampleFormatter.getSample(thread[2])
+            sampleData = sampleFormatter.getSample(thread[2])
 
             # Needs improvement
-            cpuShare = min(threadCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
+            # cpuShare = min(threadCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
+            aggregateIndex = sampleFormatter.formatSample(sampleData, displayKeys=aggregateKeys)
 
-            aggregateIndex = sampleFormatter.formatSample(sample, displayKeys=aggregateKeys)
-
-            aggregateData = [
-                min(threadCpuTime, avgSampleTime) * meanFac,
-                metric * cpuShare * meanFac
-            ]
-
-            if aggregateIndex in aggregatedProfile['profile']:
-                aggregatedProfile['profile'][aggregateIndex][0] += aggregateData[0]
-                aggregatedProfile['profile'][aggregateIndex][1] += aggregateData[1]
+            if aggregateIndex in subAggregate:
+                subAggregate[aggregateIndex][0] += threadCpuTime
+                subAggregate[aggregateIndex][1] += sample[0] * threadCpuTime
             else:
-                aggregatedProfile['profile'][aggregateIndex] = [
-                    aggregateData[0],
-                    aggregateData[1],
+                subAggregate[aggregateIndex] = [
+                    threadCpuTime,
+                    sample[0] * threadCpuTime,
                     sampleFormatter.sanitizeOutput(aggregateIndex, lStringStrip=aggregatedProfile['target'])
                 ]
-
     del sampleFormatter
     del profile
+
+    for key in subAggregate:
+        if key in aggregatedProfile['profile']:
+            aggregatedProfile['profile'][key][0] += subAggregate[key][0] * meanFac
+            aggregatedProfile['profile'][key][2] += subAggregate[key][1] * meanFac
+        else:
+            aggregatedProfile['profile'][key] = [
+                subAggregate[key][0] * meanFac,
+                0,
+                subAggregate[key][1] * meanFac,
+                subAggregate[key][2]
+            ]
+
+    del subAggregate
+
+for key in aggregatedProfile['profile']:
+    time = aggregatedProfile['profile'][key][0]
+    energy = aggregatedProfile['profile'][key][2]
+    aggregatedProfile['profile'][key][1] = energy / time if time != 0 else 0
+
 
 avgLatencyTime = aggregatedProfile['latencyTime'] / aggregatedProfile['samples']
 avgSampleTime = aggregatedProfile['samplingTime'] / aggregatedProfile['samples']
 frequency = 1 / avgSampleTime
 
 values = numpy.array(list(aggregatedProfile['profile'].values()), dtype=object)
-values = values[values[:, 1].argsort()]
+values = values[values[:, 2].argsort()]
 
 times = numpy.array(values[:, 0], dtype=float)
-energies = numpy.array(values[:, 1], dtype=float)
-powers = numpy.array([(x / y) if y > 0 else 0 for x, y in zip(energies, times)])
-aggregationLabel = values[:, 2]
+powers = numpy.array(values[:, 1], dtype=float)
+energies = numpy.array(values[:, 2], dtype=float)
+aggregationLabel = values[:, 3]
 
 totalTime = numpy.sum(times)
 totalEnergy = numpy.sum(energies)

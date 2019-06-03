@@ -18,7 +18,10 @@ def error(baseline, value, totalBaseline, totalValue):
 
 
 def weightedError(baseline, value, totalBaseline, totalValue):
-    return error(baseline, value, totalBaseline, totalValue) * (baseline / totalBaseline) if totalBaseline != 0 else 0
+    if totalBaseline == 0:
+        return 0
+    else:
+        return error(baseline, value, totalBaseline, totalValue) * (baseline / totalBaseline)
 
 
 def absoluteWeightedError(baseline, value, totalBaseline, totalValue):
@@ -30,11 +33,17 @@ def absoluteError(baseline, value, totalBaseline, totalValue):
 
 
 def percentage(baseline, value, totalBaseline, totalValue):
-    return error(baseline, value, totalBaseline, totalValue) / baseline if baseline != 0 else 0
+    if baseline == 0:
+        return 0
+    else:
+        return error(baseline, value, totalBaseline, totalValue) / baseline
 
 
 def percentageOfTotal(baseline, value, totalBaseline, totalValue):
-    return value / totalValue if totalValue != 0 else 0
+    if totalValue == 0:
+        return 0
+    else:
+        return value / totalValue
 
 
 def absolutePercentage(baseline, value, totalBaseline, totalValue):
@@ -42,7 +51,10 @@ def absolutePercentage(baseline, value, totalBaseline, totalValue):
 
 
 def weightedPercentage(baseline, value, totalBaseline, totalValue):
-    return percentage(baseline, value, totalBaseline, totalValue) * (baseline / totalBaseline) if totalBaseline != 0 else 0
+    if totalBaseline == 0:
+        return 0
+    else:
+        return percentage(baseline, value, totalBaseline, totalValue) * (baseline / totalBaseline)
 
 
 def absoluteWeightedPercentage(baseline, value, totalBaseline, totalValue):
@@ -74,16 +86,18 @@ def aggregateRootMeanSquaredError(baselines, values, totalBaseline, totalValue):
 
 
 def aggregateWeightedRootMeanSquaredError(baselines, values, totalBaseline, totalValue):
-    return math.sqrt(sum([math.pow(error(baseline, value, totalBaseline, totalValue), 2) * (baseline / totalBaseline) if totalBaseline != 0 else 0 for baseline, value in zip(baselines, values)]))
-#    return math.sqrt(sum([math.pow(a - b, 2) for t in values]) / len(values))
+    if totalBaseline == 0:
+        return 0
+    else:
+        return math.sqrt(sum([math.pow(error(baseline, value, totalBaseline, totalValue), 2) * (baseline / totalBaseline) for baseline, value in zip(baselines, values)]))
 
 
-_aggregatedProfileVersion = "a0.2"
+_aggregatedProfileVersion = "a0.3"
 
 # [ parameter, description, error function,  ]
 errorFunctions = numpy.array([
     ['absolute_weighted_percentage', 'Absolute Weighted Percentage', absoluteWeightedPercentage],
-    ['error', 'error', error],
+    ['error', 'Error', error],
     ['absolute_error', 'Absolute Error', absoluteError],
     ['weighted_error', 'Weighted Error', weightedError],
     ['absolute_weighted_error', 'Absolute Weighted Error', absoluteWeightedError],
@@ -107,12 +121,13 @@ parser.add_argument("profile", help="baseline aggregated profile")
 parser.add_argument("profiles", help="aggregated profiles to compare", nargs="+")
 parser.add_argument("--use-time", help="compare time values", action="store_true", default=False)
 parser.add_argument("--use-energy", help="compare energy values (default)", action="store_true", default=False)
+parser.add_argument("--use-power", help="compare power values", action="store_true", default=False)
 parser.add_argument("-e", "--error", help=f"error function (default: {errorFunctions[0][0]})", default=False, choices=errorFunctions[:, 0], type=str.lower)
 parser.add_argument("-a", "--aggregate", help="aggregate erros", default=False, choices=aggregateFunctions[:, 0], type=str.lower)
-parser.add_argument("-l", "--limit", help="error threshold to include", type=float, default=0)
+parser.add_argument("-c", "--compensation", help="switch on latency compensation (experimental)", action="store_true", default=False)
+parser.add_argument("-l", "--limit", help="time threshold to include", type=float, default=0)
+parser.add_argument('--names', help='names of the provided profiles (comma sepperated)', type=str, default=False)
 parser.add_argument('-n', '--name', action='append', help='name the provided profiles', default=[])
-
-
 parser.add_argument("-t", "--table", help="output csv table")
 parser.add_argument("-p", "--plot", help="plotly html file")
 parser.add_argument("-q", "--quiet", action="store_true", help="do not automatically open plot file", default=False)
@@ -120,14 +135,25 @@ parser.add_argument("-q", "--quiet", action="store_true", help="do not automatic
 
 args = parser.parse_args()
 
-if (args.use_time and args.use_energy):
-    print("ERROR: Cannot compare time and energy at the same time")
-    parser.print_help()
-    sys.exit(0)
+if (not args.use_time and not args.use_energy and not args.use_power):
+    args.use_energy = True
 
-compareOffset = 1
+if (len(args.name) == 0 and args.names is not False):
+    args.name = args.names.split(',')
+
+header = ""
+
+compareOffset = 2
 if args.use_time:
+    header = "Time "
     compareOffset = 0
+if args.use_power:
+    header = "Power "
+    compareOffset = 1
+if args.use_energy:
+    header = "Energy "
+    compareOffset = 2
+
 
 if (args.limit is not 0 and (args.limit < 0)):
     print("ERROR: limit is out of range")
@@ -153,6 +179,8 @@ if 'version' not in baselineProfile or baselineProfile['version'] != _aggregated
     raise Exception(f"Incompatible profile version (required: {_aggregatedProfileVersion})")
 
 
+baselineCompensation = (1 / (baselineProfile['latencyTime'] / baselineProfile['samplingTime'])) if (args.compensation and baselineProfile['latencyTime'] != 0) else 1
+
 totals = False  # [0, 0]
 # for key in baselineProfile['profile']:
 #     totals[0] += baselineProfile['profile'][key][0]
@@ -176,7 +204,7 @@ if args.error is not False:
     chosenErrorFunction = errorFunctions[numpy.where(errorFunctions == args.error)[0][0]]
     errorFunction = chosenErrorFunction[2]
 
-chart = {'name': '', 'fullTotals': [0.0, 0.0], 'totals': [0.0, 0.0], 'keys': {}}
+chart = {'name': '', 'fullTotals': [0.0, 0.0, 0.0], 'totals': [0.0, 0.0, 0.0], 'keys': {}}
 errorCharts = [copy.deepcopy(chart) for x in args.profiles]
 
 
@@ -198,60 +226,78 @@ for index, path in enumerate(args.profiles):
     else:
         errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {profile['latencyTime'] * 1000000 / profile['samples']:.2f} us"
 
+    profileCompensation = 1 - (profile['latencyTime'] / profile['samplingTime']) if args.compensation and profile['latencyTime'] != 0 else 1
     # profile['profile] = [[time, energy, label]]
     for key in profile['profile']:
         if key in baselineProfile['profile']:
-            for chart in errorCharts:
-                if key not in chart['keys']:
-                    chart['keys'][key] = [
-                        baselineProfile['profile'][key][2],  # label
-                        baselineProfile['profile'][key][0],  # time
-                        baselineProfile['profile'][key][1],  # energy
-                        baselineProfile['profile'][key][0],  # time
-                        baselineProfile['profile'][key][1],  # energy
-                        0.0,  # time error
-                        0.0   # energy error
-                    ]
-            errorCharts[index]['keys'][key][3] = profile['profile'][key][0]
-            errorCharts[index]['keys'][key][4] = profile['profile'][key][1]
-            errorCharts[index]['totals'][0] += profile['profile'][key][0]
-            errorCharts[index]['totals'][1] += profile['profile'][key][1]
-        errorCharts[index]['fullTotals'][0] += profile['profile'][key][0]
-        errorCharts[index]['fullTotals'][1] += profile['profile'][key][1]
+            if args.limit == 0 or (baselineProfile['profile'][key][0] * baselineCompensation) >= args.limit:
+                for chart in errorCharts:
+                    if key not in chart['keys']:
+                        chart['keys'][key] = [
+                            baselineProfile['profile'][key][3],  # label
+                            baselineProfile['profile'][key][0],  # time
+                            baselineProfile['profile'][key][1],  # power
+                            baselineProfile['profile'][key][2],  # energy
+                            baselineProfile['profile'][key][0],  # time
+                            baselineProfile['profile'][key][1],  # power
+                            baselineProfile['profile'][key][2],  # energy
+                            0.0,  # time error
+                            0.0,  # power error
+                            0.0   # energy error
+                        ]
+                errorCharts[index]['keys'][key][4] = profile['profile'][key][0]
+                errorCharts[index]['keys'][key][5] = profile['profile'][key][1]
+                errorCharts[index]['keys'][key][6] = profile['profile'][key][2]
+                errorCharts[index]['totals'][0] += errorCharts[index]['keys'][key][4]
+                errorCharts[index]['totals'][2] += errorCharts[index]['keys'][key][6]
+            errorCharts[index]['fullTotals'][0] += profile['profile'][key][0]
+            errorCharts[index]['fullTotals'][2] += profile['profile'][key][2]
+
+    errorCharts[index]['totals'][1] += (errorCharts[index]['totals'][2] / errorCharts[index]['totals'][0]) if (errorCharts[index]['totals'][0] != 0) else 0
+    errorCharts[index]['fullTotals'][1] += (errorCharts[index]['fullTotals'][2] / errorCharts[index]['fullTotals'][0]) if (errorCharts[index]['fullTotals'][0] != 0) else 0
 
     del profile
 
+
+if len(errorCharts[0]['keys']) == 0:
+    raise Exception("Nothing found to compare, limit too strict?")
+
 if totals is False:
     values = numpy.array(list(errorCharts[0]['keys'].values()), dtype=object)
-    totals = [numpy.sum(values[:, 1]), numpy.sum(values[:, 2])]
+    totals = [numpy.sum(values[:, 1]), numpy.sum(values[:, 2]), numpy.sum(values[:, 3])]
 
 if errorFunction is not False:
     for key in errorCharts[0]['keys']:
         for chart in errorCharts:
-            chart['keys'][key][5] = errorFunction(chart['keys'][key][1], chart['keys'][key][3], totals[0], chart['totals'][0])
-            chart['keys'][key][6] = errorFunction(chart['keys'][key][2], chart['keys'][key][4], totals[1], chart['totals'][1])
+            chart['keys'][key][7] = errorFunction(chart['keys'][key][1], chart['keys'][key][4], totals[0], chart['totals'][0])
+            chart['keys'][key][8] = errorFunction(chart['keys'][key][2], chart['keys'][key][5], totals[1], chart['totals'][1])
+            chart['keys'][key][9] = errorFunction(chart['keys'][key][3], chart['keys'][key][6], totals[2], chart['totals'][2])
 
 
 # names = [ key, name1, name2, name3, name4 ]
 # values = [ key, error1, error2, error3, error4 ]a
 #
 
-if len(errorCharts[0]['keys']) == 0:
-    raise Exception("Nothing found to compare")
+
+if errorFunction:
+        header += f"{chosenErrorFunction[1]}"
+if aggregateFunction:
+        header += f"{chosenAggregateFunction[1]} {header}"
+header = header.strip()
 
 if errorFunction is not False and aggregateFunction is False:
     headers = numpy.array([chart['name'] for chart in errorCharts])
     rows = numpy.array(list(errorCharts[0]['keys'].values()), dtype=object)[:, 0].reshape(-1, 1)
     for chart in errorCharts:
         values = numpy.array(list(chart['keys'].values()), dtype=object)
-        rows = numpy.append(rows, values[:, (5 + compareOffset)].reshape(-1, 1), axis=1)
+        rows = numpy.append(rows, values[:, (7 + compareOffset)].reshape(-1, 1), axis=1)
 
-    if args.limit != 0:
-        nrows = numpy.empty((0, rows.shape[1]), dtype=object)
-        for row in rows:
-            if max(map(abs, list(row[1:]))) >= args.limit:
-                nrows = numpy.append(nrows, [row], axis=0)
-        rows = nrows
+#    if args.limit != 0:
+#        nrows = numpy.empty((0, rows.shape[1]), dtype=object)
+#        for row in rows:
+#            if max(map(abs, list(row[1:]))) >= args.limit:
+#                nrows = numpy.append(nrows, [row], axis=0)
+#        rows = nrows
 
 if aggregateFunction is not False:
     rows = numpy.array([chart['name'] for chart in errorCharts], dtype=object).reshape(-1, 1)
@@ -260,19 +306,14 @@ if aggregateFunction is not False:
         chartValues = numpy.array(list(chart['keys'].values()), dtype=object)
         errors = numpy.append(errors, aggregateFunction(
             chartValues[:, (1 + compareOffset)],
-            chartValues[:, ((3 if errorFunction is False else 5) + compareOffset)],
+            chartValues[:, ((4 if errorFunction is False else 7) + compareOffset)],
             totals[0 + compareOffset],
             chart['totals'][0 + compareOffset]
         ))
     rows = numpy.append(rows, errors.reshape(-1, 1), axis=1)
-    if errorFunction:
-        header = f"{chosenAggregateFunction[1]} {chosenErrorFunction[1]}"
-    else:
-        header = chosenAggregateFunction[1]
     headers = numpy.array([header], dtype=object)
+    header = "Profile"
 
-if (len(rows) == 0):
-    raise Exception("No data left, limit to strict?")
 
 rows = rows[rows[:, 1].argsort()]
 
@@ -295,13 +336,13 @@ if (args.plot):
 
     fig['layout'] = go.Layout(
         title=go.layout.Title(
-            text=f"{chosenErrorFunction[1]}, {baselineProfile['target']}, Frequency {baselineProfile['samples'] / baselineProfile['samplingTime']:.2f} Hz, Time {baselineProfile['samplingTime']:.2f} s, Latency {baselineProfile['latencyTime'] * 1000000 / baselineProfile['samples']:.2f} us",
+            text=f"{header}, {baselineProfile['target']}, Frequency {baselineProfile['samples'] / baselineProfile['samplingTime']:.2f} Hz, Time {baselineProfile['samplingTime']:.2f} s, Latency {baselineProfile['latencyTime'] * 1000000 / baselineProfile['samples']:.2f} us",
             xref='paper',
             x=0
         ),
         xaxis=go.layout.XAxis(
             title=go.layout.xaxis.Title(
-                text="Functions",
+                text=header,
                 font=dict(
                     family='Courier New, monospace',
                     size=18,
@@ -342,14 +383,14 @@ if (args.table):
         table = bz2.BZ2File.open(args.table, "w")
     else:
         table = open(args.table, "w")
-    table.write("key;" + ';'.join(headers) + "\n")
+    table.write(header + ";" + ';'.join(headers) + "\n")
     for x in rows:
         table.write(';'.join([f"{y:.16f}" if not isinstance(y, str) else y for y in x]) + "\n")
     table.close()
     print(f"CSV saved to {args.table}")
 
 if (not args.quiet):
-    headers = numpy.append(['Key'], headers)
+    headers = numpy.append([header], headers)
 
     rows[:, 0] = [textwrap.fill(x, 64) for x in rows[:, 0]]
-    print(tabulate.tabulate(rows, headers=headers, floatfmt=".16f"))
+    print(tabulate.tabulate(rows, headers=headers))

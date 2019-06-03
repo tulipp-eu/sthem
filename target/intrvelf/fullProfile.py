@@ -10,7 +10,7 @@ import plotly.graph_objs as go
 import numpy
 import profileLib
 
-_profileVersion = "0.2"
+_profileVersion = "0.3"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profile", help="postprocessed profile from intrvelf")
@@ -79,7 +79,7 @@ else:
     args.interpolate = 1
 
 times = numpy.arange(len(samples)) * avgSampleTime * args.interpolate + args.start
-currents = samples[:, :1].flatten() * volts
+powers = samples[:, :1].flatten()
 
 threads = []
 threadDisplay = []
@@ -168,12 +168,12 @@ fig.append_trace(
     go.Scatter(
         name="W",
         x=times,
-        y=currents,
+        y=powers,
         line={'width': 1},
     ), 1, 1
 )
 
-del currents
+del powers
 
 if not args.no_threads:
     ticknumbers = numpy.arange(len(threads) + 2)
