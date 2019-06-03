@@ -179,8 +179,6 @@ if 'version' not in baselineProfile or baselineProfile['version'] != _aggregated
     raise Exception(f"Incompatible profile version (required: {_aggregatedProfileVersion})")
 
 
-baselineCompensation = (1 / (baselineProfile['latencyTime'] / baselineProfile['samplingTime'])) if (args.compensation and baselineProfile['latencyTime'] != 0) else 1
-
 totals = False  # [0, 0]
 # for key in baselineProfile['profile']:
 #     totals[0] += baselineProfile['profile'][key][0]
@@ -226,11 +224,10 @@ for index, path in enumerate(args.profiles):
     else:
         errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {profile['latencyTime'] * 1000000 / profile['samples']:.2f} us"
 
-    profileCompensation = 1 - (profile['latencyTime'] / profile['samplingTime']) if args.compensation and profile['latencyTime'] != 0 else 1
     # profile['profile] = [[time, energy, label]]
     for key in profile['profile']:
         if key in baselineProfile['profile']:
-            if args.limit == 0 or (baselineProfile['profile'][key][0] * baselineCompensation) >= args.limit:
+            if args.limit == 0 or baselineProfile['profile'][key][0] >= args.limit:
                 for chart in errorCharts:
                     if key not in chart['keys']:
                         chart['keys'][key] = [
@@ -279,10 +276,10 @@ if errorFunction is not False:
 #
 
 
+if aggregateFunction:
+        header += f"{chosenAggregateFunction[1]} "
 if errorFunction:
         header += f"{chosenErrorFunction[1]}"
-if aggregateFunction:
-        header += f"{chosenAggregateFunction[1]} {header}"
 header = header.strip()
 
 if errorFunction is not False and aggregateFunction is False:
@@ -291,6 +288,8 @@ if errorFunction is not False and aggregateFunction is False:
     for chart in errorCharts:
         values = numpy.array(list(chart['keys'].values()), dtype=object)
         rows = numpy.append(rows, values[:, (7 + compareOffset)].reshape(-1, 1), axis=1)
+
+    rows = rows[rows[:, 1].argsort()]
 
 #    if args.limit != 0:
 #        nrows = numpy.empty((0, rows.shape[1]), dtype=object)
@@ -312,10 +311,6 @@ if aggregateFunction is not False:
         ))
     rows = numpy.append(rows, errors.reshape(-1, 1), axis=1)
     headers = numpy.array([header], dtype=object)
-    header = "Profile"
-
-
-rows = rows[rows[:, 1].argsort()]
 
 if (args.plot):
     fig = {'data': []}
@@ -357,6 +352,7 @@ if (args.plot):
                 color='black'
             )
         ),
+        legend=go.layout.Legend(traceorder="reversed"),
         margin=go.layout.Margin(l=6.8 * min(64, maxLen))
     )
 
@@ -376,6 +372,7 @@ if (args.table or not args.quiet):
         rows = numpy.concatenate(([total], rows[::-1]), axis=0)
         rows = numpy.concatenate(([coverage], rows), axis=0)
     else:
+        header = "Profile"
         rows = rows[::-1]
 
 if (args.table):
