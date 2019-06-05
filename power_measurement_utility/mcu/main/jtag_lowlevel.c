@@ -706,8 +706,8 @@ void coreReadPcsrInit(void) {
 
     } else if(cores[0].type == ARMV8A) {
       if(cores[i].enabled) {
-        coreReadRegFast(cores[i], ARMV8A_PCSR_H);
         coreReadRegFast(cores[i], ARMV8A_PCSR_L);
+        coreReadRegFast(cores[i], ARMV8A_PCSR_H);
       }
     }
   }
@@ -762,11 +762,11 @@ bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
           }
         }
       } else if(cores[0].type == ARMV8A) {
-        uint32_t dbgpcsrHigh;
         uint32_t dbgpcsrLow;
+        uint32_t dbgpcsrHigh;
 
-        if(!coreParseReg(&dbgpcsrHigh, buf, &pos)) panic("Error reading register (fast)\n");
         if(!coreParseReg(&dbgpcsrLow, buf, &pos)) panic("Error reading register (fast)\n");
+        if(!coreParseReg(&dbgpcsrHigh, buf, &pos)) panic("Error reading register (fast)\n");
 
         uint64_t dbgpcsr = ((uint64_t)dbgpcsrHigh << 32) | dbgpcsrLow;
 
