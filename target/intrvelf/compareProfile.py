@@ -221,7 +221,7 @@ for index, path in enumerate(args.profiles):
     if len(args.name) > index:
         errorCharts[index]['name'] = args.name[index]
     else:
-        errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {profile['latencyTime'] * 1000000 / profile['samples']:.2f} us"
+        errorCharts[index]['name'] = f"{profile['samples'] / profile['samplingTime']:.2f} Hz, {profile['samplingTime']:.2f} s, {fullTotals[2]} J, {profile['latencyTime'] * 1000000 / profile['samples']:.2f} us"
 
     # profile['profile] = [[time, energy, label]]
     for key in profile['profile']:
