@@ -4,6 +4,8 @@ import bz2
 import re
 import os
 import subprocess
+import hashlib
+import pickle
 
 LABEL_UNKNOWN = '_unknown'
 LABEL_FOREIGN = '_foreign'
@@ -21,6 +23,43 @@ def parseRange(stringRange):
             a = int(part)
             result.append(a)
     return result
+
+
+# Work in Progress
+class elfCache:
+    cacheFolder = "~/.cache/profileLib/"
+
+    def __init__(self):
+        if not os.path.isdir(self.cacheFolder):
+            os.makedirs(self.cacheFolder)
+
+    def md5Of(self, path):
+        hasher = hashlib.md5()
+        with open(path, 'rb') as afile:
+            hasher.update(afile.read())
+        return hasher.hexdigest()
+
+    def cacheExists(self, path):
+        md5 = self.md5Of(path)
+        if os.path.isfile(self.cacheFolder + md5):
+            return True
+        return False
+
+    def createCache(self, path):
+        cache = {}
+        size = os.stat(path).st_size
+        for i in range(0, size):
+            pass
+        pickle.dump(cache, self.cacheFolder + self.md5Of(path), pickle.HIGHEST_PROTOCOL)
+
+    def loadCache(self, path):
+        if not self.cacheExists(path):
+            self.createCache(path)
+        return pickle.load(open(self.cacheFolder + self.md5Of(path), mode="rb"))
+
+    def cleanCache(self):
+        os.rmdir(self.cacheFolder)
+        os.makedirs(self.cacheFolder)
 
 
 class sampleParser:

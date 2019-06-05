@@ -235,9 +235,9 @@ for index, path in enumerate(args.profiles):
                             baselineProfile['profile'][key][0],  # time
                             baselineProfile['profile'][key][1],  # power
                             baselineProfile['profile'][key][2],  # energy
-                            baselineProfile['profile'][key][0],  # time
-                            baselineProfile['profile'][key][1],  # power
-                            baselineProfile['profile'][key][2],  # energy
+                            0.0,  # baselineProfile['profile'][key][0],  # time
+                            0.0,  # baselineProfile['profile'][key][1],  # power
+                            0.0,  # baselineProfile['profile'][key][2],  # energy
                             0.0,  # time error
                             0.0,  # power error
                             0.0   # energy error
@@ -324,7 +324,7 @@ if (args.plot):
                 name=name,
                 textposition='auto',
                 orientation='h',
-                hoverinfo='x+y'
+                hoverinfo='name+x' if aggregateFunction is False else 'y+x'
             )
         )
         maxLen = max(maxLen, numpy.max([len(x) for x in rows[:, 0]]))
