@@ -111,7 +111,8 @@ parser.add_argument("--use-power", help="compare power values", action="store_tr
 parser.add_argument("-e", "--error", help=f"error function (default: {errorFunctions[0][0]})", default=False, choices=errorFunctions[:, 0], type=str.lower)
 parser.add_argument("-a", "--aggregate", help="aggregate erros", default=False, choices=aggregateFunctions[:, 0], type=str.lower)
 parser.add_argument("-c", "--compensation", help="switch on latency compensation (experimental)", action="store_true", default=False)
-parser.add_argument("-l", "--limit", help="time threshold to include", type=float, default=0)
+parser.add_argument("--time-threshold", help="time threshold to include (in percent, e.g. 0.0 - 1.0)", type=float, default=0)
+parser.add_argument("--energy-threshold", help="power threshold to include (in percent, e.g. 0.0 - 1.0)", type=float, default=0)
 parser.add_argument('--names', help='names of the provided profiles (comma sepperated)', type=str, default=False)
 parser.add_argument('-n', '--name', action='append', help='name the provided profiles', default=[])
 parser.add_argument("-t", "--table", help="output csv table")
@@ -141,8 +142,13 @@ if args.use_energy:
     compareOffset = 2
 
 
-if (args.limit is not 0 and (args.limit < 0)):
-    print("ERROR: limit is out of range")
+if (args.time_threshold is not 0 and (args.time_threshold < 0 or args.time_threshold > 1.0)):
+    print("ERROR: time threshold out of range")
+    parser.print_help()
+    sys.exit(0)
+
+if (args.energy_threshold is not 0 and (args.energy_threshold < 0 or args.energy_threshold > 1.0)):
+    print("ERROR: energy threshold out of range")
     parser.print_help()
     sys.exit(0)
 
@@ -188,6 +194,13 @@ if args.error is not False:
     chosenErrorFunction = errorFunctions[numpy.where(errorFunctions == args.error)[0][0]]
     errorFunction = chosenErrorFunction[2]
 
+
+fullTotals = [0.0, 0.0, 0.0]
+for key in baselineProfile['profile']:
+    fullTotals[0] += baselineProfile['profile'][key][0]
+    fullTotals[1] += baselineProfile['profile'][key][1]
+    fullTotals[2] += baselineProfile['profile'][key][2]
+
 chart = {'name': '', 'fullTotals': [0.0, 0.0, 0.0], 'totals': [0.0, 0.0, 0.0], 'keys': {}}
 errorCharts = [copy.deepcopy(chart) for x in args.profiles]
 
@@ -213,7 +226,8 @@ for index, path in enumerate(args.profiles):
     # profile['profile] = [[time, energy, label]]
     for key in profile['profile']:
         if key in baselineProfile['profile']:
-            if args.limit == 0 or baselineProfile['profile'][key][0] >= args.limit:
+            if (((args.time_threshold == 0) or ((baselineProfile['profile'][key][0] / fullTotals[0]) >= args.time_threshold)) and
+               ((args.energy_threshold == 0) or ((baselineProfile['profile'][key][2] / fullTotals[2]) >= args.energy_threshold))):
                 for chart in errorCharts:
                     if key not in chart['keys']:
                         chart['keys'][key] = [
