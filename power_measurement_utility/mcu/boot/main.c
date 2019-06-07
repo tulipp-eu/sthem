@@ -103,7 +103,7 @@ int main(void) {
 
   // setup LEDs
   GPIO_PinModeSet(LED0_PORT, LED0_BIT, gpioModePushPull, LED_ON);
-  GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
+  //GPIO_PinModeSet(LED1_PORT, LED1_BIT, gpioModePushPull, LED_ON);
 
 #ifdef USE_SWO
   swoInit();

@@ -28,9 +28,9 @@ void clearLed(int led) {
     case 0:
       GPIO_PinOutSet(LED0_PORT, LED0_BIT);
       break;
-    case 1:
-      GPIO_PinOutSet(LED1_PORT, LED1_BIT);
-      break;
+    /* case 1: */
+    /*   GPIO_PinOutSet(LED1_PORT, LED1_BIT); */
+    /*   break; */
   }
 }
 
@@ -39,9 +39,9 @@ void setLed(int led) {
     case 0:
       GPIO_PinOutClear(LED0_PORT, LED0_BIT);
       break;
-    case 1:
-      GPIO_PinOutClear(LED1_PORT, LED1_BIT);
-      break;
+    /* case 1: */
+    /*   GPIO_PinOutClear(LED1_PORT, LED1_BIT); */
+    /*   break; */
   }
 }
 

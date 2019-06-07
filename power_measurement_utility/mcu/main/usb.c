@@ -403,13 +403,13 @@ static void testProcedure(struct TestRequestPacket *testReq) {
     }
     case TEST_LEDS_ON: { // LEDs on
       setLed(0);
-      setLed(1);
+      //setLed(1);
       sendStatus = false;
       break;
     }
     case TEST_LEDS_OFF: { // LEDs off
       clearLed(0);
-      clearLed(1);
+      //clearLed(1);
       sendStatus = false;
       break;
     }

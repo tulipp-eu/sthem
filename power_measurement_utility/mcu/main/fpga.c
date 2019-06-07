@@ -224,7 +224,9 @@ void executeSeq(void) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
+void writeSeq(unsigned start, unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
+  if(start != 0) panic("Invalid start");
+
   if(size > MAX_SEQ_SIZE) panic("Size %d\n", size);
   if(size) {
     unsigned bytes = size/8;
@@ -264,7 +266,9 @@ uint8_t *readSeq(unsigned size) {
   return tdoData;
 }
 
-void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
+void readWriteSeq(unsigned start, unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
+  if(start != 0) panic("Invalid start");
+
   if(size > 255) panic("Size %d\n", size);
   if(size) {
     unsigned bytes = size/8;
@@ -308,8 +312,20 @@ uint8_t *storedTdo = NULL;
 
 static inline void jtagPinWrite(bool clk, bool tdi, bool tms) {
   GPIO_PortOutSetVal(JTAG_PORT,
-                     (clk << JTAG_TCK_BIT) | (tdi << JTAG_TDI_BIT) | (tms << JTAG_TMS_BIT), 
-                     (1 << JTAG_TCK_BIT) | (1 << JTAG_TDI_BIT) | (1 << JTAG_TMS_BIT));
+                     (clk << JTAG_TCK_BIT) | (tdi << JTAG_TDI_BIT), 
+                     (1 << JTAG_TCK_BIT) | (1 << JTAG_TDI_BIT));
+  if(tms) GPIO_PinOutSet(TMS_PORT, TMS_BIT);
+  else GPIO_PinOutClear(TMS_PORT, TMS_BIT);
+}
+
+static inline void usartOn(void) {
+  jtagPinWrite(false, false, false);
+  JTAG_USART->ROUTE = (JTAG_USART->ROUTE & ~_USART_ROUTE_LOCATION_MASK) | JTAG_USART_LOC
+    | USART_ROUTE_TXPEN | USART_ROUTE_RXPEN | USART_ROUTE_CLKPEN;
+}
+
+static inline void usartOff(void) {
+  JTAG_USART->ROUTE = 0;
 }
 
 static inline unsigned readBit(void) {
@@ -324,44 +340,47 @@ static inline void writeBit(bool tdi, bool tms) {
 #endif
 }
 
-static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData, uint8_t *tdoData) {
+static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
   int bytes = size / 8;
   int leftovers = size % 8;
-  if(leftovers) bytes++;
 
-  int writePos = 0;
-  uint8_t val = 0;
-  int endPos = 8;
+  if(bytes) {
+    //usartOn();
 
-  for(int byte = 0; byte < bytes; byte++) {
-    if(leftovers && (byte == bytes-1)) {
-      endPos = leftovers;
-    }
+    for(int byte = 0; byte < bytes; byte++) {
 
-    for(int readPos = 0; readPos < endPos; readPos++) {
-      writeBit((*tdiData >> readPos) & 1, (*tmsData >> readPos) & 1);
-      if(tdoData) {
-        if(readData) {
-          if((*readData >> readPos) & 1) {
-            val |= readBit() << writePos++;
-          }
-        } else {
-          val |= readBit() << writePos++;
-        }
-        if(writePos == 8) {
-          *tdoData = val;
-          writePos = 0;
-          val = 0;
-          tdoData++;
-        }
+      /* uint8_t txDataTdi = *tdiData++; */
+      /* uint8_t txDataTms = *tmsData++; */
+      /* while(!(JTAG_USART->STATUS & USART_STATUS_TXBL)); */
+      /* JTAG_USART->TXDATA = (uint32_t)txData; */
+      /* while(!(JTAG_USART->STATUS & USART_STATUS_TXC)); */
+      /* uint8_t val = (uint8_t)JTAG_USART->RXDATA; */
+
+      uint8_t val = 0;
+
+      for(int readPos = 0; readPos < 8; readPos++) {
+        writeBit((*tdiData >> readPos) & 1, (*tmsData >> readPos) & 1);
+        val |= readBit() << readPos;
       }
+
+      if(tdoData) *tdoData++ = val;
+
+      tdiData++;
+      tmsData++;
     }
-    tdiData++;
-    tmsData++;
-    if(readData) readData++;
+
+    //usartOff();
   }
 
-  if(tdoData) *tdoData = val;
+  if(leftovers) {
+    uint8_t val = 0;
+    for(int readPos = 0; readPos < leftovers; readPos++) {
+      writeBit((*tdiData >> readPos) & 1, (*tmsData >> readPos) & 1);
+      val |= readBit() << readPos;
+    }
+
+    if(tdoData) *tdoData = val;
+  }
 }
 
 void jtagInt(void) {
@@ -373,39 +392,23 @@ void jtagExt(void) {
 }
 
 void writeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData) {
-  readWriteSeqMask(size, tdiData, tmsData, NULL, NULL);
+  readWriteSeqMask(size, tdiData, tmsData, NULL);
 }
 
 void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
-  readWriteSeqMask(size, tdiData, tmsData, NULL, tdoData);
+  readWriteSeqMask(size, tdiData, tmsData, tdoData);
 }
 
-void storeSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData) {
-  int bytes = size / 8;
-  if(size % 8) bytes++;
+void storeSeq(uint16_t size, uint8_t *tdiData, uint8_t *tmsData) {
+  panic("Not implemented");
+}
 
-  if(storedTdi) free(storedTdi);
-  if(storedTms) free(storedTms);
-  if(storedRead) free(storedRead);
-  if(storedTdo) free(storedTdo);
-
-  storedTdi = (uint8_t*)malloc(bytes);
-  storedTms = (uint8_t*)malloc(bytes);
-  storedRead = (uint8_t*)malloc(bytes);
-  storedTdo = (uint8_t*)malloc(bytes);
-
-  if(!storedTdi || !storedTms || !storedRead || !storedTdo) {
-    panic("Out of memory\n");
-  }
-
-  storedSize = size;
-  memcpy(storedTdi, tdiData, bytes);
-  memcpy(storedTms, tmsData, bytes);
-  memcpy(storedRead, readData, bytes);
+void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPos, uint16_t *ackPos, uint16_t *endPos) {
+  panic("Not implemented");
 }
 
 void executeSeq(void) {
-  readWriteSeqMask(storedSize, storedTdi, storedTms, storedRead, storedTdo);
+  panic("Not implemented");
 }
 
 uint8_t *readSeq(unsigned size) {
@@ -481,6 +484,29 @@ bool fpgaInit(void) {
 #else
 
   GPIO_PinModeSet(JTAG_PORT, JTAG_SEL_BIT, gpioModePushPull, JTAG_INT);
+
+  GPIO_PinModeSet(TMS_PORT, TMS_BIT, gpioModePushPull, 0);
+  GPIO_PinModeSet(JTAG_PORT, JTAG_TCK_BIT, gpioModePushPull, 0);
+  GPIO_PinModeSet(JTAG_PORT, JTAG_TDO_BIT, gpioModeInput, 0);
+  GPIO_PinModeSet(JTAG_PORT, JTAG_TDI_BIT, gpioModePushPull, 0);
+
+  GPIO_PortOutSetVal(JTAG_PORT, 0, (1 << JTAG_TCK_BIT) | (1 << JTAG_TDI_BIT));
+  GPIO_PortOutSetVal(TMS_PORT, 0, (1 << TMS_BIT));
+
+  ///////////////////////////////////////////////////////////////////////////////
+  // USART
+
+  USART_InitSync_TypeDef init = USART_INITSYNC_DEFAULT;
+
+  USART_Reset(JTAG_USART);
+
+  // enable clock
+  CMU_ClockEnable(JTAG_USART_CLK, true);
+
+  // configure
+  init.baudrate = 10000000;
+  init.msbf     = false;
+  USART_InitSync(JTAG_USART, &init);
 
 #endif
 

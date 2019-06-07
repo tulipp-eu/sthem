@@ -32,6 +32,7 @@ bool dumpPins = false;
 static uint8_t recTdi[2048];
 static uint8_t recTms[2048];
 static uint8_t recRead[2048];
+static unsigned seqStart;
 static unsigned seqSize;
 
 static uint8_t recReadFlag[64];
@@ -120,6 +121,7 @@ static void dumpRec(void) {
 #endif
 
 static void startRec(void) {
+  seqStart = 0;
   seqSize = 0;
   progSize = 0;
   tdiPtr = recTdi;
@@ -235,7 +237,7 @@ static inline void exitIrToShiftDr(void) {
 #endif
 }
 
-static inline void gotoShiftDr(void) {
+static inline unsigned gotoShiftDr(void) {
   uint8_t tms = 0x01;
   uint8_t tdi = 0;
 
@@ -248,6 +250,8 @@ static inline void gotoShiftDr(void) {
     startRec();
   }
 #endif
+
+  return 3;
 }
 
 static inline void exitIrToIdle(void) {
@@ -265,7 +269,7 @@ static inline void exitIrToIdle(void) {
 #endif
 }
 
-static inline void exitDrToIdle(void) {
+static inline unsigned exitDrToIdle(void) {
   uint8_t tms = 0x01;
   uint8_t tdi = 0;
 
@@ -278,6 +282,8 @@ static inline void exitDrToIdle(void) {
     startRec();
   }
 #endif
+
+  return 2;
 }
 
 static uint32_t lastIr = -1;
@@ -331,7 +337,9 @@ static void writeIrInt(uint32_t idcode, uint32_t ir) {
   }
 }
 
-static unsigned readWriteDrPre(uint32_t idcode) {
+static unsigned readWriteDrPre(uint32_t idcode, unsigned *postscan) {
+  int total = 0;
+
   int devNum;
   for(devNum = 0; devNum < numDevices; devNum++) {
     struct JtagDevice *dev = &devices[devNum];
@@ -341,9 +349,11 @@ static unsigned readWriteDrPre(uint32_t idcode) {
   }
   if(devNum == numDevices) panic("Can't find device");
 
-  gotoShiftDr();
+  total = gotoShiftDr();
   
-  unsigned postscan = numDevices - devNum - 1;
+  if(postscan) {
+    *postscan = numDevices - devNum - 1;
+  }
 
   if(devNum) {
     uint8_t tms[MAX_JTAG_DEVICES/8];
@@ -353,6 +363,7 @@ static unsigned readWriteDrPre(uint32_t idcode) {
     memset(tdi, ~0, MAX_JTAG_DEVICES/8);
 
     recordSeq(devNum, tdi, tms, NULL);
+    total += devNum;
 
 #ifdef DUMP_PINS
     if(dumpPins) {
@@ -363,10 +374,10 @@ static unsigned readWriteDrPre(uint32_t idcode) {
 #endif
   }
 
-  return postscan;
+  return total;
 }
 
-static void readWriteDrPost(unsigned postscan) {
+static unsigned readWriteDrPost(unsigned postscan) {
   // postscan
   if(postscan) {
     uint8_t tms[MAX_JTAG_DEVICES/8];
@@ -390,7 +401,7 @@ static void readWriteDrPost(unsigned postscan) {
 #endif
   }
 
-  exitDrToIdle();
+  return postscan + exitDrToIdle();
 }
 
 static void dpLowAccessFast(uint8_t RnW, uint16_t addr, uint32_t value, bool discard) {
@@ -403,7 +414,8 @@ static void dpLowAccessFast(uint8_t RnW, uint16_t addr, uint32_t value, bool dis
 
   uint16_t loopPos = seqSize;
 
-  unsigned postscan = readWriteDrPre(dpIdcode);
+  unsigned postscan;
+  readWriteDrPre(dpIdcode, &postscan);
 
   uint16_t ackPos = seqSize;
 
@@ -469,7 +481,8 @@ void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
   if(dumpPins) printf("Read/Write DR\n");
 #endif
   startRec();
-  int postscan = readWriteDrPre(idcode);
+  unsigned postscan;
+  readWriteDrPre(idcode, &postscan);
   sendRec();
 
   startRec();
@@ -505,38 +518,34 @@ uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
   if(dumpPins) printf("Low Access\n");
 #endif
 
-  startRec();
-
   bool apndp = addr & APNDP;
   addr &= 0xff;
   uint8_t ack = JTAG_ACK_WAIT;
 
-  uint8_t response_buf[4];
+  uint8_t response_buf[5];
   int tries = 1024;
 
+  startRec();
   writeIrInt(dpIdcode, apndp ? JTAG_IR_APACC : JTAG_IR_DPACC);
 
-  sendRec();
+  unsigned ackPos;
+  unsigned dataPos;
 
   while(tries > 0 && ack == JTAG_ACK_WAIT) {
-    startRec();
-    unsigned postscan = readWriteDrPre(dpIdcode);
-    sendRec();
+    // create sequence
+
+    unsigned postscan;
+    readWriteDrPre(dpIdcode, &postscan);
 
     { // addr + readbit
-      startRec();
-
       uint8_t tdi = ((addr >> 1) & 0x06) | (RnW?1:0);
       uint8_t tms = 0;
       uint8_t read = 0x07;
+      ackPos = seqSize;
       recordSeq(3, &tdi, &tms, &read);
-
-      readWriteRec(&ack);
     }
 
     { // value
-      startRec();
-
       uint8_t tms[4];
       uint8_t read[4];
       memset(tms, 0, 4);
@@ -546,17 +555,31 @@ uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
       if(!postscan) {
         tms[3] = 0x80;
       }
-      recordSeq(32, (uint8_t*)&value, tms, read);
 
-      if(RnW) readWriteRec(response_buf);
-      else sendRec();
+      dataPos = seqSize;
+      recordSeq(32, (uint8_t*)&value, tms, read);
     }
 
-    startRec();
     readWriteDrPost(postscan);
-    sendRec();
+
+    {
+      // fill up last byte
+      unsigned bitsToAdd = 0;
+      if(seqSize % 8) bitsToAdd = 8 - (seqSize % 8);
+      if(bitsToAdd) {
+        uint8_t tdi = 0;
+        uint8_t tms = 0;
+        uint8_t read = 0;
+        recordSeq(bitsToAdd, &tdi, &tms, &read);
+      }
+    }
+
+    readWriteRec(response_buf);
+
+    ack = extractAck(&ackPos, response_buf);
 
     tries--;
+    startRec();
   }
 
   if(ack == JTAG_ACK_WAIT) {
@@ -565,9 +588,7 @@ uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
     panic("Error: Invalid ACK (%x != JTAG_ACK_OK)\n", ack);
   }
 
-  unsigned pos = 0;
-
-  return extractWord(&pos, response_buf);
+  return extractWord(&dataPos, response_buf);
 }
 
 int getNumDevices(void) {
@@ -670,7 +691,7 @@ void gotoResetThenIdle(void) {
   writeSeq(6, &tdi, &tms);
 }
 
-#if 0
+#if 1
 
 void coreReadPcsrInit(void) {
 }

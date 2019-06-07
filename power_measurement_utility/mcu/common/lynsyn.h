@@ -71,11 +71,8 @@
 #define LED_ON  0
 #define LED_OFF 1
 
-#define LED0_BIT 0
+#define LED0_BIT 1
 #define LED0_PORT gpioPortC
-
-#define LED1_BIT 1
-#define LED1_PORT gpioPortC
 
 #define PROGRAM_B_BIT 1
 #define PROGRAM_B_PORT gpioPortA
@@ -90,13 +87,19 @@
 #define JTAG_USART_CLK cmuClock_USART0
 #define JTAG_USART_LOC USART_ROUTE_LOCATION_LOC0
 
+#define TMS_USART USART1
+#define TMS_USART_CLK cmuClock_USART1
+#define TMS_USART_LOC USART_ROUTE_LOCATION_LOC0
+
 #define JTAG_PORT gpioPortE
 
 #define JTAG_TDI_BIT 10
 #define JTAG_TDO_BIT 11
 #define JTAG_TCK_BIT 12
-#define JTAG_TMS_BIT 13
 #define JTAG_SEL_BIT 14
+
+#define TMS_PORT gpioPortC
+#define TMS_BIT 0
 
 #define JTAG_EXT 0
 #define JTAG_INT 1

@@ -409,37 +409,6 @@ struct Core coreInitDenver2(unsigned apSel, uint32_t baddr) {
 ///////////////////////////////////////////////////////////////////////////////
 
 void jtagInit(void) {
-#ifdef USE_FPGA_JTAG_CONTROLLER
-
-#else
-
-  GPIO_PinModeSet(JTAG_PORT, JTAG_TMS_BIT, gpioModePushPull, 0);
-  GPIO_PinModeSet(JTAG_PORT, JTAG_TCK_BIT, gpioModePushPull, 0);
-  GPIO_PinModeSet(JTAG_PORT, JTAG_TDO_BIT, gpioModeInput, 0);
-  GPIO_PinModeSet(JTAG_PORT, JTAG_TDI_BIT, gpioModePushPull, 0);
-
-  GPIO_PortOutSetVal(JTAG_PORT, 0, (1 << JTAG_TCK_BIT) | (1 << JTAG_TDI_BIT) | (1 << JTAG_TMS_BIT));
-
-#ifdef USE_USART
-  ///////////////////////////////////////////////////////////////////////////////
-  // USART
-
-  USART_InitSync_TypeDef init = USART_INITSYNC_DEFAULT;
-
-  USART_Reset(JTAG_USART);
-
-  // enable clock
-  CMU_ClockEnable(JTAG_USART_CLK, true);
-
-  // configure
-  init.baudrate = 10000000;
-  init.msbf     = false;
-  USART_InitSync(JTAG_USART, &init);
-#endif
-
-  ///////////////////////////////////////////////////////////////////////////////
-
-#endif
 }
 
 void parseDebugEntry(unsigned apSel, uint32_t compBase) {

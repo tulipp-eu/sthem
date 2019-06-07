@@ -9,10 +9,10 @@ all:
 	cp mcu/main/lynsyn_main.bin bin
 	cd lynsyn_tester && $(MAKE)
 	cp lynsyn_tester/lynsyn_tester bin
-	cd fpga && $(MAKE)
-	cp fpga/build/lynsyn.mcs bin
-	#cd fpga_no_ctrl && $(MAKE)
-	#cp fpga_no_ctrl/build/lynsyn.mcs bin
+	#cd fpga && $(MAKE)
+	#cp fpga/build/lynsyn.mcs bin
+	cd fpga_no_ctrl && $(MAKE)
+	cp fpga_no_ctrl/build/lynsyn.mcs bin
 
 .PHONY: install_hw
 install_hw:

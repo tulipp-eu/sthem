@@ -109,9 +109,9 @@ int main(void) {
 #endif
 
   clearLed(0);
-  clearLed(1);
+  //clearLed(1);
 
-#if 0
+#if 1
   {
     struct JtagDevice devices[MAX_JTAG_DEVICES];
 
@@ -136,20 +136,18 @@ int main(void) {
     devices[5].irlen = 12;
 
     jtagInt();
-    jtagInitCores(devices);
+    if(jtagInitCores(devices)) {
 
-    
- 
-    while(1) {
-    //{
-      uint64_t pc[4];
-      bool halted;
+      //while(1) {
+      {
+        uint64_t pc[4];
+        bool halted;
 
-      if(coreReadPcsrFast(pc, &halted)) {
-        printf("%llx %llx %llx %llx\n", pc[0], pc[1], pc[2], pc[3]);
+        if(coreReadPcsrFast(pc, &halted)) {
+          printf("%llx %llx %llx %llx\n", pc[0], pc[1], pc[2], pc[3]);
+        }
       }
     }
-
     jtagExt();
   }
 #endif
