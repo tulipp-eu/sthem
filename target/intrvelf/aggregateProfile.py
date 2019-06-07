@@ -13,7 +13,7 @@ import tabulate
 import profileLib
 
 _profileVersion = "0.3"
-_aggregatedProfileVersion = "a0.3"
+_aggregatedProfileVersion = "a0.4"
 
 parser = argparse.ArgumentParser(description="Visualize profiles from intrvelf sampler.")
 parser.add_argument("profiles", help="postprocessed profiles from intrvelf", nargs="+")
@@ -94,48 +94,57 @@ for fileProfile in args.profiles:
     avgSampleTime = profile['samplingTime'] / profile['samples']
 
     subAggregate = {}
+    threadLocations = {}
     for sample in profile['profile']:
-        activeCores = min(len(sample[2]), len(useCpus))
+        # activeCores = min(len(sample[2]), len(useCpus))
 
         for thread in sample[2]:
             threadId = thread[0]
             threadCpuTime = thread[1]
             sampleData = sampleFormatter.getSample(thread[2])
 
-            # Needs improvement
-            # cpuShare = min(threadCpuTime, avgSampleTime) / (avgSampleTime * activeCores)
             aggregateIndex = sampleFormatter.formatSample(sampleData, displayKeys=aggregateKeys)
+            if threadId not in threadLocations:
+                threadLocations[threadId] = None
 
-            if aggregateIndex in subAggregate:
-                subAggregate[aggregateIndex][0] += threadCpuTime
-                subAggregate[aggregateIndex][1] += sample[0] * threadCpuTime
-            else:
+            if aggregateIndex not in subAggregate:
                 subAggregate[aggregateIndex] = [
-                    threadCpuTime,
-                    sample[0] * threadCpuTime,
-                    sampleFormatter.sanitizeOutput(aggregateIndex, lStringStrip=aggregatedProfile['target'])
+                    threadCpuTime,  # total execution time
+                    1,
+                    sample[0] * threadCpuTime,  # energy (later power)
+                    sampleFormatter.sanitizeOutput(aggregateIndex, lStringStrip=aggregatedProfile['target'])  # label
                 ]
+            else:
+                subAggregate[aggregateIndex][0] += threadCpuTime
+                if threadLocations[threadId] != aggregateIndex:
+                    subAggregate[aggregateIndex][1] += 1
+                subAggregate[aggregateIndex][2] += sample[0] * threadCpuTime
+
+            threadLocations[threadId] = aggregateIndex
+
     del sampleFormatter
     del profile
 
     for key in subAggregate:
         if key in aggregatedProfile['profile']:
             aggregatedProfile['profile'][key][0] += subAggregate[key][0] * meanFac
-            aggregatedProfile['profile'][key][2] += subAggregate[key][1] * meanFac
+            aggregatedProfile['profile'][key][1] += subAggregate[key][1] * meanFac
+            aggregatedProfile['profile'][key][3] += subAggregate[key][2] * meanFac
         else:
             aggregatedProfile['profile'][key] = [
                 subAggregate[key][0] * meanFac,
-                0,
                 subAggregate[key][1] * meanFac,
-                subAggregate[key][2]
+                0,
+                subAggregate[key][2] * meanFac,
+                subAggregate[key][3]
             ]
 
     del subAggregate
 
 for key in aggregatedProfile['profile']:
     time = aggregatedProfile['profile'][key][0]
-    energy = aggregatedProfile['profile'][key][2]
-    aggregatedProfile['profile'][key][1] = energy / time if time != 0 else 0
+    energy = aggregatedProfile['profile'][key][3]
+    aggregatedProfile['profile'][key][2] = energy / time if time != 0 else 0
 
 
 avgLatencyTime = aggregatedProfile['latencyTime'] / aggregatedProfile['samples']
@@ -143,16 +152,18 @@ avgSampleTime = aggregatedProfile['samplingTime'] / aggregatedProfile['samples']
 frequency = 1 / avgSampleTime
 
 values = numpy.array(list(aggregatedProfile['profile'].values()), dtype=object)
-values = values[values[:, 2].argsort()]
+values = values[values[:, 3].argsort()]
 
 times = numpy.array(values[:, 0], dtype=float)
-powers = numpy.array(values[:, 1], dtype=float)
-energies = numpy.array(values[:, 2], dtype=float)
-aggregationLabel = values[:, 3]
+execs = numpy.array(values[:, 1], dtype=float)
+powers = numpy.array(values[:, 2], dtype=float)
+energies = numpy.array(values[:, 3], dtype=float)
+aggregationLabel = values[:, 4]
 
 totalTime = numpy.sum(times)
 totalEnergy = numpy.sum(energies)
 totalPower = totalEnergy / totalTime if totalTime > 0 else 0
+totalExec = numpy.sum(execs)
 
 if args.limit is not 0:
     accumulate = 0.0
@@ -163,12 +174,13 @@ if args.limit is not 0:
             cutOff = len(energies) - (index + 1)
             print(f"Limit output to {index+1}/{len(energies)} values...")
             times = times[cutOff:]
+            execs = execs[cutOff:]
             energies = energies[cutOff:]
             powers = powers[cutOff:]
             aggregationLabel = aggregationLabel[cutOff:]
             break
 
-labels = [f"{x:.4f} s, {s:.2f} W" + f", {y * 100 / totalEnergy if totalEnergy > 0 else 0:.2f}%" for x, s, y in zip(times, powers, energies)]
+labels = [f"{x:.4f} s, {x * 1000/a:.3f} ms, {s:.2f} W" + f", {y * 100 / totalEnergy if totalEnergy > 0 else 0:.2f}%" for x, a, s, y in zip(times, execs, powers, energies)]
 
 
 if (args.plot):
@@ -217,6 +229,7 @@ if (args.plot):
 if (args.table or not args.quiet):
     aggregationLabel = numpy.insert(aggregationLabel[::-1], 0, "_total")
     times = numpy.insert(times[::-1], 0, totalTime)
+    execs = numpy.insert(execs[::-1], 0, totalExec)
     energies = numpy.insert(energies[::-1], 0, totalEnergy)
     powers = numpy.insert(powers[::-1], 0, totalPower)
 
@@ -227,8 +240,8 @@ if (args.table):
     else:
         table = open(args.table, "w")
     table.write("function;time;power;energy\n")
-    for f, t, s, m in zip(aggregationLabel, times, powers, energies):
-        table.write(f"{f};{t};{s};{m}\n")
+    for f, t, e, s, m in zip(aggregationLabel, times, execs, powers, energies):
+        table.write(f"{f};{t};{e},{s};{m}\n")
     table.close()
     print(f"CSV saved to {args.table}")
 
@@ -242,4 +255,4 @@ if (args.output):
 
 
 if (not args.quiet):
-    print(tabulate.tabulate(zip(aggregationLabel, times, powers, energies), headers=['Function', 'Time [s]', 'Power [W]', 'Energy [J]']))
+    print(tabulate.tabulate(zip(aggregationLabel, times, execs, powers, energies), headers=['Function', 'Time [s]', 'Executions', 'Power [W]', 'Energy [J]']))
