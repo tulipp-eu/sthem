@@ -34,7 +34,7 @@ void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *td
 void storeSeq(uint16_t size, uint8_t *tdiData, uint8_t *tmsData);
 void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPos, uint16_t *ackPos, uint16_t *endPos);
 void executeSeq(void);
-uint8_t *readSeq(unsigned size);
+uint32_t *getWords();
 
 bool fpgaInit();
 uint32_t fpgaInitOk(void);

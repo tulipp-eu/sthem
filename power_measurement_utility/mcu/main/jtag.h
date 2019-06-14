@@ -86,6 +86,9 @@ uint64_t readPc(unsigned core);
 
 bool coreHalted(unsigned core);
 
+uint32_t extractWord(unsigned *pos, uint8_t *buf);
+uint8_t extractAck(unsigned *pos, uint8_t *buf);
+
 ///////////////////////////////////////////////////////////////////////////////
 
 extern int numDevices;

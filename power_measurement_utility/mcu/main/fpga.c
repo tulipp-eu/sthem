@@ -21,6 +21,7 @@
 
 #include "lynsyn_main.h"
 #include "fpga.h"
+#include "jtag.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +35,8 @@ static uint32_t initOk = false;
 #define PRS_CHANNEL_MASK 2
 
 #define USE_USART
+
+//#define DUMP_PINS
 
 #ifdef USE_FPGA_JTAG_CONTROLLER
 
@@ -310,12 +313,6 @@ void readWriteSeq(unsigned start, unsigned size, uint8_t *tdiData, uint8_t *tmsD
 
 #else
 
-unsigned storedSize;
-uint8_t *storedTdi = NULL;
-uint8_t *storedTms = NULL;
-uint8_t *storedRead = NULL;
-uint8_t *storedTdo = NULL;
-
 static inline void jtagPinWrite(bool clk, bool tdi, bool tms) {
   GPIO_PortOutSetVal(JTAG_PORT,
                      (clk << JTAG_TCK_BIT) | (tdi << JTAG_TDI_BIT), 
@@ -350,9 +347,6 @@ static inline unsigned readBit(void) {
 static inline void writeBit(bool tdi, bool tms) {
   jtagPinWrite(false, tdi, tms);
   jtagPinWrite(true, tdi, tms);
-#ifdef DUMP_PINS
-  if(dumpPins) printf("  Actual: TMS: %d TDI: %d TDO: %d\n", tms, tdi, readBit());
-#endif
 }
 
 static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
@@ -361,6 +355,9 @@ static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, 
 
   if(bytes) {
     for(int byte = 0; byte < bytes; byte++) {
+#ifdef DUMP_PINS
+      printf("%x %x = ", *tdiData, *tmsData);
+#endif
 #ifdef USE_USART
       JTAG_USART->CMD = USART_CMD_TXDIS;
       TMS_USART->CMD = USART_CMD_TXDIS;
@@ -385,6 +382,9 @@ static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, 
       tdiData++;
       tmsData++;
 
+#endif
+#ifdef DUMP_PINS
+      printf("%x\n", val);
 #endif
       if(tdoData) *tdoData++ = val;
     }
@@ -421,20 +421,110 @@ void readWriteSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *td
   readWriteSeqMask(size, tdiData, tmsData, tdoData);
 }
 
+uint8_t *storedTdi = NULL;
+uint8_t *storedTms = NULL;
+
+unsigned progSize;
+uint32_t *words = NULL;
+unsigned *ackPos = NULL;
+bool *doRead = NULL;
+
+unsigned *initSize = NULL;
+uint8_t **initTdi = NULL;
+uint8_t **initTms = NULL;
+
+unsigned *loopSize = NULL;
+uint8_t **loopTdi = NULL;
+uint8_t **loopTms = NULL;
+
 void storeSeq(uint16_t size, uint8_t *tdiData, uint8_t *tmsData) {
-  panic("Not implemented");
+  if(storedTdi) free(storedTdi);
+  storedTdi = malloc(size);
+
+  if(storedTms) free(storedTms);
+  storedTms = malloc(size);
+
+  if(!storedTdi || !storedTms) panic("Out of memory (storeSeq)");
+
+  memcpy(storedTdi, tdiData, size);
+  memcpy(storedTms, tmsData, size);
 }
 
-void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPos, uint16_t *ackPos, uint16_t *endPos) {
-  panic("Not implemented");
+void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPos, uint16_t *ap, uint16_t *endPos) {
+  progSize = size;
+
+  if(ackPos) free(ackPos);
+  ackPos = malloc(size * sizeof(unsigned));
+
+  if(doRead) free(read);
+  doRead = malloc(size * sizeof(bool));
+
+  if(initSize) free(initSize);
+  initSize = malloc(size * sizeof(unsigned));
+  if(initTdi) free(initTdi);
+  initTdi = malloc(size * sizeof(uint8_t*));
+  if(initTms) free(initTms);
+  initTms = malloc(size * sizeof(uint8_t*));
+
+  if(loopSize) free(loopSize);
+  loopSize = malloc(size * sizeof(unsigned));
+  if(loopTdi) free(loopTdi);
+  loopTdi = malloc(size * sizeof(uint8_t*));
+  if(loopTms) free(loopTms);
+  loopTms = malloc(size * sizeof(uint8_t*));
+
+  if(words) free(words);
+  words = malloc(size * sizeof(uint32_t));
+
+  if(!ackPos || !doRead || !initSize || !initTdi || !initTms || !loopSize || !loopTdi || !loopTms || !words) panic("Out of memory");
+
+  for(int command = 0; command < size; command++) {
+    doRead[command] = read[command];
+
+    initSize[command] = loopPos[command] - initPos[command];
+    int initByte = initPos[command] / 8;
+
+    loopSize[command] = endPos[command] - loopPos[command];
+    int loopByte = loopPos[command] / 8;
+
+    ackPos[command] = ap[command] - loopPos[command];
+
+    initTdi[command] = storedTdi + initByte;
+    initTms[command] = storedTms + initByte;
+
+    loopTdi[command] = storedTdi + loopByte;
+    loopTms[command] = storedTms + loopByte;
+  }
+
 }
 
 void executeSeq(void) {
-  panic("Not implemented");
+  int wordCounter = 0;
+
+  for(int command = 0; command < progSize; command++) {
+    // init
+    readWriteSeqMask(initSize[command], initTdi[command], initTms[command], NULL);
+
+    uint8_t ack;
+    uint8_t tdo[32];
+
+    do {
+      readWriteSeqMask(loopSize[command], loopTdi[command], loopTms[command], tdo);
+      unsigned pos = ackPos[command];
+      ack = extractAck(&pos, tdo);
+      if(doRead[command] && (ack != JTAG_ACK_WAIT)) {
+        uint32_t word = extractWord(&pos, tdo);
+        words[wordCounter++] = word;
+      }
+
+    } while(ack == JTAG_ACK_WAIT);
+
+    if(ack != JTAG_ACK_OK) panic("Invalid ACK\n");
+  }
 }
 
-uint8_t *readSeq(unsigned size) {
-  return storedTdo;
+uint32_t *getWords() {
+  return words;
 }
 
 #endif

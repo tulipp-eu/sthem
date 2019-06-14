@@ -139,7 +139,7 @@ int main(void) {
     if(jtagInitCores(devices)) {
 
       //while(1) {
-      {
+        {
         uint64_t pc[4];
         bool halted;
 
