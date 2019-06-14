@@ -405,6 +405,33 @@ static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, 
   }
 }
 
+static inline void readWriteSeqSpi(unsigned bytes, uint8_t *tdiData, uint8_t *tmsData, uint8_t *tdoData) {
+  for(int byte = 0; byte < bytes; byte++) {
+#ifdef DUMP_PINS
+    printf("%x %x = ", *tdiData, *tmsData);
+#endif
+
+    JTAG_USART->CMD = USART_CMD_TXDIS;
+    TMS_USART->CMD = USART_CMD_TXDIS;
+
+    uint8_t txDataTdi = *tdiData++;
+    JTAG_USART->TXDATA = (uint32_t)txDataTdi;
+
+    uint8_t txDataTms = *tmsData++;
+    TMS_USART->TXDATA = (uint32_t)txDataTms;
+
+    PRS_PulseTrigger(PRS_CHANNEL_MASK);
+
+    while(!(JTAG_USART->STATUS & USART_STATUS_RXDATAV));
+    uint8_t val = (uint8_t)JTAG_USART->RXDATA;
+
+#ifdef DUMP_PINS
+    printf("%x\n", val);
+#endif
+    *tdoData++ = val;
+  }
+}
+
 void jtagInt(void) {
   GPIO_PinOutSet(JTAG_PORT, JTAG_SEL_BIT);
 }
@@ -456,7 +483,7 @@ void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPo
   if(ackPos) free(ackPos);
   ackPos = malloc(size * sizeof(unsigned));
 
-  if(doRead) free(read);
+  if(doRead) free(doRead);
   doRead = malloc(size * sizeof(bool));
 
   if(initSize) free(initSize);
@@ -481,10 +508,10 @@ void storeProg(unsigned size, uint8_t *read, uint16_t *initPos, uint16_t *loopPo
   for(int command = 0; command < size; command++) {
     doRead[command] = read[command];
 
-    initSize[command] = loopPos[command] - initPos[command];
+    initSize[command] = (loopPos[command] - initPos[command]) / 8;
     int initByte = initPos[command] / 8;
 
-    loopSize[command] = endPos[command] - loopPos[command];
+    loopSize[command] = (endPos[command] - loopPos[command]) / 8;
     int loopByte = loopPos[command] / 8;
 
     ackPos[command] = ap[command] - loopPos[command];
@@ -502,14 +529,13 @@ void executeSeq(void) {
   int wordCounter = 0;
 
   for(int command = 0; command < progSize; command++) {
-    // init
-    readWriteSeqMask(initSize[command], initTdi[command], initTms[command], NULL);
-
     uint8_t ack;
     uint8_t tdo[32];
 
+    readWriteSeqSpi(initSize[command], initTdi[command], initTms[command], tdo);
+
     do {
-      readWriteSeqMask(loopSize[command], loopTdi[command], loopTms[command], tdo);
+      readWriteSeqSpi(loopSize[command], loopTdi[command], loopTms[command], tdo);
       unsigned pos = ackPos[command];
       ack = extractAck(&pos, tdo);
       if(doRead[command] && (ack != JTAG_ACK_WAIT)) {
@@ -619,7 +645,7 @@ bool fpgaInit(void) {
 
   // configure
   USART_InitSync_TypeDef init = USART_INITSYNC_DEFAULT;
-  init.baudrate = 5000000;
+  init.baudrate = 7000000;
   init.msbf     = false;
   USART_InitSync(JTAG_USART, &init);
   USART_InitSync(TMS_USART, &init);
