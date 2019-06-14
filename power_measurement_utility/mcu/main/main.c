@@ -111,7 +111,7 @@ int main(void) {
   clearLed(0);
   //clearLed(1);
 
-#if 1
+#if 0
   {
     struct JtagDevice devices[MAX_JTAG_DEVICES];
 

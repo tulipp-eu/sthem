@@ -25,9 +25,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <em_usart.h>
+#include <em_prs.h>
 #include <stdlib.h>
 
 static uint32_t initOk = false;
+
+#define PRS_CHANNEL 1
+#define PRS_CHANNEL_MASK 2
+
+#define USE_USART
 
 #ifdef USE_FPGA_JTAG_CONTROLLER
 
@@ -319,13 +325,22 @@ static inline void jtagPinWrite(bool clk, bool tdi, bool tms) {
 }
 
 static inline void usartOn(void) {
+#ifdef USE_USART
   jtagPinWrite(false, false, false);
+
   JTAG_USART->ROUTE = (JTAG_USART->ROUTE & ~_USART_ROUTE_LOCATION_MASK) | JTAG_USART_LOC
     | USART_ROUTE_TXPEN | USART_ROUTE_RXPEN | USART_ROUTE_CLKPEN;
+
+  TMS_USART->ROUTE = (TMS_USART->ROUTE & ~_USART_ROUTE_LOCATION_MASK) | TMS_USART_LOC
+    | USART_ROUTE_TXPEN | USART_ROUTE_RXPEN | USART_ROUTE_CLKPEN;
+#endif
 }
 
 static inline void usartOff(void) {
+#ifdef USE_USART
   JTAG_USART->ROUTE = 0;
+  TMS_USART->ROUTE = 0;
+#endif
 }
 
 static inline unsigned readBit(void) {
@@ -345,34 +360,39 @@ static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, 
   int leftovers = size % 8;
 
   if(bytes) {
-    //usartOn();
-
     for(int byte = 0; byte < bytes; byte++) {
+#ifdef USE_USART
+      JTAG_USART->CMD = USART_CMD_TXDIS;
+      TMS_USART->CMD = USART_CMD_TXDIS;
 
-      /* uint8_t txDataTdi = *tdiData++; */
-      /* uint8_t txDataTms = *tmsData++; */
-      /* while(!(JTAG_USART->STATUS & USART_STATUS_TXBL)); */
-      /* JTAG_USART->TXDATA = (uint32_t)txData; */
-      /* while(!(JTAG_USART->STATUS & USART_STATUS_TXC)); */
-      /* uint8_t val = (uint8_t)JTAG_USART->RXDATA; */
+      uint8_t txDataTdi = *tdiData++;
+      JTAG_USART->TXDATA = (uint32_t)txDataTdi;
 
+      uint8_t txDataTms = *tmsData++;
+      TMS_USART->TXDATA = (uint32_t)txDataTms;
+
+      PRS_PulseTrigger(PRS_CHANNEL_MASK);
+
+      while(!(JTAG_USART->STATUS & USART_STATUS_RXDATAV));
+      uint8_t val = (uint8_t)JTAG_USART->RXDATA;
+#else
       uint8_t val = 0;
 
       for(int readPos = 0; readPos < 8; readPos++) {
         writeBit((*tdiData >> readPos) & 1, (*tmsData >> readPos) & 1);
         val |= readBit() << readPos;
       }
-
-      if(tdoData) *tdoData++ = val;
-
       tdiData++;
       tmsData++;
-    }
 
-    //usartOff();
+#endif
+      if(tdoData) *tdoData++ = val;
+    }
   }
 
   if(leftovers) {
+    usartOff();
+
     uint8_t val = 0;
     for(int readPos = 0; readPos < leftovers; readPos++) {
       writeBit((*tdiData >> readPos) & 1, (*tmsData >> readPos) & 1);
@@ -380,6 +400,8 @@ static void readWriteSeqMask(unsigned size, uint8_t *tdiData, uint8_t *tmsData, 
     }
 
     if(tdoData) *tdoData = val;
+
+    usartOn();
   }
 }
 
@@ -493,20 +515,35 @@ bool fpgaInit(void) {
   GPIO_PortOutSetVal(JTAG_PORT, 0, (1 << JTAG_TCK_BIT) | (1 << JTAG_TDI_BIT));
   GPIO_PortOutSetVal(TMS_PORT, 0, (1 << TMS_BIT));
 
+#ifdef USE_USART
   ///////////////////////////////////////////////////////////////////////////////
   // USART
 
-  USART_InitSync_TypeDef init = USART_INITSYNC_DEFAULT;
-
   USART_Reset(JTAG_USART);
+  USART_Reset(TMS_USART);
 
   // enable clock
   CMU_ClockEnable(JTAG_USART_CLK, true);
+  CMU_ClockEnable(TMS_USART_CLK, true);
+  CMU_ClockEnable(cmuClock_PRS, true);;
 
   // configure
-  init.baudrate = 10000000;
+  USART_InitSync_TypeDef init = USART_INITSYNC_DEFAULT;
+  init.baudrate = 5000000;
   init.msbf     = false;
   USART_InitSync(JTAG_USART, &init);
+  USART_InitSync(TMS_USART, &init);
+
+  USART_PrsTriggerInit_TypeDef prsInit = USART_INITPRSTRIGGER_DEFAULT;
+  prsInit.autoTxTriggerEnable = false;
+  prsInit.rxTriggerEnable = true;
+  prsInit.txTriggerEnable = true;
+  prsInit.prsTriggerChannel = PRS_CHANNEL;
+  USART_InitPrsTrigger(JTAG_USART, &prsInit);
+  USART_InitPrsTrigger(TMS_USART, &prsInit);
+
+  usartOn();
+#endif
 
 #endif
 
