@@ -34,10 +34,11 @@
 #include "../common/swo.h"
 #include "../common/usbprotocol.h"
 
+#include "arm.h"
+#include "jtag_lowlevel.h"
 #include "adc.h"
 #include "config.h"
 #include "usb.h"
-#include "fpga.h"
 #include "jtag.h"
 #include "iic.h"
 
@@ -68,7 +69,6 @@ void panic(const char *fmt, ...) {
   vprintf(fmt, args);
   printf("\n");
   va_end(args);
-  jtagExt();
   while(true);
 }
 
@@ -97,7 +97,7 @@ int main(void) {
 
   printf("Hardware V%lx.%lx Firmware %s\n", (getUint32("hwver") & 0xf0) >> 4, getUint32("hwver") & 0xf, SW_VERSION_STRING);
 
-  fpgaInit();
+  jtagInitLowLevel();
   adcInit();
   usbInit();
   jtagInit();
@@ -135,7 +135,6 @@ int main(void) {
     devices[5].idcode = 0x28e20126;
     devices[5].irlen = 12;
 
-    jtagInt();
     if(jtagInitCores(devices)) {
 
       //while(1) {
@@ -148,7 +147,6 @@ int main(void) {
         }
       }
     }
-    jtagExt();
   }
 #endif
 
@@ -228,8 +226,6 @@ int main(void) {
           clearBp(STOP_BP);
           coresResume();
         }
-
-        jtagExt();
 
         clearLed(0);
 

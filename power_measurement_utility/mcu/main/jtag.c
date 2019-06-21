@@ -19,619 +19,637 @@
  *
  *****************************************************************************/
 
+#include "arm.h"
+#include "jtag.h"
+#include "jtag_lowlevel.h"
+
 #include <stdio.h>
 #include <string.h>
 
-#include <em_usart.h>
+///////////////////////////////////////////////////////////////////////////////
 
-#include "jtag.h"
-#include "fpga.h"
+bool dumpPins = false;
+
+static uint8_t recTdi[2048];
+static uint8_t recTms[2048];
+static uint8_t recRead[2048];
+static unsigned seqStart;
+static unsigned seqSize;
+
+static uint8_t recReadFlag[64];
+static uint16_t recInitPos[64];
+static uint16_t recLoopPos[64];
+static uint16_t recAckPos[64];
+static uint16_t recEndPos[64];
+static unsigned progSize;
+
+static uint8_t *tdiPtr;
+static uint8_t *tmsPtr;
+static uint8_t *readPtr;
+
+static uint8_t *readFlagPtr;
+static uint16_t *initPosPtr;
+static uint16_t *loopPosPtr;
+static uint16_t *ackPosPtr;
+static uint16_t *endPosPtr;
+
+static unsigned fastBitsToRead;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int numDevices = 0;
-struct JtagDevice devices[MAX_JTAG_DEVICES];
-uint32_t dpIdcode = 0;
+uint32_t extractWord(unsigned *pos, uint8_t *buf) {
+  unsigned byte = *pos / 8;
+  unsigned bit = *pos % 8;
 
-static unsigned apSelMem = 0;
-static bool mem64 = false;
-unsigned numCores;
-unsigned numEnabledCores;
-struct Core cores[MAX_CORES];
+  *pos += 32;
 
-///////////////////////////////////////////////////////////////////////////////
-
-static unsigned getIrLen(uint32_t idcode, struct JtagDevice *devlist) {
-
-  for(int i = 0; i < MAX_JTAG_DEVICES; i++) {
-    if(idcode == devlist[i].idcode) {
-      return devlist[i].irlen;
-    }
+  switch(bit) {
+    case 0: return (buf[byte+3] << 24) | (buf[byte+2] << 16) | (buf[byte+1] << 8) | buf[byte];
+    case 1: return ((buf[byte+4] & 0x01) << 31) | (buf[byte+3] << 23) | (buf[byte+2] << 15) | (buf[byte+1] << 7) | (buf[byte] >> 1);
+    case 2: return ((buf[byte+4] & 0x03) << 30) | (buf[byte+3] << 22) | (buf[byte+2] << 14) | (buf[byte+1] << 6) | (buf[byte] >> 2);
+    case 3: return ((buf[byte+4] & 0x07) << 29) | (buf[byte+3] << 21) | (buf[byte+2] << 13) | (buf[byte+1] << 5) | (buf[byte] >> 3);
+    case 4: return ((buf[byte+4] & 0x0f) << 28) | (buf[byte+3] << 20) | (buf[byte+2] << 12) | (buf[byte+1] << 4) | (buf[byte] >> 4);
+    case 5: return ((buf[byte+4] & 0x1f) << 27) | (buf[byte+3] << 19) | (buf[byte+2] << 11) | (buf[byte+1] << 3) | (buf[byte] >> 5);
+    case 6: return ((buf[byte+4] & 0x3f) << 26) | (buf[byte+3] << 18) | (buf[byte+2] << 10) | (buf[byte+1] << 2) | (buf[byte] >> 6);
+    case 7: return ((buf[byte+4] & 0x7f) << 25) | (buf[byte+3] << 17) | (buf[byte+2] <<  9) | (buf[byte+1] << 1) | (buf[byte] >> 7);
   }
-
-  panic("Unknown IDCODE %x\n", idcode);
 
   return 0;
 }
 
-static bool queryChain(struct JtagDevice *devlist) {
-  numDevices = getNumDevices();
+uint8_t extractAck(unsigned *pos, uint8_t *buf) {
+  unsigned byte = *pos / 8;
+  unsigned bit = *pos % 8;
 
-  if((numDevices == 0) || (numDevices == MAX_JTAG_DEVICES)) {
-    printf("No JTAG chain found\n");
-    return false;
+  *pos += 3;
 
-  } else {
-    uint32_t idcodes[MAX_JTAG_DEVICES];
-    getIdCodes(idcodes);
+  switch(bit) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5: return (buf[byte] >> bit) & 0x7;
+    case 6: return ((buf[byte+1] & 0x1) << 2) | ((buf[byte] >> 6) & 0x3);
+    case 7: return ((buf[byte+1] & 0x3) << 1) | ((buf[byte] >> 7) & 0x1);
+  }
+
+  return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static void startRec(void) {
+  seqStart = 0;
+  seqSize = 0;
+  progSize = 0;
+  tdiPtr = recTdi;
+  tmsPtr = recTms;
+  readPtr = recRead;
+  readFlagPtr = recReadFlag;
+  initPosPtr = recInitPos;
+  loopPosPtr = recLoopPos;
+  ackPosPtr = recAckPos;
+  endPosPtr = recEndPos;
+  *tdiPtr = 0;
+  *tmsPtr = 0;
+  *readPtr = 0;
+}
+
+static void sendRec(void) {
+  readWriteSeq(seqSize, recTdi, recTms, NULL);
+}
+
+static void readWriteRec(uint8_t *response_buf) {
+  readWriteSeq(seqSize, recTdi, recTms, response_buf);
+}
+
+static void storeRec(void) {
+  for(int i = 0; i < progSize; i++) {
+    printf("Prog (%d) %d %d %d %d\n", recReadFlag[i], recInitPos[i], recLoopPos[i], recAckPos[i], recEndPos[i]);
+  }
+  unsigned words = seqSize / 8;
+  if(seqSize % 8) words++;
+  storeSeq(words, recTdi, recTms);
+  storeProg(progSize, recReadFlag, recInitPos, recLoopPos, recAckPos, recEndPos);
+}
+
+static void recordSeq(unsigned size, uint8_t *tdiData, uint8_t *tmsData, uint8_t *readData) {
+  for(int i = 0; i < size; i++) {
+    unsigned sourceBit = i % 8;
+    unsigned targetBit = seqSize % 8;
+
+    if(*tdiData & (1 << sourceBit)) *tdiPtr |= (1 << targetBit);
+    if(*tmsData & (1 << sourceBit)) *tmsPtr |= (1 << targetBit);
+    if(readData) {
+      if(*readData & (1 << sourceBit)) *readPtr |= (1 << targetBit);
+    }
+
+    if(sourceBit == 7) {
+      tdiData++;
+      tmsData++;
+      if(readData) readData++;
+    }
+    if(targetBit == 7) {
+      tdiPtr++;
+      tmsPtr++;
+      readPtr++;
+      *tdiPtr = 0;
+      *tmsPtr = 0;
+      *readPtr = 0;
+    }
+
+    seqSize++;
+  }
+}
+
+static void recordCommand(uint8_t read, uint16_t initPos, uint16_t loopPos, uint16_t ackPos, uint16_t endPos) {
+  *readFlagPtr++ = read;
+  *initPosPtr++ = initPos;
+  *loopPosPtr++ = loopPos;
+  *ackPosPtr++ = ackPos;
+  *endPosPtr++ = endPos;
+  progSize++;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static void fillByte() {
+  unsigned bitsToAdd = 0;
+  if(seqSize % 8) bitsToAdd = 8 - (seqSize % 8);
+  if(bitsToAdd) {
+    uint8_t tdi = 0;
+    uint8_t tms = 0;
+    uint8_t read = 0;
+    recordSeq(bitsToAdd, &tdi, &tms, &read);
+  }
+}
+
+static inline void gotoShiftIr(void) {
+  uint8_t tms = 0x03;
+  uint8_t tdi = 0;
+
+  recordSeq(4, &tdi, &tms, NULL);
+}
+
+static inline void exitIrToShiftDr(void) {
+  uint8_t tms = 0x03;
+  uint8_t tdi = 0;
+
+  recordSeq(4, &tdi, &tms, NULL);
+}
+
+static inline unsigned gotoShiftDr(void) {
+  uint8_t tms = 0x01;
+  uint8_t tdi = 0;
+
+  recordSeq(3, &tdi, &tms, NULL);
+
+  return 3;
+}
+
+static inline void exitIrToIdle(void) {
+  uint8_t tms = 0x01;
+  uint8_t tdi = 0;
+
+  recordSeq(2, &tdi, &tms, NULL);
+}
+
+static inline unsigned exitDrToIdle(void) {
+  uint8_t tms = 0x01;
+  uint8_t tdi = 0;
+
+  recordSeq(2, &tdi, &tms, NULL);
+
+  return 2;
+}
+
+static uint32_t lastIr = -1;
+
+static void writeIrInt(uint32_t idcode, uint32_t ir) {
+  if(ir != lastIr) {
+    lastIr = ir;
+    gotoShiftIr();
     for(int i = 0; i < numDevices; i++) {
-      if(idcodes[i]) {
-        struct JtagDevice dev;
-        dev.idcode = idcodes[i];
-        dev.irlen = getIrLen(dev.idcode, devlist);
-        devices[i] = dev;
-        printf("Device %d: idcode %x\n", i, (int)devices[i].idcode);
-      } else {
-        numDevices = i;
-        break;
-      }
-    }
-  }
+      struct JtagDevice *dev = &devices[i];
+      if(dev->idcode == idcode) {
+        uint8_t tms = 0;
+        uint8_t tdi = ir;
 
-  return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// ARM DP
-
-static void dpWrite(uint16_t addr, uint32_t value) {
-  dpLowAccess(LOW_WRITE, addr, value);
-}
-
-static uint32_t dpRead(uint16_t addr) {
-  dpLowAccess(LOW_READ, addr, 0);
-  uint32_t ret = dpLowAccess(LOW_READ, DP_RDBUFF, 0);
-  return ret;
-}
-
-static void dpAbort(uint32_t abort) {
-#ifdef DUMP_PINS
-  if(dumpPins) printf("abort\n");
-#endif
-
-  uint8_t request_buf[8];
-  memset(request_buf, 0, 8);
-
-  request_buf[4] = (abort & 0xE0000000) >> 29;
-  uint32_t tmp = (abort << 3);
-  request_buf[3] = (tmp & 0xFF000000) >> 24;
-  request_buf[2] = (tmp & 0x00FF0000) >> 16;
-  request_buf[1] = (tmp & 0x0000FF00) >> 8;
-  request_buf[0] = (tmp & 0x000000FF);
-
-  writeIr(dpIdcode, JTAG_IR_ABORT);
-  readWriteDr(dpIdcode, request_buf, NULL, 35);
-}
-
-static void dpInit(uint32_t idcode) {
-  dpIdcode = idcode;
-
-  dpAbort(DP_ABORT_DAPABORT);
-
-  uint32_t ctrlstat = dpRead(DP_CTRLSTAT);
-
-  /* Write request for system and debug power up */
-  dpWrite(DP_CTRLSTAT,
-          ctrlstat |= DP_CTRLSTAT_CSYSPWRUPREQ |
-          DP_CTRLSTAT_CDBGPWRUPREQ);
-
-  /* Wait for acknowledge */
-  while(((ctrlstat = dpRead(DP_CTRLSTAT)) &
-         (DP_CTRLSTAT_CSYSPWRUPACK | DP_CTRLSTAT_CDBGPWRUPACK)) !=
-        (DP_CTRLSTAT_CSYSPWRUPACK | DP_CTRLSTAT_CDBGPWRUPACK));
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// ARM AP
-
-static void apWrite(unsigned apSel, uint16_t addr, uint32_t value) {
-  dpWrite(DP_SELECT, ((uint32_t)apSel << 24)|(addr & 0xF0));
-  dpWrite(addr, value);
-}
-
-static uint32_t apRead(unsigned apSel, uint16_t addr) {
-  dpWrite(DP_SELECT, ((uint32_t)apSel << 24)|(addr & 0xF0));
-  uint32_t ret = dpRead(addr);
-  return ret;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// ARM AXI
-
-uint32_t axiReadMem(uint64_t addr) {
-  apWrite(apSelMem, AP_TAR, addr & 0xffffffff);
-  if(mem64) apWrite(apSelMem, AP_TAR_HI, addr >> 32);
-  return dpRead(AP_DRW);
-}
-
-void axiWriteMem(uint64_t addr, uint32_t val) {
-  apWrite(apSelMem, AP_TAR, addr & 0xffffffff);
-  if(mem64) apWrite(apSelMem, AP_TAR_HI, addr >> 32);
-  dpWrite(AP_DRW, val);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// ARM Core
-
-void coreWriteReg(struct Core *core, uint16_t reg, uint32_t val) {
-  uint32_t addr = core->baddr + 4*reg;
-#ifdef DUMP_PINS
-  if(dumpPins) printf("Write Reg %x = %x\n", (unsigned)addr, (unsigned)val);
-#endif
-  apWrite(core->ap, AP_TAR, addr);
-  dpWrite(AP_DRW, val);
-}
-
-uint32_t coreReadReg(struct Core *core, uint16_t reg) {
-  uint32_t addr = core->baddr + 4*reg;
-  apWrite(core->ap, AP_TAR, addr);
-  uint32_t ret = dpRead(AP_DRW);
-#ifdef DUMP_PINS
-  if(dumpPins) printf("Read Reg %x = %x\n", (unsigned)addr, (unsigned)ret);
-#endif
-  return ret;
-}
-
-uint8_t coreReadStatus(unsigned core) {
-  return coreReadReg(&cores[core], ARMV8A_SCR) & 0x3f;
-}
-
-uint64_t readPc(unsigned core) {
-  if(cores[core].type == ARMV7A) {
-    uint32_t dbgdscr;
-
-    dbgdscr = coreReadReg(&cores[0], ARMV7A_DSCR);
-    dbgdscr |= DSCR_ITREN;
-    coreWriteReg(&cores[0], ARMV7A_DSCR, dbgdscr);
-
-    coreWriteReg(&cores[core], ARMV7A_ITR, 0xe1a0000f);
-    uint32_t regno = 0;
-    uint32_t instr = MCR | DTRTXint | ((regno & 0xf) << 12);
-    coreWriteReg(&cores[core], ARMV7A_ITR, instr);
-
-    return coreReadReg(&cores[core], ARMV7A_DTRTX) - 8;
-
-  } else if(cores[core].type == ARMV8A) {
-    coreWriteReg(&cores[core], ARMV8A_ITR, ARMV8A_MRS_DLR(0));
-    coreWriteReg(&cores[core], ARMV8A_ITR, ARMV8A_MSR_GP(SYSTEM_DBG_DBGDTR_EL0, 0));
-
-    return (((uint64_t)coreReadReg(&cores[core], ARMV8A_DTRRX)) << 32) | (uint64_t)coreReadReg(&cores[core], ARMV8A_DTRTX);
-  }
-
-  return 0;
-}
-
-uint64_t calcOffset(uint64_t dbgpcsr) {
-  return dbgpcsr & ~3;
-}
-
-uint64_t coreReadPcsr(struct Core *core) {
-  uint64_t dbgpcsr = 0;
-
-  if(core->type == ARMV7A) {
-    dbgpcsr = coreReadReg(core, ARMV7A_PCSR);
-
-  } else if(core->type == ARMV8A) {
-    if(core->enabled) {
-      uint64_t low = coreReadReg(core, ARMV8A_PCSR_L);
-      uint64_t high = coreReadReg(core, ARMV8A_PCSR_H);
-      dbgpcsr = (high << 32) | low;
-    } else {
-      dbgpcsr = 0xffffffff;
-    }
-  }
-
-  if (dbgpcsr == 0xffffffff) {
-    // This happens when
-    // - Non-invasive debug is disabled
-    // - Processor is in a mode or state where non-invasive debug is not permitted
-    // - Processor is in Debug state.
-    return dbgpcsr;
-
-  } else {
-    return calcOffset(dbgpcsr);
-  }
-
-  return 0;
-}
-
-
-
-void coreSetBp(unsigned core, unsigned bpNum, uint64_t addr) {
-  if(cores[core].type == ARMV7A) {
-    coreWriteReg(&cores[core], ARMV7A_BVR(bpNum), addr & ~3);
-    coreWriteReg(&cores[core], ARMV7A_BCR(bpNum), BCR_BAS_ANY | BCR_EN);
-
-  } else if(cores[core].type == ARMV8A) {
-    coreWriteReg(&cores[core], ARMV8A_BVR_L(bpNum), addr & 0xfffffffc);
-    coreWriteReg(&cores[core], ARMV8A_BVR_H(bpNum), (addr >> 32));
-    coreWriteReg(&cores[core], ARMV8A_BCR(bpNum), (1 << 13) | (3 << 1) | BCR_BAS_ANY | BCR_EN);
-    coreWriteReg(&cores[core], ARMV8A_SCR, coreReadReg(&cores[core], ARMV8A_SCR) | (0x1 << 14));
-  }
-}
-
-void coreClearBp(unsigned core, unsigned bpNum) {
-  if(cores[core].type == ARMV7A) {
-    coreWriteReg(&cores[core], ARMV7A_BCR(bpNum), 0);
-  } else if(cores[core].type == ARMV8A) {
-    coreWriteReg(&cores[core], ARMV8A_BCR(bpNum), 0);
-  }
-}
-
-void setBp(unsigned bpNum, uint64_t addr) {
-  for(unsigned j = 0; j < numCores; j++) {
-    if(cores[j].enabled) {
-      coreSetBp(j, bpNum, addr);
-    }
-  }
-}
-
-void clearBp(unsigned bpNum) {
-  for(unsigned j = 0; j < numCores; j++) {
-    if(cores[j].enabled) {
-      coreClearBp(j, bpNum);
-    }
-  }
-}
-
-void coresResume(void) {
-  // FIXME: Does not work if there are several different types of cores in the system
-
-  if(cores[0].type == ARMV7A) {
-    uint32_t dbgdscr;
-
-    // enable halting debug mode for controlling breakpoints
-    dbgdscr = coreReadReg(&cores[0], ARMV7A_DSCR);
-    dbgdscr |= DSCR_HDBGEN;
-    dbgdscr &= ~DSCR_ITREN;
-    coreWriteReg(&cores[0], ARMV7A_DSCR, dbgdscr);
-
-    // clear sticky error and resume
-    coreWriteReg(&cores[0], ARMV7A_DRCR, DRCR_CSE | DRCR_RRQ);
-
-    // wait for restart
-    while(1) {
-      dbgdscr = coreReadReg(&cores[0], ARMV7A_DSCR);
-      if(dbgdscr & DSCR_RESTARTED) {
-        break;
-      }
-      coreWriteReg(&cores[0], ARMV7A_DRCR, DRCR_CSE | DRCR_RRQ);
-    }
-
-  } else if(cores[0].type == ARMV8A) {
-    if(coreHalted(0)) {
-      for(int i = 0; i < numCores; i++) {
-        if(cores[i].enabled) {
-          /* ack */
-          coreWriteReg(&cores[i], ARMV8A_CTIINTACK, HALT_EVENT_BIT);
+        if(i == (numDevices - 1)) {
+          tms = 1 << (dev->irlen - 1);
         }
+
+        recordSeq(dev->irlen, &tdi, &tms, NULL);
+
+      } else {
+        uint8_t tms[4] = {0, 0, 0, 0};
+        uint8_t tdi[4] = {~0, ~0, ~0, ~0};
+
+        if(i == (numDevices - 1)) {
+          // set tms end bit
+          int byte = (dev->irlen-1) / 8;
+          int bit = (dev->irlen-1) % 8;
+          tms[byte] = 1 << bit;
+        }
+
+        recordSeq(dev->irlen, tdi, tms, NULL);
       }
+    }
+    exitIrToIdle();
+  }
+}
 
-      /* Pulse Channel 0 */
-      coreWriteReg(&cores[0], ARMV8A_CTIAPPPULSE, CHANNEL_0);
+static unsigned readWriteDrPre(uint32_t idcode, unsigned *postscan) {
+  int total = 0;
 
-      /* Poll until restarted */
-      while(!(coreReadReg(&cores[0], ARMV8A_PRSR) & (1<<11)));
+  int devNum;
+  for(devNum = 0; devNum < numDevices; devNum++) {
+    struct JtagDevice *dev = &devices[devNum];
+    if(dev->idcode == idcode) {
+      break;
     }
   }
-}
+  if(devNum == numDevices) panic("Can't find device");
 
-bool coreHalted(unsigned core) {
-  if(cores[core].type == ARMV7A) {
-    return coreReadPcsr(&cores[core]) == 0xffffffff;
-
-  } else if(cores[core].type == ARMV8A) {
-    return coreReadReg(&cores[core], ARMV8A_PRSR) & (1 << 4);
+  total = gotoShiftDr();
+  
+  if(postscan) {
+    *postscan = numDevices - devNum - 1;
   }
 
-  return false;
-}
+  if(devNum) {
+    uint8_t tms[MAX_JTAG_DEVICES/8];
+    uint8_t tdi[MAX_JTAG_DEVICES/8];
 
-struct Core coreInitA9(unsigned apSel, uint32_t baddr) {
-  struct Core core;
+    memset(tms, 0, MAX_JTAG_DEVICES/8);
+    memset(tdi, ~0, MAX_JTAG_DEVICES/8);
 
-  core.type = ARMV7A;
-  core.core = CORTEX_A9;
-  core.ap = apSel;
-  core.baddr = baddr;
-  core.enabled = true;
-  printf("        Enabled\n");
-
-  return core;
-}
-
-void coreInitArmV8(unsigned apSel, uint32_t baddr, struct Core *core) {
-  core->type = ARMV8A;
-  core->ap = apSel;
-  core->baddr = baddr;
-  core->enabled = coreReadReg(core, ARMV8A_PRSR) & 1;
-
-  if(core->enabled) {
-    printf("        Enabled\n");
-    
-    /* enable CTI */
-    coreWriteReg(core, ARMV8A_CTICONTROL, 1);
-
-    /* send channel 0 and 1 out to other PEs */
-    coreWriteReg(core, ARMV8A_CTIGATE, CHANNEL_1 | CHANNEL_0);
-
-    /* generate channel 1 event on halt trigger */
-    coreWriteReg(core, ARMV8A_CTIINEN(HALT_EVENT), CHANNEL_1);
-
-    /* halt on channel 1 */
-    coreWriteReg(core, ARMV8A_CTIOUTEN(HALT_EVENT), CHANNEL_1);
-
-    /* restart on channel 0 */
-    coreWriteReg(core, ARMV8A_CTIOUTEN(RESTART_EVENT), CHANNEL_0);
-
-  } else {
-    printf("        Disabled\n");
+    recordSeq(devNum, tdi, tms, NULL);
+    total += devNum;
   }
+
+  return total;
 }
 
-struct Core coreInitA53(unsigned apSel, uint32_t baddr) {
-  struct Core core;
+static unsigned readWriteDrPost(unsigned postscan) {
+  // postscan
+  if(postscan) {
+    uint8_t tms[MAX_JTAG_DEVICES/8];
+    uint8_t tdi[MAX_JTAG_DEVICES/8];
 
-  core.core = CORTEX_A53;
-  coreInitArmV8(apSel, baddr, &core);
+    memset(tms, 0, MAX_JTAG_DEVICES/8);
+    memset(tdi, ~0, MAX_JTAG_DEVICES/8);
 
-  return core;
+    int byte = (postscan-1) / 8;
+    int bit = (postscan-1) % 8;
+    tms[byte] = 1 << bit;
+
+    recordSeq(postscan, tdi, tms, NULL);
+  }
+
+  return postscan + exitDrToIdle();
 }
 
-struct Core coreInitA57(unsigned apSel, uint32_t baddr) {
-  struct Core core;
+static void dpLowAccessFast(uint8_t RnW, uint16_t addr, uint32_t value, bool discard) {
+  bool apndp = addr & APNDP;
+  addr &= 0xff;
 
-  core.core = CORTEX_A57;
-  coreInitArmV8(apSel, baddr, &core);
+  uint16_t initPos = seqSize;
 
-  return core;
+  writeIrInt(dpIdcode, apndp ? JTAG_IR_APACC : JTAG_IR_DPACC);
+
+  fillByte();
+
+  uint16_t loopPos = seqSize;
+
+  unsigned postscan;
+  readWriteDrPre(dpIdcode, &postscan);
+
+  uint16_t ackPos = seqSize;
+
+  { // addr + readbit
+    uint8_t tdi = ((addr >> 1) & 0x06) | (RnW?1:0);
+    uint8_t tms = 0;
+    recordSeq(3, &tdi, &tms, NULL);
+    fastBitsToRead += 3;
+  }
+
+  { // value
+    uint8_t tms[4];
+    memset(tms, 0, 4);
+
+    if(!postscan) {
+      tms[3] = 0x80;
+    }
+    recordSeq(32, (uint8_t*)&value, tms, NULL);
+
+    if(!discard) fastBitsToRead += 32;
+  }
+
+  readWriteDrPost(postscan);
+
+  fillByte();
+
+  uint16_t endPos = seqSize;
+
+  recordCommand(!discard, initPos, loopPos, ackPos, endPos);
 }
 
-struct Core coreInitDenver2(unsigned apSel, uint32_t baddr) {
-  struct Core core;
+static void dpReadFast(uint16_t addr) {
+  dpLowAccessFast(LOW_READ, addr, 0, true);
+  dpLowAccessFast(LOW_READ, DP_RDBUFF, 0, false);
+}
 
-  core.core = DENVER_2;
-  coreInitArmV8(apSel, baddr, &core);
+static void dpWriteFast(uint16_t addr, uint32_t value) {
+  dpLowAccessFast(LOW_WRITE, addr, value, true);
+}
 
-  return core;
+static void apWriteFast(unsigned apSel, uint16_t addr, uint32_t value) {
+  dpWriteFast(DP_SELECT, ((uint32_t)apSel << 24)|(addr & 0xF0));
+  dpWriteFast(addr, value);
+}
+
+static void coreReadRegFast(struct Core core, uint16_t reg) {
+  uint32_t addr = core.baddr + 4*reg;
+  apWriteFast(core.ap, AP_TAR, addr);
+  dpReadFast(AP_DRW);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void jtagInit(void) {
+void writeIr(uint32_t idcode, uint32_t ir) {
+  startRec();
+  writeIrInt(idcode, ir);
+  sendRec();
 }
 
-void parseDebugEntry(unsigned apSel, uint32_t compBase) {
+void readWriteDr(uint32_t idcode, uint8_t *din, uint8_t *dout, int size) {
+  startRec();
+  unsigned postscan;
+  readWriteDrPre(idcode, &postscan);
+  sendRec();
+
+  startRec();
+
+  uint8_t tms[256];
+  assert(size <= 256);
+  memset(tms, 0, size);
+
+  if(!postscan) {
+    int byte = (size-1) / 8;
+    int bit = (size-1) % 8;
+    tms[byte] = 1 << bit;
+  }
+
+  recordSeq(size, din, tms, NULL);
+  if(dout) readWriteRec(dout);
+  else sendRec();
   
-  // read CIDR1
-  uint32_t addr = compBase + 0xff4;
-  apWrite(apSel, AP_TAR, addr);
-  uint32_t cidr1 = dpRead(AP_DRW);
+  startRec();
+  readWriteDrPost(postscan);
+  sendRec();
+}
 
-  if((cidr1 & 0xf0) == 0x10) { // is a ROM
-    bool done = false;
-    uint32_t entryAddr = compBase;
+uint32_t dpLowAccess(uint8_t RnW, uint16_t addr, uint32_t value) {
+  bool apndp = addr & APNDP;
+  addr &= 0xff;
+  uint8_t ack = JTAG_ACK_WAIT;
 
-    printf("  Got ROM at %x\n", (unsigned)compBase);
+  uint8_t response_buf[5];
+  int tries = 1024;
 
-    while(!done) {
-      // read entry
-      apWrite(apSel, AP_TAR, entryAddr);
-      uint32_t entry = dpRead(AP_DRW);
+  startRec();
+  writeIrInt(dpIdcode, apndp ? JTAG_IR_APACC : JTAG_IR_DPACC);
 
-      if(!entry) done = true;
+  fillByte();
 
-      // else
-      if(entry & 1) { // entry is valid
-        parseDebugEntry(apSel, compBase + (entry & 0xfffff000));
+  unsigned ackPos;
+  unsigned dataPos;
+
+  while(tries > 0 && ack == JTAG_ACK_WAIT) {
+    // create sequence
+
+    unsigned postscan;
+    readWriteDrPre(dpIdcode, &postscan);
+
+    { // addr + readbit
+      uint8_t tdi = ((addr >> 1) & 0x06) | (RnW?1:0);
+      uint8_t tms = 0;
+      uint8_t read = 0x07;
+      ackPos = seqSize;
+      recordSeq(3, &tdi, &tms, &read);
+    }
+
+    { // value
+      uint8_t tms[4];
+      uint8_t read[4];
+      memset(tms, 0, 4);
+      if(RnW) memset(read, 0xff, 4);
+      else memset(read, 0, 4);
+
+      if(!postscan) {
+        tms[3] = 0x80;
       }
 
-      entryAddr += 4;
+      dataPos = seqSize;
+      recordSeq(32, (uint8_t*)&value, tms, read);
     }
 
-  } else if((cidr1 & 0xf0) == 0x90) { // is debug component
-    // read PIDR
+    readWriteDrPost(postscan);
 
-    uint32_t addr0 = compBase + 0xfe0;
-    apWrite(apSel, AP_TAR, addr0);
-    uint32_t pidr0 = dpRead(AP_DRW);
-                      
-    uint32_t addr1 = compBase + 0xfe4;
-    apWrite(apSel, AP_TAR, addr1);
-    uint32_t pidr1 = dpRead(AP_DRW);
-                      
-    uint32_t addr2 = compBase + 0xfe8;
-    apWrite(apSel, AP_TAR, addr2);
-    uint32_t pidr2 = dpRead(AP_DRW);
-                      
-    uint32_t addr4 = compBase + 0xfd0;
-    apWrite(apSel, AP_TAR, addr4);
-    uint32_t pidr4 = dpRead(AP_DRW);
-                      
-    printf("    Got Entry at %x: %x %x %x %x\n", (unsigned)compBase, (unsigned)pidr0, (unsigned)pidr1, (unsigned)pidr2, (unsigned)pidr4);
+    fillByte();
 
-    /* if(((pidr0 & 0xff) == 0x15) && // found a Cortex R5 */
-    /*    ((pidr1 & 0xff) == 0xbc) && */
-    /*    ((pidr2 & 0x0f) == 0xb) && */
-    /*    ((pidr4 & 0x0f) == 0x4)) { */
+    readWriteRec(response_buf);
 
-    /*   cores[numCores] = coreInitR5(apSel, compBase); */
-    /*   if(cores[numCores].enabled) numEnabledCores++; */
+    ack = extractAck(&ackPos, response_buf);
 
-    /*   numCores++; */
-
-    /* } else */
-
-    if(((pidr0 & 0xff) == 0x9) && // found a Cortex A9
-       ((pidr1 & 0xff) == 0xbc) &&
-       ((pidr2 & 0x0f) == 0xb) &&
-       ((pidr4 & 0x0f) == 0x4)) {
-
-      printf("      Found Cortex A9\n");
-
-      cores[numCores] = coreInitA9(apSel, compBase);
-      if(cores[numCores].enabled) numEnabledCores++;
-
-      numCores++;
-
-    } else if(((pidr0 & 0xff) == 0x3) && // found a Cortex A53
-             ((pidr1 & 0xff) == 0xbd) &&
-             ((pidr2 & 0x0f) == 0xb) &&
-             ((pidr4 & 0x0f) == 0x4)) {
-
-      printf("      Found Cortex A53\n");
-
-      cores[numCores] = coreInitA53(apSel, compBase);
-      if(cores[numCores].enabled) numEnabledCores++;
-
-      numCores++;
-
-    } else if(((pidr0 & 0xff) == 0x7) && // found a Cortex A57
-             ((pidr1 & 0xff) == 0xbd) &&
-             ((pidr2 & 0x0f) == 0xb) &&
-             ((pidr4 & 0x0f) == 0x4)) {
-
-      printf("      Found Cortex A57\n");
-
-      cores[numCores] = coreInitA57(apSel, compBase);
-      if(cores[numCores].enabled) numEnabledCores++;
-
-      numCores++;
-
-    /* } else if(((pidr0 & 0xff) == 0x2) && // found a Denver 2 */
-    /*          ((pidr1 & 0xff) == 0xb3) && */
-    /*          ((pidr2 & 0x0f) == 0xe) && */
-    /*          ((pidr4 & 0x0f) == 0x3)) { */
-
-    /*   printf("      Found Denver 2\n"); */
-
-    /*   cores[numCores] = coreInitDenver2(apSel, compBase); */
-    /*   if(cores[numCores].enabled) numEnabledCores++; */
-
-    /*   numCores++; */
-    }
+    tries--;
+    startRec();
   }
+
+  if(ack == JTAG_ACK_WAIT) {
+    panic("Error: Invalid ACK (ack == JTAG_ACK_WAIT)\n");
+  } else if(ack != JTAG_ACK_OK) {
+    panic("Error: Invalid ACK (%x != JTAG_ACK_OK)\n", ack);
+  }
+
+  return extractWord(&dataPos, response_buf);
 }
 
-bool jtagInitCores(struct JtagDevice *devlist) {
+int getNumDevices(void) {
+  uint8_t tdi[MAX_JTAG_DEVICES/8];
+  uint8_t tms[MAX_JTAG_DEVICES/8];
+
+  startRec();
+
+  // set all devices in bypass by sending lots of 1s into the IR
+  gotoShiftIr();
+  memset(tdi, 0xff, MAX_JTAG_DEVICES/8);
+  memset(tms, 0, MAX_JTAG_DEVICES/8);
+  tms[(MAX_JTAG_DEVICES/8)-1] = 0x80;
+  recordSeq(MAX_JTAG_DEVICES, tdi, tms, NULL);
+
+  // flush DR with 0
+  exitIrToShiftDr();
+  memset(tdi, 0, MAX_JTAG_DEVICES/8);
+  memset(tms, 0, MAX_JTAG_DEVICES/8);
+  recordSeq(MAX_JTAG_DEVICES, tdi, tms, NULL);
+
+  sendRec();
+
+  // find numDevices by sending 1s until we get one back
+  int num;
+
+  for(num = 0; num < MAX_JTAG_DEVICES; num++) {
+    uint8_t tms = 0;
+    uint8_t tdi = 0x01;
+    uint8_t tdo;
+
+    readWriteSeq(1, &tdi, &tms, &tdo);
+    if(tdo & 1) break;
+  }
+
   gotoResetThenIdle();
 
-  // query chain
-  if(!queryChain(devlist)) {
-    return false;
+  return num;
+}
+
+void getIdCodes(uint32_t *idcodes) {
+  startRec();
+  gotoShiftDr();
+  sendRec();
+
+  for(int i = 0; i < numDevices; i++) {
+    uint8_t tms[4] = {0, 0, 0, 0};
+    uint8_t tdi[4] = {0, 0, 0, 0};
+    uint8_t tdo[4];
+
+    readWriteSeq(32, tdi, tms, tdo);
+
+    unsigned pos = 0;
+
+    *idcodes++ = extractWord(&pos, tdo);
   }
 
-  printf("Num devices: %d\n", numDevices);
+  gotoResetThenIdle();
+}
 
-  /* // attempt to enable debug access */
-  /* if(devices[0].idcode == PS_TAP_IDCODE) { */
-  /*   printf("Enabling DAP access\n"); */
-  /*   uint8_t jtagCtrl[4] = {(JTAG_CTRL_ARM_DAP | JTAG_CTRL_PL_TAP), 0, 0, 0}; */
-  /*   writeIr(PS_TAP_IDCODE, PS_JTAG_CTRL); */
-  /*   readWriteDr(PS_TAP_IDCODE, (uint8_t*)&jtagCtrl, NULL, 32); */
-  /*   queryChain(); */
-  /* } */
+void gotoResetThenIdle(void) {
+  uint8_t tms = 0x1f;
+  uint8_t tdi = 0;
 
-  { // find TAP
-    bool found = false;
+  readWriteSeq(6, &tdi, &tms, NULL);
+}
 
-    for(int i = 0; i < numDevices; i++) {
-      if((devices[i].idcode & 0x0fffffff) == ARM_TAP_IDCODE) {
-        dpInit(devices[i].idcode);
-        found = true;
-        break;
-      }
-    }
+#if 0
 
-    if(!found) {
-      printf("TAP not found\n");
-      return false;
-    }
-  }
+void coreReadPcsrInit(void) {
+}
 
-  { // find APs and cores
-    numCores = 0;
-    numEnabledCores = 0;
-
-    for(int i = 0; i < MAX_APS; i++) {
-      uint32_t idr = apRead(i, AP_IDR);
-      uint32_t base = apRead(i, AP_BASE);
-      uint32_t cfg = apRead(i, AP_CFG);
-
-      if((idr & 0x0fffff0f) == IDR_APB_AP) {
-        printf("Found APB AP (%d) idr %x base %x cfg %x\n", i, (unsigned)idr, (unsigned)base, (unsigned)cfg);
-
-        if(base == ~0) { // legacy format, not present
-          
-        } else if((base & 0x3) == 0) { // legacy format, present
-          apWrite(i, AP_CSW, 0x80000042);
-          parseDebugEntry(i, base & 0xfffff000);
-
-        } else if((base & 0x3) == 0x3) { // debug entry is present
-          apWrite(i, AP_CSW, 0x80000042);
-          parseDebugEntry(i, base & 0xfffff000);
-        }
-
-      } else if((idr & 0x0fffff0f) == IDR_AXI_AP) {
-        printf("Found AXI AP (%d) idr %x base %x cfg %x\n", i, (unsigned)idr, (unsigned)base, (unsigned)cfg);
-
-        apSelMem = i;
-        mem64 = cfg & 2;
-        if(mem64) {
-          printf("  64 bit AXI memory space\n");
-        }
-
-      } else if((idr & 0x0fffff0f) == IDR_AHB_AP) {
-        printf("Found AHB AP (%d)\n", i);
-
-        apSelMem = i;
-        mem64 = false;
-
-      } else if(idr != 0) {
-        printf("Found unknown AP %x (%d)\n", (unsigned)idr, i);
-      }
+bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
+  for(unsigned i = 0; (i < numCores) && (i < MAX_CORES); i++) {
+    if(cores[i].enabled) {
+      pcs[i] = coreReadPcsr(&cores[i]);
     }
   }
 
-  if(numCores == 0) {
-    printf("No cores found\n");
-    return false;
+  if(cores[0].type == ARMV8A) {
+    *halted = coreHalted(stopCore);
+  } else {
+    *halted = pcs[0] == 0xffffffff;
   }
-
-  printf("Number of cores: %d. Number of enabled cores: %d\n", numCores, numEnabledCores);
-
-  coreReadPcsrInit();
-
-  // get num breakpoints
-  unsigned numBps = 0;
-  if(cores[0].type == ARMV7A) {
-    numBps = ((coreReadReg(&cores[0], ARMV7A_DIDR) >> 24) & 0xf) + 1;
-  } else if(cores[0].type == ARMV8A) {
-    numBps = ((coreReadReg(&cores[0], ARMV8A_DFR0) >> 12) & 0xf) + 1;
-  }
-
-  printf("Number of HW breakpoints: %d\n", numBps);
-
-  // clear all breakpoints
-  for(unsigned j = 0; j < numCores; j++) {
-    if(cores[j].enabled) {
-      for(unsigned i = 0; i < numBps; i++) {
-        coreClearBp(j, i);
-      }
-    }
-  }
-
-  printf("JTAG chain init done\n");
 
   return true;
 }
+
+#else
+
+void coreReadPcsrInit(void) {
+  startRec();
+
+  fastBitsToRead = 0;
+
+  lastIr = -1;
+
+  for(int i = 0; i < numCores; i++) {
+    if(cores[i].type == ARMV7A) {
+      coreReadRegFast(cores[i], ARMV7A_PCSR);
+
+    } else if(cores[0].type == ARMV8A) {
+      if(cores[i].enabled) {
+        coreReadRegFast(cores[i], ARMV8A_PCSR_L);
+        coreReadRegFast(cores[i], ARMV8A_PCSR_H);
+      }
+    }
+  }
+
+  if(cores[stopCore].type == ARMV8A) {
+    coreReadRegFast(cores[stopCore], ARMV8A_PRSR);
+  }
+
+  //outputSpiCommands = true;
+  storeRec();
+  //outputSpiCommands = false;
+}
+
+bool coreReadPcsrFast(uint64_t *pcs, bool *halted) {
+  *halted = false;
+  uint32_t *words;
+
+  executeSeq();
+
+  words = getWords();
+
+  unsigned core = 0;
+
+  for(unsigned i = 0; i < numCores; i++) {
+    if(cores[i].enabled) {
+      if(cores[i].type == ARMV7A) {
+        uint32_t dbgpcsr = *words++;
+
+        if(i < MAX_CORES) {
+          if(dbgpcsr == 0xffffffff) {
+            pcs[i] = dbgpcsr;
+          } else {
+            pcs[i] = calcOffset(dbgpcsr);
+          }
+        }
+      } else if(cores[0].type == ARMV8A) {
+        uint32_t dbgpcsrLow = *words++;
+        uint32_t dbgpcsrHigh = *words++;
+
+        uint64_t dbgpcsr = ((uint64_t)dbgpcsrHigh << 32) | dbgpcsrLow;
+
+        if(i < MAX_CORES) {
+          if(dbgpcsr == 0xffffffff) {
+            pcs[i] = 0;
+          } else {
+            pcs[i] = calcOffset(dbgpcsr);
+          }
+        }
+      }
+
+      core++;
+
+    } else {
+      if(i < MAX_CORES) {
+        pcs[i] = 0;
+      }
+    }
+  }
+
+  if(cores[stopCore].type == ARMV8A) {
+    uint32_t prsr = *words++;
+
+    *halted = prsr & (1 << 4);
+
+  } else if(cores[stopCore].type == ARMV7A) {
+    if(pcs[stopCore] == 0xffffffff) *halted = true;
+    else *halted = false;
+  }
+
+  return true;
+}
+
+#endif

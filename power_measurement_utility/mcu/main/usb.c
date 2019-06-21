@@ -28,8 +28,7 @@
 #include "usb.h"
 #include "adc.h"
 #include "config.h"
-#include "jtag.h"
-#include "fpga.h"
+#include "arm.h"
 #include "../common/usbprotocol.h"
 
 #include "descriptors.h"
@@ -188,7 +187,6 @@ static void finalizeUpgrade(struct UpgradeFinaliseRequestPacket *finalizeRequest
 
 static void initJtag(struct JtagInitRequestPacket *jtagInitRequest) {
   printf("Init JTAG chain\n");
-  jtagInt();
   if(!jtagInitCores(jtagInitRequest->devices)) {
     panic("Can't init JTAG\n");
   }
@@ -471,8 +469,6 @@ static int initSent(USB_Status_TypeDef status, uint32_t xf, uint32_t remaining) 
   calInfo.gain[6] = getDouble("gain6");
 
   sendBuf(&calInfo, sizeof(struct CalInfoPacket));
-
-  jtagExt();
 
   return USB_STATUS_OK;
 }
