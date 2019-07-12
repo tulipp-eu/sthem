@@ -204,6 +204,7 @@ int main(int const argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--") == 0 && (i + 1) < argc) {
             argsStart = &argv[i + 1];
+            break;
         }
     }
 
