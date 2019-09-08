@@ -23,26 +23,31 @@ struct VMMaps getProcessVMMaps(pid_t pid, unsigned int const limit) {
     struct VMMap map = {};
     struct VMMaps result = {};
     char cmd[1024];
+    char buf[1024];
     if (snprintf(cmd,1024,"pmap -q -d %d | awk '$3 ~ /x/ && $5 != \"000:00000\" {print \"0x\"$1\" \"$2\" \"$6}'", pid) <= 0) {
+        printf("early\n");
         return result;
     }
     FILE *ps = popen(cmd, "r");
-    while (fscanf(ps,"%lx %lu %"STRINGIFY(VMMAP_LABEL_LENGTH)"s", &map.addr, &map.size, map.label) == 3) {
-        if (result.count == 0) {
-            result.maps = (struct VMMap *) malloc(allocCount * sizeof(struct VMMap));
-        } else if (allocCount <= result.count) {
-            allocCount *= 2;
-            result.maps = (struct VMMap *) realloc(result.maps, allocCount * sizeof(struct VMMap));
+    while (fgets(buf, sizeof(buf), ps) != NULL) {
+        if (sscanf(buf,"%lx %lu %"STRINGIFY(VMMAP_LABEL_LENGTH)"s", &map.addr, &map.size, map.label) == 3) {
+            if (result.count == 0) {
+                result.maps = (struct VMMap *) malloc(allocCount * sizeof(struct VMMap));
+            } else if (allocCount <= result.count) {
+                allocCount *= 2;
+                result.maps = (struct VMMap *) realloc(result.maps, allocCount * sizeof(struct VMMap));
+            }
+            if (result.maps == NULL) {
+                printf("mem\n");
+                break;
+            }
+            //kilobyte to byte
+            map.size *= 1024;
+            memcpy((void *) &result.maps[result.count], (void *) &map, sizeof(struct VMMap));
+            result.count++;
+            if (limit == result.count) break;
+            memset((void *) &map, '\0', sizeof(struct VMMap));
         }
-        if (result.maps == NULL) {
-            break;
-        }
-        //kilobyte to byte
-        map.size *= 1024;
-        memcpy((void *) &result.maps[result.count], (void *) &map, sizeof(struct VMMap));
-        result.count++;
-        if (limit == result.count) break;
-        memset((void *) &map, '\0', sizeof(struct VMMap));
     }
     pclose(ps);
 

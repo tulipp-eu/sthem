@@ -14,6 +14,22 @@
 
 #include "vmmap.h"
 
+#ifdef WITHSAMPLESYMBOLS
+#ifdef __cplusplus
+extern "C" {
+#endif
+    void __attribute__((noinline)) sampleStart() {
+        asm volatile ("NOP");
+    }
+
+    void __attribute__((noinline)) sampleStop() {
+        asm volatile ("NOP");
+    }
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 struct pidList {
     uint64_t count;
     pid_t *pids;
@@ -220,7 +236,11 @@ int main(int const argc, char **argv) {
 
     long rptrace;
     uint64_t interrupts = 0;
-    
+
+#ifdef WITHSAMPLESYMBOLS
+    sampleStart();
+#endif
+
     do {
         targetPid = fork();
     } while (targetPid == -1 && errno == EAGAIN);
@@ -242,11 +262,9 @@ int main(int const argc, char **argv) {
             }
             fprintf(stderr, "\n");
             return 1;
-            
         }
     } else {
         int status;
-
         do {
             intrTarget = waitpid(targetPid, &status, 0);
         } while (intrTarget == -1 && errno == EAGAIN);
@@ -261,7 +279,6 @@ int main(int const argc, char **argv) {
             fprintf(stderr, "ERROR: Could not set ptrace options!\n");
             ret = 1; goto exitWithTarget;
         }
-        
         struct VMMaps targetMap = getProcessVMMaps(targetPid, 1);
         if (targetMap.count == 0) {
             fprintf(stderr, "ERROR: could not find process memory mapping!\n");
@@ -379,6 +396,7 @@ int main(int const argc, char **argv) {
             intrTarget = waitpid(targetPid, &status, 0);
         } while (intrTarget == -1 && errno == EAGAIN);
 
+
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             ret = 0;
         } else {
@@ -399,6 +417,10 @@ int main(int const argc, char **argv) {
     ptrace(PTRACE_DETACH, targetPid, NULL, NULL);
  exit:
     
+#ifdef WITHSAMPLESYMBOLS
+    sampleStop();
+#endif
+
     if (vmmapFilename) {
         free(vmmapFilename);
     }
